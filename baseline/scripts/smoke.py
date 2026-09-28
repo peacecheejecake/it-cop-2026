@@ -15,6 +15,7 @@ from riskbench.metrics import evaluate
 
 def main():
     p=argparse.ArgumentParser(); p.add_argument('--out', required=True); p.add_argument('--neural', action='store_true')
+    p.add_argument('--device', choices=['cpu','mps','cuda','auto'], default='cpu')
     a=p.parse_args(); root=new_dir(a.out)
     raw=make_demo(str(root/'raw'))
     split_public(raw['public'],str(root/'split'),'2024-03-01T00:00:00Z','2024-04-01T00:00:00Z')
@@ -28,7 +29,7 @@ def main():
         torch.set_num_threads(1)
         from riskbench.neural import train_neural
         for mode in ('frozen','finetune'):
-            train_neural(train,valid,str(root/'models'/mode),'demo-random',mode,epochs=2,batch_size=8,accumulation=3,device='cpu')
+            train_neural(train,valid,str(root/'models'/mode),'demo-random',mode,epochs=2,batch_size=8,accumulation=3,device=a.device)
     select_examples(train,str(root/'examples.json'),k=4)
     config={'base_url':'http://127.0.0.1:9999/v1','model':'MOCK-NO-LLM','model_revision_tag':'synthetic-test-only',
             'json_mode':True,'max_output_tokens':128,'max_retries':0,'retry_backoff_seconds':0,
@@ -44,7 +45,7 @@ def main():
     if a.neural:
         from riskbench.neural import predict_neural
         for mode in ('frozen','finetune'):
-            predict_neural(str(root/'models'/mode),target,path(mode),mode,batch_size=8,device='cpu',lock=lock)
+            predict_neural(str(root/'models'/mode),target,path(mode),mode,batch_size=8,device=a.device,lock=lock)
     for mode in ('zero','few'):
         predict_llm(str(root/'llm.yaml'),target,path(mode),'MOCK-'+mode,
                     str(root/'examples.json') if mode=='few' else None,lock,transport=mock_transport())

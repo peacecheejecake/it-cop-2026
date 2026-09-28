@@ -47,6 +47,32 @@ def test_safe_checkpoint_roundtrip(tmp_path):
     assert torch.allclose(before,after)
 
 
+needs_mps=pytest.mark.skipif(not torch.backends.mps.is_available(),reason='Apple MPS unavailable')
+
+
+@needs_mps
+def test_mps_step_matches_cpu():
+    torch.manual_seed(42);ref=RiskNet(DemoEncoder(),False)
+    nets={}
+    for dev in ('cpu','mps'):
+        net=RiskNet(DemoEncoder(),False);net.load_state_dict(ref.state_dict());net.to(dev)
+        # SGD, not Adam: Adam rescales float-noise gradients (e.g. attention key bias, ~0 by symmetry) into lr-sized steps.
+        opt=torch.optim.SGD(net.parameters(),lr=.01)
+        stats=train_epoch(net,_batch(),opt,torch.device(dev),accumulation=2)
+        nets[dev]=(stats,{k:v.detach().cpu() for k,v in net.state_dict().items()})
+    assert nets['cpu'][0]['optimizer_steps']==nets['mps'][0]['optimizer_steps']
+    assert nets['cpu'][0]['loss']==pytest.approx(nets['mps'][0]['loss'],rel=1e-4)
+    for k,v in nets['cpu'][1].items():
+        assert torch.allclose(v,nets['mps'][1][k],atol=1e-5),k
+
+
+@needs_mps
+def test_complete_neural_train_on_mps(data):
+    out=data['root']/'finetune-mps'
+    train_neural(data['train'],data['valid'],str(out),'demo-random','finetune',epochs=1,batch_size=8,accumulation=3,device='mps')
+    assert read_json(out/'model.json')['device']=='mps'
+
+
 def test_complete_neural_train_uses_public_only(data):
     torch.set_num_threads(1)
     for mode in ('frozen','finetune'):
