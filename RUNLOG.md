@@ -54,15 +54,40 @@
 
 주의: MPS 연산은 CUDA의 `cudnn.deterministic`에 해당하는 결정성 보장이 없다. 같은 seed라도 CPU/CUDA와 bitwise 동일하지 않으며, seed 간 분산 보고(README §4) 원칙은 그대로 적용된다. `PYTORCH_ENABLE_MPS_FALLBACK`은 설정하지 않는다 — 미지원 연산이 조용히 CPU로 넘어가지 않고 크게 실패하도록 둔다.
 
-## 다음 단계 (사용자 승인/외부 리소스 필요)
+## 범위 결정 (사용자 결정, 2026-09-28)
 
-README 순서상 다음 단계들은 이 샌드박스에서 바로 진행할 수 없고, 각기 다른 승인/리소스가 필요해 **진행 전에 확인이 필요함**:
+- **C/D(LLM) 제외**: 승인된 OpenAI-compatible endpoint가 없음. endpoint가 준비되면 별도 실험으로 진행.
+- **§6 내부 데이터 제외**: 이 환경에 내부 export(manifest.csv, patches/)가 없음. 따라서 `freeze`/내부 평가는 수행하지 않고 공개 test까지만 비교.
+- **전체 ApacheJIT 사용**: `--limit` 샘플이 아닌 전체 106,674 커밋. 원본/저장소/CodeBERT/canonical은 이후 실험과 공유하도록 `experiments/.cache/`에 둔다(AGENTS.md §1.4).
 
-1. ~~`.[neural,dev]` 설치 + `scripts/smoke.py --neural`~~ — 완료 (위 MPS 점검 참고).
-2. §2 `riskbench fetch-apache` / `build-apache --allow-network` — Zenodo ZIP 다운로드 + 공개 Git repository mirror clone. 외부 네트워크 허용 여부와 용량(디스크) 확인 필요.
-3. §3 `riskbench download-codebert` — HuggingFace에서 CodeBERT 가중치 다운로드.
-4. §4 실제 학습(A/B) — 이 맥의 MPS로 진행 가능(`--device mps` 명시 권장, `--allow-cpu-training` 불필요). 전체 공개 train 규모에 따라 수 시간~수십 시간 소요.
-5. §5 LLM(C/D) — 승인된 OpenAI-compatible endpoint와 `LLM_API_KEY` 필요. Gemini/Anthropic native API는 baseline이 지원하지 않음.
-6. §6 내부 데이터 연결 — 실제 내부 export(manifest.csv, patches/)가 있어야 함. 사내 정책상 원본 코드 반출 금지 시 외부 LLM API로 대체 불가(README 명시).
+## §2-1 fetch-apache — 회사 TLS 검사 프록시 대응
 
-AGENTS.md §1.5에 따라 이 단계들은 조용히 mock으로 대체하지 않고, 실행 전에 필요한 리소스/승인을 먼저 확보한다.
+- 이 네트워크는 사내 TLS 검사 프록시가 일부 도메인(zenodo.org 등)의 TLS를 가로챈다. huggingface.co·github.com(git)은 가로채지 않거나 시스템 신뢰 저장소로 통과한다.
+- 조치 1 (사용자 승인): 이 실험 venv의 `certifi/cacert.pem`에만 사내 프록시 루트 CA(macOS System 키체인에서 추출)를 추가했다.
+- 조치 2 (사용자 승인): 그래도 Python 3.13의 기본 `VERIFY_X509_STRICT`가 프록시가 만든 zenodo.org 인증서(Authority Key Identifier 누락)를 거부했다. `scripts/fetch_apache_relaxed_tls.py`로 **이 프로세스에서만** strict 플래그를 끄고 riskbench의 `fetch-apache`를 그대로 호출했다. 무결성은 riskbench의 pinned MD5 검사로 보장된다.
+- 결과: MD5 `528bf0ee04b15976be6bf15f8efddc65`(pin 일치), CSV SHA-256 `5097cbbb…d4e0`, 106,674행, 15개 프로젝트. → `experiments/.cache/raw/apachejit-v2/`
+
+## §3-1 download-codebert
+
+`riskbench download-codebert --out models/codebert-base` → `microsoft/codebert-base` revision `3b0952feddeffad0063f274080e3c23d75e7eb39`. → `experiments/.cache/models/codebert-base/`
+
+## §2-2 build-apache — 저장소 clone 문제와 해결
+
+첫 시도: `build-apache --limit 300 --seed 42 --allow-network` → **중단함**.
+- baseline의 clone은 `git clone --mirror`를 **저장소당 1200초 제한**으로 실행한다. `--mirror`는 GitHub의 `refs/pull/*`까지 받아 크기가 커지고, 프록시 경유 약 3 MB/s에서는 hadoop, hadoop-mapreduce, kafka가 시간 초과로 `repository_clone_failed` 처리됐다. 그 결과 샘플 300개 중 42개(14%)가 **프로젝트 단위로 조용히 빠지는 편향**이 생겼다.
+- spark는 `--mirror`로 1.1 GB를 넘기고도 끝나지 않았지만, `--bare`(브랜치·태그만)로는 653 MB에 완료됐다.
+- **upstream 반영 후보**: clone timeout이 짧으면 프로젝트 단위 누락이 생긴다. `--mirror` 대신 heads/tags만 받거나 timeout을 설정 가능하게 해야 한다.
+
+해결 (README §2-2의 오프라인 경로):
+- 이미 받은 9개(`--mirror`)는 그대로 캐시로 옮기고, 나머지 6개(hadoop, hadoop-mapreduce, kafka, spark, zeppelin, zookeeper)는 `git clone --bare`로 시간 제한 없이 받았다. 15개 모두 exit 0, 합계 약 8.9 GB. → `experiments/.cache/git/apache/`
+- 이후 `--allow-network` 없이 실행한다:
+  ```bash
+  caffeinate -i riskbench build-apache --csv data/raw/apachejit-v2/apachejit_total.csv \
+    --repos data/git --out ../../.cache/canonical/apachejit-full
+  ```
+  diff 추출은 약 66 ms/커밋(camel 40개 측정)이므로 전체는 약 2시간이 예상된다.
+
+## 남은 단계 계획
+
+split-public(README 기본 2016/2017 경계, `--allow-retrospective`) → prepare(train/valid/test) → train-tabular → train-codebert frozen(A) / finetune(B) `--device mps` → predict_suite(공개 test, rule/tabular/frozen/finetune).
+CSV의 연도 기준 예상 크기는 train 약 66k, valid 약 10.6k, test 약 30k다. B는 epoch당 약 2.2시간, 최대 5 epoch으로 추정한다.
