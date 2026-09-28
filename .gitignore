@@ -1,0 +1,5 @@
+.DS_Store
+
+# each experiment is its own git worktree/branch; keep its contents out of main
+experiments/*/
+!experiments/CLAUDE.md
