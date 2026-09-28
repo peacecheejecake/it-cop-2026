@@ -3,3 +3,6 @@
 # each experiment is its own git worktree/branch; keep its contents out of main
 experiments/*/
 !experiments/CLAUDE.md
+
+# shared-cache symlinks inside an experiment worktree (baseline/.gitignore's `models/` only matches directories)
+baseline/models
