@@ -55,6 +55,7 @@ python scripts/smoke.py --out runs/smoke-core   # neural이면 --neural 추가
   ```
 - 공유 캐시는 읽기 전용으로 취급한다. split/view/모델/실행 결과(`data/splits`, `data/views`, `runs/`)는 프로토콜마다 달라지므로 실험 디렉토리 안에 만든다.
 - `build-apache --allow-network`의 clone은 저장소당 1200초 제한이 있어, 느린 네트워크에서는 대형 저장소(hadoop 등)가 통째로 `repository_clone_failed`로 빠진다. 저장소는 캐시에 미리 `git clone --bare`로 받아 두고 build-apache는 `--allow-network` 없이 실행한다(README §2-2의 오프라인 경로).
+- `hadoop-hdfs.git`, `hadoop-mapreduce.git`은 GitHub 축소본이라 ApacheJIT 커밋의 60~80%가 없다. 이 커밋들은 `hadoop.git`에 같은 SHA로 있으므로 캐시의 두 저장소에 `objects/info/alternates`로 `hadoop.git/objects`를 연결해 두었다. 이 연결을 지우면 라벨과 연관된 누락(누락분의 88%가 buggy)이 다시 생긴다.
 - 캐시를 심링크로 재사용하더라도 baseline의 hash/provenance 검증(`build_report.json`, `SOURCE.json` 등)은 그대로 통과해야 한다 — 캐시된 파일을 손으로 고쳐서 검증을 우회하지 않는다.
 
 ### 1.5 실행 원칙 (README의 철학을 그대로 따른다)
@@ -76,6 +77,7 @@ python scripts/smoke.py --out runs/smoke-core   # neural이면 --neural 추가
 - 맥락 없이도 되는, 범위가 명확한 실행 작업(예: "train/valid/test 세 split에 대해 prepare 실행")은 새 general-purpose agent에 위임해도 된다 — 이 agent는 대화 기록이 없으므로 필요한 경로/명령/플래그를 프롬프트에 전부 포함한다.
 - 데이터 의존성이 있는 단계는 병렬로 돌리지 않는다(같은 split에 대해 `build-apache`+`split-public`+`prepare`가 끝나기 전에 `train-codebert`를 시작하지 않음). 서로 독립적인 단계(예: 서로 다른 holdout repo 구성, 또는 public-valid에서의 C vs D LLM 점검)는 병렬화 가능하다.
 - GPU/장시간 학습 작업을 subagent에 맡기기 전에 device 가용성과 예상 소요 시간을 먼저 확인한다. `--allow-cpu-training`처럼 명시적 승인이 필요한 플래그는 subagent가 임의로 켜지 않고 반드시 위로 보고한다.
+- 장시간 단계는 진행률이 보이게 실행한다. riskbench는 build-apache는 끝날 때, train-codebert는 epoch마다만 출력하므로, baseline 코드를 바꾸지 않는 래퍼를 쓴다: `experiments/001-baseline-smoke/scripts/build_apache_with_progress.py`, `train_with_progress.py`(N 스텝마다 진행률/처리량/ETA). 래퍼 없이 시작한 학습은 `watch_training.sh <log>`로 epoch 경과 시간 기반 추정치를 본다.
 - 모든 subagent는 실행한 정확한 명령, 산출물 경로, 그리고 1.5의 원칙 중 어겨야 했던 부분이 있다면 이를 보고한다 — 에러를 조용히 덮지 않는다.
 
 ## 3. Python best practices
