@@ -1,0 +1,8 @@
+{
+  "selected": 1,
+  "accepted": 1,
+  "rejected": 0,
+  "source_sha256": "0fabe6bc615b1d8de0cf113fef1a498a2af672043777047cfb5d41dc7f69dcdb",
+  "network_used": false,
+  "warning": "Only provided resolved labels are included. Eligibility bias and incident causality require upstream audit."
+}

@@ -1,0 +1,2 @@
+id,repository,commit,group_id,prediction_at,input_available_at,message,diff_path,label,label_type,label_status,label_available_at,synthetic
+internal-example-001,service/example,example-artifact-range,release-example-001,2025-01-01T10:00:00+09:00,2025-01-01T09:59:00+09:00,Example only: change a limit,patches/example.diff,1,operational_incident_72h,confirmed_positive,2025-01-08T10:00:00+09:00,true

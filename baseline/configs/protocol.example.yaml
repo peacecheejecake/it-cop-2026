@@ -1,0 +1,27 @@
+# Preregistration template; record/freeze it, not an auto-tuner configuration.
+protocol_id: public-only-risk-v1
+source: ApacheJIT-v2
+source_target: bug_inducing_commit
+internal_target: operational_incident_72h  # change only before inspecting internal results
+source_time_field: git_committer_date
+label_availability_mode: retrospective_unknown_allowed  # NOT historically deployable backtest
+train_before: '2016-01-01T00:00:00+00:00'
+valid_before: '2017-01-01T00:00:00+00:00'
+shared_code_view:
+  tokenizer: microsoft/codebert-base
+  max_tokens: 512
+  message_tokens: 64
+  diff_truncation: head-tail
+seeds: [42, 43, 44]
+model_selection: public_validation_AP
+internal_training: forbidden
+internal_calibration: forbidden
+internal_fewshot: forbidden
+primary_metric: recall_at_top10_percent
+secondary_metrics: [recall_at_top5_percent, precision_at_top5_percent, precision_at_top10_percent, AP, ROC_AUC]
+bootstrap_cluster: week
+bootstrap_replicates: 500
+scores_are_calibrated_probabilities: false
+# The canonical extraction unit is one change/diff. Do NOT copy a deployment's
+# incident label onto every constituent commit. Build a deployment aggregate first
+# or supply the actual artifact-to-artifact deployment diff and declare target transfer.

@@ -1,0 +1,17 @@
+usage: riskbench [-h]
+                 {fetch-apache,build-apache,build-internal,split-public,internal-test,prepare,download-codebert,train-tabular,train-codebert,examples,freeze,predict,llm,evaluate,demo-data} ...
+
+Public-only change-risk baselines; internal labels are evaluation-only
+
+positional arguments:
+  {fetch-apache,build-apache,build-internal,split-public,internal-test,prepare,download-codebert,train-tabular,train-codebert,examples,freeze,predict,llm,evaluate,demo-data}
+    fetch-apache        Download pinned ApacheJIT v2 CSV (or use a local
+                        archive)
+    build-apache        CSV labels + local Git patches; optional explicit
+                        public cloning
+    build-internal      Import a local manifest and resolved labels; no
+                        network
+    prepare             Create identical bounded code views for A/B/C/D
+
+options:
+  -h, --help            show this help message and exit

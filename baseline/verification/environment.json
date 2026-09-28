@@ -1,0 +1,15 @@
+{
+  "python": "3.13.5",
+  "platform": "Linux-6.18.44-x86_64-with-glibc2.41",
+  "packages": {
+    "numpy": "2.3.5",
+    "scikit-learn": "1.8.0",
+    "httpx": "0.28.1",
+    "PyYAML": "6.0.3",
+    "pytest": "9.0.2",
+    "torch": "2.10.0+cpu",
+    "safetensors": "0.7.0",
+    "huggingface_hub": "1.16.1",
+    "transformers": "NOT INSTALLED"
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "synthetic": true,
+  "real_codebert_executed": false,
+  "real_llm_executed": false,
+  "random_tiny_encoder_executed": true,
+  "paths_checked": [
+    "public split",
+    "label-blind internal inference",
+    "lock",
+    "tabular training",
+    "mock zero/few-shot",
+    "metrics"
+  ],
+  "model_rows": 6,
+  "n": 24
+}

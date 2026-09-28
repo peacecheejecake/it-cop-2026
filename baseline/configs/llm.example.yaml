@@ -1,0 +1,23 @@
+# Edit before public validation. Freeze before internal inference.
+# This adapter is OpenAI Chat Completions-compatible, not a native Gemini/Anthropic adapter.
+base_url: http://127.0.0.1:8000/v1
+model: REPLACE_WITH_APPROVED_MODEL_ID
+model_revision_tag: REPLACE_WITH_IMMUTABLE_SERVER_MODEL_VERSION
+api_key_env: LLM_API_KEY
+# Omit unsupported decoding options instead of silently falling back during an experiment.
+temperature: 0
+# seed: 42  # enable only if the endpoint supports it; determinism is not guaranteed
+json_mode: true
+token_limit_parameter: max_tokens  # alternatively max_completion_tokens for compatible models
+max_output_tokens: 128
+timeout_seconds: 90
+max_retries: 2
+max_requests_per_run: 1000 # safety cap; change explicitly for a preregistered full evaluation
+retry_backoff_seconds: 1
+min_interval_seconds: 0
+internal_data:
+  allow: false
+  approved_origins: []
+  # For an explicitly approved LOCAL inference server, set allow: true and:
+  # approved_origins: ["http://127.0.0.1:8000"]
+  # Approval must also cover the gateway's downstream routing, retention and logs.

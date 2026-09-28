@@ -1,0 +1,5 @@
+frozen: epoch=1 public_validation_ap=0.716894
+frozen: epoch=2 public_validation_ap=0.716894
+finetune: epoch=1 public_validation_ap=0.716894
+finetune: epoch=2 public_validation_ap=0.716894
+PASS: synthetic plumbing only. No real model/dataset performance claims.

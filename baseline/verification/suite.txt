@@ -1,0 +1,3 @@
+Predicting: rule
+Predicting: tabular
+Evaluation complete; rows: 28

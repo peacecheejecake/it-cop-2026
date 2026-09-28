@@ -1,0 +1,8 @@
+# Observed versions in the verification environment, not a cross-platform lock.
+# Python 3.13.5; CPU neural tests also used torch 2.10.0+cpu and safetensors 0.7.0.
+# Real Hugging Face CodeBERT was NOT run; transformers was not installed.
+numpy==2.3.5
+scikit-learn==1.8.0
+httpx==0.28.1
+PyYAML==6.0.3
+pytest==9.0.2
