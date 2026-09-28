@@ -1,0 +1,5 @@
+python 3.13.5 (uv venv over Homebrew python; README suggests 3.11)
+macOS 27.0, Apple M3 Pro, 36 GB unified memory
+torch 2.14.0 (MPS), transformers 4.57.6
+CodeBERT microsoft/codebert-base @ 3b0952feddeffad0063f274080e3c23d75e7eb39
+full package list: requirements-lock.txt (uv pip freeze, editable riskbench omitted)

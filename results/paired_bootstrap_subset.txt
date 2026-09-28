@@ -1,0 +1,2 @@
+full: AP(finetune)-AP(tabular) = +0.0520  95% week-cluster CI [+0.0311, +0.0753]  clusters=157
+no_hadoop_family: AP(finetune)-AP(tabular) = -0.0286  95% week-cluster CI [-0.0442, -0.0118]  clusters=157

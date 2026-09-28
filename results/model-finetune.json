@@ -1,0 +1,76 @@
+{
+ "kind": "codebert",
+ "mode": "finetune",
+ "base_model": "models/codebert-base",
+ "revision": null,
+ "resolved_revision": null,
+ "demo_encoder": false,
+ "training_label_type": "bug_inducing_commit",
+ "pooling": "attention-masked-mean",
+ "head": "linear-logit",
+ "view": {
+  "tokenizer": "models/codebert-base",
+  "revision": null,
+  "tokenizer_signature": "38fa75cc8de1dbcccd104f153f795c39e33bd5b13607220630d45e3882f2046a",
+  "max_tokens": 512,
+  "message_tokens": 64,
+  "strategy": "message-cap+diff-head-tail-v1",
+  "pad_token_id": 1,
+  "synthetic_tokenizer": false,
+  "policy_hash": "05ce376cc5d3186f85fb0f38ca5a5c8541d860642360d520f17822ea963e04fc"
+ },
+ "seed": 42,
+ "epochs_requested": 5,
+ "selected_epoch": 2,
+ "encoder_lr": 2e-05,
+ "head_lr": 0.001,
+ "batch_size": 8,
+ "accumulation": 4,
+ "patience": 2,
+ "class_weight": "none",
+ "history": [
+  {
+   "epoch": 1,
+   "loss": 0.47328026821512703,
+   "optimizer_steps": 2047,
+   "examples": 65478,
+   "validation_ap": 0.7054998962787903
+  },
+  {
+   "epoch": 2,
+   "loss": 0.41408067841168494,
+   "optimizer_steps": 2047,
+   "examples": 65478,
+   "validation_ap": 0.7209663248240789
+  },
+  {
+   "epoch": 3,
+   "loss": 0.3644264307575266,
+   "optimizer_steps": 2047,
+   "examples": 65478,
+   "validation_ap": 0.7035119668512666
+  },
+  {
+   "epoch": 4,
+   "loss": 0.29766375560594177,
+   "optimizer_steps": 2047,
+   "examples": 65478,
+   "validation_ap": 0.6926826445746247
+  }
+ ],
+ "training_seconds": 31123.455751500005,
+ "device": "mps",
+ "train_inputs_sha256": "3efefccd3bf509b3cfdaf21a672cfb9167f690f996d2f98bf5abb0d7cc518b98",
+ "valid_inputs_sha256": "fe41eff5e43a25c2ad50e01bdb521a68f7fc5d4dbb3fc47c5215f1ae8fbb18f3",
+ "retrospective_labels": true,
+ "versions": {
+  "python": "3.13.5",
+  "platform": "macOS-27.0-arm64-arm-64bit-Mach-O",
+  "numpy": "2.5.3",
+  "scikit-learn": "1.9.1",
+  "torch": "2.14.0",
+  "transformers": "4.57.6",
+  "httpx": "0.28.1",
+  "safetensors": "0.8.0"
+ }
+}

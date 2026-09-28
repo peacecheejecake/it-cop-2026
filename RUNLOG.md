@@ -162,10 +162,56 @@ riskbench split-public --records data/canonical/apachejit/records.jsonl --out da
 | epoch | 종료 | validation AP |
 |---|---|---|
 | 1 | 23:07 (2시간 9분, validation 포함) | 0.706 |
+| 2 | 01:17 (2시간 10분) | 0.721 |
+| 3 | 03:27 (2시간 10분) | 0.704 (하락 → 체크포인트는 epoch 2 유지) |
+| 4 | 05:35 (2시간 8분) | 0.693 (2회 연속 개선 없음 → patience 2로 조기 종료) |
+
+→ **선택: epoch 2, validation AP 0.721.** 학습 8.65시간, device `mps`. README 기본값(`--epochs 5 --patience 2`)을 그대로 썼다.
+
+## 데이터 점검 (평가 전 계획, 결과를 보기 전에 기준을 정함)
+
+### split 간 거의 같은 중복 — `scripts/leak_check.py`
+baseline은 정확히 같은 patch만 제거한다. 그래서 공백, 파일 헤더, hunk 줄 번호를 무시하고 +/- 줄 내용만으로 비교하는 느슨한 키와, 정규화한 커밋 메시지로 추가 검사했다.
+
+| eval split | diff 내용이 train과 같음 | 메시지가 train과 같음 | 그중 양성 |
+|---|---|---|---|
+| valid (10,480) | 58 (0.55%) | 20 (0.19%) | 각 1 |
+| test (29,938) | 111 (0.37%) | 138 (0.46%) | 2 / 1 |
+
+→ 합집합 249개(0.8%)이고 **거의 모두 음성**이다. B의 높은 AP를 설명할 만한 누수는 아니다. 민감도 분석용 ID 목록은 `runs/test_near_dup_ids.json`에 있다.
+
+### 프로젝트만으로 예측 — "project prior" 기준선
+train의 프로젝트별 양성 비율로만 점수를 매기면 **valid AP 0.559 / AUC 0.771, test AP 0.368 / AUC 0.708**이다. 정형 baseline의 valid AP 0.588과 거의 같다. 즉 이 benchmark에서는 "어느 프로젝트인가"만으로도 상당한 순위 성능이 나온다.
+
+### ApacheJIT의 Hadoop 라벨 이상 (중요)
+원본 CSV 기준:
+- `apache/hadoop`: 2009~2019년 **12,964개 전부 buggy=False**.
+- `apache/hadoop-hdfs`: 2012년 이후 약 90%가 buggy(예: 2013년 343/355). `apache/hadoop-mapreduce`도 비슷하다.
+- 2012년 이후 HDFS와 MapReduce 커밋은 실제로는 통합된 `apache/hadoop` 저장소의 커밋이다(앞의 alternates 조사에서 SHA 3,100 / 3,100 확인). 결함 커밋은 hdfs/mapreduce로, 결함 없는 커밋은 hadoop으로 등록되어 있어, **데이터셋 구성 단계에서 라벨에 따라 project가 정해진 것으로 보인다.**
+- 모델은 프로젝트나 diff의 파일 경로(`hadoop-hdfs-project/` 등)로 라벨을 추론할 수 있다. 이것은 코드 위험 판단이 아니라 데이터셋 구성의 흔적이다.
+- 대응: 전체 test 결과와 함께, **Hadoop 계열 3개 프로젝트를 뺀 test**의 지표를 민감도 분석으로 보고한다. 이 기준은 test 결과를 보기 전에 정했다.
 
 - A(0.536)나 정형 baseline(0.588) 대비 상승폭이 크다. 평가 후 split 간 누수 가능성(거의 같은 patch, 커밋 메시지 템플릿)을 점검한다. baseline은 완전히 같은 patch만 제거하고, 의미상 거의 같은 중복은 검사하지 않는다.
 
-## 남은 단계 계획
+## §7 공개 test 비교
 
-split-public(README 기본 2016/2017 경계, `--allow-retrospective`) → prepare(train/valid/test) → train-tabular → train-codebert frozen(A) / finetune(B) `--device mps` → predict_suite(공개 test, rule/tabular/frozen/finetune).
-CSV의 연도 기준 예상 크기는 train 약 66k, valid 약 10.6k, test 약 30k다. B는 epoch당 약 2.2시간, 최대 5 epoch으로 추정한다.
+```bash
+caffeinate -i python scripts/predict_suite.py --dataset data/views/public/test \
+  --models rule tabular frozen finetune --model-root runs/models --device mps \
+  --out runs/evaluation/public-test --bootstrap 500
+```
+- `--lock` 없음: 공개 test이므로 freeze하지 않았다(§6 내부 평가는 범위 밖). `--allow-label-transfer` 없음: 공개 test와 학습의 라벨이 모두 `bug_inducing_commit`이다.
+- 추론 시간: A 약 27분, B 약 25분(MPS, batch 8), 이어서 bootstrap 500회. 05:36에 시작해 약 06:35에 끝났다.
+- coverage는 네 모델 모두 100%이고 실패는 0이다. week cluster는 157개다.
+- 결과 요약은 `RESULTS.md`, 원본 지표는 `results/metrics.{json,csv}`에 있다.
+
+## 민감도 분석 (§8 해석)
+
+```bash
+python ../scripts/leak_check.py data/splits/public --write-exclusions runs/test_near_dup_ids.json
+python ../scripts/sensitivity.py runs/evaluation/public-test data/splits/public runs/test_near_dup_ids.json runs/evaluation/public-test-sensitivity.json
+python ../scripts/paired_bootstrap_subset.py runs/evaluation/public-test data/splits/public/test tabular finetune
+```
+- Hadoop 계열 제외와 거의 같은 중복 제외는 test 결과를 보기 전에 정했다(위 "데이터 점검"). 프로젝트별 AP는 전체 결과를 본 뒤 추가한 **사후 분석**이다.
+- 핵심: AP(B) − AP(정형 LR)가 전체 test에서는 +0.052 [+0.031, +0.075]이지만, Hadoop 계열을 빼면 **−0.029 [−0.044, −0.012]로 역전**된다. 프로젝트별 AP 평균은 정형 LR 0.579 > rule 0.532 > B 0.510 > A 0.419다.
+- `paired_bootstrap_subset.py`는 riskbench의 `evaluate`가 전체 집합만 bootstrap하기 때문에 따로 만든 스크립트다. cluster(ISO week), 500회, seed 42는 riskbench 기본값과 같다.
