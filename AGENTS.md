@@ -77,7 +77,7 @@ python scripts/smoke.py --out runs/smoke-core   # neural이면 --neural 추가
 - 맥락 없이도 되는, 범위가 명확한 실행 작업(예: "train/valid/test 세 split에 대해 prepare 실행")은 새 general-purpose agent에 위임해도 된다 — 이 agent는 대화 기록이 없으므로 필요한 경로/명령/플래그를 프롬프트에 전부 포함한다.
 - 데이터 의존성이 있는 단계는 병렬로 돌리지 않는다(같은 split에 대해 `build-apache`+`split-public`+`prepare`가 끝나기 전에 `train-codebert`를 시작하지 않음). 서로 독립적인 단계(예: 서로 다른 holdout repo 구성, 또는 public-valid에서의 C vs D LLM 점검)는 병렬화 가능하다.
 - GPU/장시간 학습 작업을 subagent에 맡기기 전에 device 가용성과 예상 소요 시간을 먼저 확인한다. `--allow-cpu-training`처럼 명시적 승인이 필요한 플래그는 subagent가 임의로 켜지 않고 반드시 위로 보고한다.
-- 장시간 단계는 진행률이 보이게 실행한다. riskbench는 build-apache는 끝날 때, train-codebert는 epoch마다만 출력하므로, baseline 코드를 바꾸지 않는 래퍼를 쓴다: `experiments/001-baseline-smoke/scripts/build_apache_with_progress.py`, `train_with_progress.py`(N 스텝마다 진행률/처리량/ETA). 래퍼 없이 시작한 학습은 `watch_training.sh <log>`로 epoch 경과 시간 기반 추정치를 본다.
+- 장시간 단계는 진행률이 보이게 실행한다. riskbench는 build-apache는 끝날 때, train-codebert는 epoch마다만 출력하므로, baseline 코드를 바꾸지 않는 래퍼(`tools/`, 4절)를 쓴다. 래퍼 없이 시작한 학습은 `tools/watch_training.sh <log>`로 epoch 경과 시간 기반 추정치를 본다.
 - 모든 subagent는 실행한 정확한 명령, 산출물 경로, 그리고 1.5의 원칙 중 어겨야 했던 부분이 있다면 이를 보고한다 — 에러를 조용히 덮지 않는다.
 
 ## 3. Python best practices
@@ -89,7 +89,29 @@ python scripts/smoke.py --out runs/smoke-core   # neural이면 --neural 추가
 - 실험 전용 스크립트는 `baseline/src`를 실험마다 포크하는 대신 `experiments/<slug>/scripts/`에 작은 단일 목적 스크립트로 둔다. `src/riskbench`에서 진짜 버그/개선을 발견하면 실험 브랜치에서 고치고 upstream 반영 대상으로 기록한다 — 실험마다 조용히 갈라지지 않는다.
 - 코드에 "무엇을 하는지" 설명하는 주석을 달지 않는다. 자명하지 않은 WHY(숨은 제약, 특정 버그 우회 등)만 한 줄로 남긴다.
 
-## 4. 참고 문서
+## 4. 공용 도구 (`tools/`, main에서 관리)
+
+실험 간 공유하는 스크립트는 `main`의 `tools/`에 둔다. 모두 riskbench를 import하거나 그 산출물을 읽을 뿐, baseline 로직을 바꾸지 않는다. 실험 worktree의 `baseline/`에서 `python ../tools/<script>`로 실행한다(worktree 루트에 `tools/`가 있다).
+
+| 스크립트 | 용도 |
+|---|---|
+| `build_apache_with_progress.py <build-apache args>` | build-apache + 500 커밋마다 진행률 |
+| `train_with_progress.py [--every N] <train-codebert args>` | train-codebert + N 스텝마다 진행률/처리량/ETA |
+| `watch_training.sh <log>` | 래퍼 없이 시작한 학습의 epoch 내 진행률 추정 |
+| `filter_records.py <records> <out> --exclude-repos …` | canonical에서 저장소 단위 제외(출처 hash 기록) |
+| `leak_check.py <splits> [--write-exclusions out]` | split 간 near-duplicate(diff 내용/메시지) 검사 |
+| `sensitivity.py <eval> <splits> <dups> <out>` | 전체/Hadoop 제외/중복 제외/프로젝트별 AP |
+| `paired_bootstrap_subset.py <eval> <test> <a> <b>` | 부분집합 week-cluster paired bootstrap |
+| `fetch_apache_relaxed_tls.py` | 사내 TLS 프록시 환경의 fetch-apache(사용자 승인 필요, 001 RUNLOG 참고) |
+
+## 5. 실험 목록
+
+| 실험 | 요약 |
+|---|---|
+| `001-baseline-smoke` | README 전체 파이프라인, 전체 ApacheJIT. B 우위가 Hadoop 라벨 이상에서 기인함을 발견 |
+| `002-no-hadoop` | 001과 동일 프로토콜, Hadoop 계열 3개 저장소만 제외 |
+
+## 6. 참고 문서
 
 - `baseline/README.md` — 실행 순서의 단일 진실 소스(source of truth)
 - `baseline/VERIFICATION.md` — 실제 검증된 범위와 검증되지 않은 부분
