@@ -39,6 +39,22 @@ python scripts/smoke.py --out runs/smoke-core   # neural이면 --neural 추가
 ### 1.4 데이터/모델 캐시 재사용
 - ApacheJIT ZIP, git mirror clone, CodeBERT 가중치 등은 용량이 크고 재다운로드 비용이 크다.
 - 실험 간 공유 캐시를 `experiments/.cache/`(git-ignored) 아래에 두고, 각 실험의 `data/git`, `models/`에는 심볼릭 링크로 연결한다. 실험마다 수 GB짜리 repo mirror를 통째로 복제하지 않는다.
+- 공유 캐시 구조 (전체 ApacheJIT 기준, 새 실험은 이것부터 링크한다):
+  ```text
+  experiments/.cache/
+    raw/apachejit-v2/            # fetch-apache 결과 (Zenodo v2, MD5 pin 일치)
+    git/apache/<repo>.git        # 15개 공개 저장소 bare/mirror clone
+    models/codebert-base/        # download-codebert 결과 (SOURCE.json에 HF revision)
+    canonical/apachejit-full/    # 전체 build-apache 결과 (records/rejected/build_report)
+  ```
+  ```bash
+  # experiments/<slug>/baseline/ 에서
+  mkdir -p data && ln -s ../../../.cache/raw data/raw && ln -s ../../../.cache/git data/git
+  mkdir -p data/canonical && ln -s ../../../../.cache/canonical/apachejit-full data/canonical/apachejit
+  ln -s ../../.cache/models models
+  ```
+- 공유 캐시는 읽기 전용으로 취급한다. split/view/모델/실행 결과(`data/splits`, `data/views`, `runs/`)는 프로토콜마다 달라지므로 실험 디렉토리 안에 만든다.
+- `build-apache --allow-network`의 clone은 저장소당 1200초 제한이 있어, 느린 네트워크에서는 대형 저장소(hadoop 등)가 통째로 `repository_clone_failed`로 빠진다. 저장소는 캐시에 미리 `git clone --bare`로 받아 두고 build-apache는 `--allow-network` 없이 실행한다(README §2-2의 오프라인 경로).
 - 캐시를 심링크로 재사용하더라도 baseline의 hash/provenance 검증(`build_report.json`, `SOURCE.json` 등)은 그대로 통과해야 한다 — 캐시된 파일을 손으로 고쳐서 검증을 우회하지 않는다.
 
 ### 1.5 실행 원칙 (README의 철학을 그대로 따른다)
