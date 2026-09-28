@@ -87,6 +87,84 @@
   ```
   diff 추출은 약 66 ms/커밋(camel 40개 측정)이므로 전체는 약 2시간이 예상된다.
 
+진행률 확인: build-apache는 끝날 때까지 출력이 없으므로, `scripts/build_apache_with_progress.py`로 실행한다. 이 래퍼는 baseline 코드를 바꾸지 않고 `extract_commit`만 감싸 500개마다 진행률을 stderr에 쓴다. 확인은 `tail -f experiments/.cache/logs/build-apache-full.log`로 한다.
+
+### 1차 결과 — hadoop 분리 저장소의 라벨 편향 누락 발견
+
+1차 전체 build: selected 106,674 / accepted 103,559 / rejected 3,115 (1,120개/분, 약 95분). 보고서는 `.cache/logs/build_report.run1-before-alternates.json`에 보관했다.
+- `patch_over_2MB_excluded` 15건은 README 정책대로다.
+- `git show` exit 128(커밋 없음) 3,100건은 **전부 `apache/hadoop-hdfs`(2,304 / 2,907, 79%)와 `apache/hadoop-mapreduce`(796 / 1,321, 60%)**에서 나왔다. 나머지 13개 저장소의 누락은 0건이다.
+- 누락분의 buggy 비율은 88%(2,759 / 3,100)로, 전체 26%보다 훨씬 높다. **라벨과 연관된 누락**이라 그대로 두면 양성이 편향된다.
+- 원인: GitHub의 `apache/hadoop-hdfs`, `apache/hadoop-mapreduce`는 2009~2011년 분리 시기의 축소본(각 약 37 MB)이다. 해당 커밋은 다시 합쳐진 `apache/hadoop` 이력에 **같은 SHA로 존재**한다(표본 200 / 200 + 전체 3,100 / 3,100 확인).
+- CSV에서 한 SHA가 둘 이상의 프로젝트로 등록된 경우는 0건이라 중복 계산 위험은 없다.
+
+해결: 두 저장소에 git alternates(`objects/info/alternates` → `hadoop.git/objects`)를 설정했다. 데이터 복사가 없고 CSV의 저장소명과 ID가 그대로 유지되며, SHA가 같으므로 diff도 동일하다. 이후 build 출처가 하나로 유지되도록 **전체 build를 다시 실행**했다(부분 덧붙이기 대신).
+
+### 최종 build (alternates 적용 후)
+
+`selected 106,674 / accepted 106,659 / rejected 15`(모두 `patch_over_2MB_excluded`). 약 110분 소요. → `experiments/.cache/canonical/apachejit-full/` (2.3 GB)
+
+## §2-3 split-public
+
+```bash
+riskbench split-public --records data/canonical/apachejit/records.jsonl --out data/splits/public \
+  --train-before 2016-01-01T00:00:00Z --valid-before 2017-01-01T00:00:00Z --allow-retrospective
+```
+- `--allow-retrospective`: ApacheJIT CSV에는 라벨 확정 시각이 없다(`label_available_at=null`). README §2-3에 따라 **회고적 benchmark**로만 해석하며, 운영 backtest라고 부르지 않는다.
+- 경계는 README와 `configs/protocol.example.yaml`의 값을 그대로 썼다(원 논문 split의 재현이 아님).
+- 결과: split별 크기와 양성 수는 아래 표와 같다. 제외는 763건이다(`duplicate_patch` 759, `group_or_exact_patch_crosses_split` 4). 소요는 48초, 최대 RSS는 3.4 GB였다.
+
+| split | n | 양성 | 양성 비율 |
+|---|---|---|---|
+| train (<2016) | 65,478 | 19,240 | 29.4% |
+| valid (2016) | 10,480 | 3,078 | 29.4% |
+| test (≥2017) | 29,938 | 5,796 | **19.4%** |
+
+- **해석 주의**: test의 양성 비율이 낮다. 최근 커밋일수록 결함 유발이 발견될 시간이 짧았기 때문(라벨 우측 절단)일 가능성이 크다. AP처럼 기저율에 민감한 지표는 split 간에 직접 비교하지 않고, 같은 test 안에서 모델끼리만 비교한다.
+
+## 범위 결정 — seed
+
+`protocol.example.yaml`은 seed `[42, 43, 44]`를 요구하지만, 이번 실험은 **seed 42 한 번**만 실행한다. B 한 번이 MPS에서 최대 약 11시간이 걸리기 때문이다. seed 분산은 후속 실험으로 보고한다.
+
+## §3-2 prepare
+
+`riskbench prepare --dataset data/splits/public/{train,valid,test} --out data/views/public/{…} --tokenizer models/codebert-base` (3개 병렬 실행)
+- 512 토큰 초과로 앞·뒤를 남기며 잘린 비율: train 60,755 / 65,478 (92.8%), valid 9,427 / 10,480 (90.0%), test 26,935 / 29,938 (90.0%).
+- HF의 "sequence length > 512" 경고는 자르기 전 길이를 셀 때 나오는 것이다. 실제로 저장된 입력은 baseline이 512 이하인지 검사한다.
+- 대부분의 변경이 잘린 입력으로 비교되므로, 긴 변경의 정보 손실이 이번 실험의 주된 한계다(README §3-2).
+
+## §4 학습 (seed 42, 공개 train/valid만 사용)
+
+### 정형 baseline
+`riskbench train-tabular --public-train data/views/public/train --public-valid data/views/public/valid --out runs/models/tabular`
+→ 선택된 C = 0.1, **public validation AP 0.588**
+
+### A. frozen CodeBERT + linear head (MPS)
+`riskbench train-codebert --mode frozen --model models/codebert-base … --epochs 5 --batch-size 8 --accumulation 4 --seed 42 --device mps`
+
+| epoch | train loss | validation AP |
+|---|---|---|
+| 1 | 0.579 | 0.496 |
+| 2 | 0.556 | 0.516 |
+| 3 | 0.545 | 0.524 |
+| 4 | 0.539 | 0.530 |
+| 5 | 0.536 | **0.536** (선택) |
+
+- epoch 5까지 AP가 계속 올라 **수렴하지 않았다**. README 기본값(5 epoch, head lr 1e-3)을 그대로 썼기 때문이다. 공개 validation 기준의 epoch/lr 탐색은 README가 허용하는 후속 작업이다. 이번 실험에서는 설정을 바꾸지 않는다.
+- 임베딩 추출과 학습에 약 1시간이 걸렸다. artifact 크기는 494 MB로, frozen encoder 가중치가 포함되어 있다.
+- **provenance 문제 (upstream 반영 후보)**:
+  - `model.json`의 `training_seconds`는 36초로 기록된다. 타이머가 임베딩 캐시 추출 **이후**에 시작되기 때문이다(`neural.py` 252행). frozen 모드의 실제 비용이 기록에서 빠진다.
+  - `resolved_revision`이 `null`이다. 로컬 디렉토리에서 불러오면 `config._commit_hash`가 없기 때문이다. 실제 revision은 `models/codebert-base/SOURCE.json`(`3b0952fe…`)에만 남는다. 가중치 파일 자체는 lock의 hash로 추적된다.
+
+### B. full fine-tuning (MPS)
+20:58경 시작. GPU 사용률 99%, GPU 메모리 약 9.8 GB로 앞선 벤치마크(9.1 GB)와 일치한다.
+
+| epoch | 종료 | validation AP |
+|---|---|---|
+| 1 | 23:07 (2시간 9분, validation 포함) | 0.706 |
+
+- A(0.536)나 정형 baseline(0.588) 대비 상승폭이 크다. 평가 후 split 간 누수 가능성(거의 같은 patch, 커밋 메시지 템플릿)을 점검한다. baseline은 완전히 같은 patch만 제거하고, 의미상 거의 같은 중복은 검사하지 않는다.
+
 ## 남은 단계 계획
 
 split-public(README 기본 2016/2017 경계, `--allow-retrospective`) → prepare(train/valid/test) → train-tabular → train-codebert frozen(A) / finetune(B) `--device mps` → predict_suite(공개 test, rule/tabular/frozen/finetune).
