@@ -1,82 +1,28 @@
-# RUNLOG — 002-no-hadoop
+# RUNLOG — 003-seeds-cuda
 
-브랜치: `exp/002-no-hadoop` (from `main` @ `783677c`)
+브랜치: `exp/003-seeds-cuda` (from `exp/002-no-hadoop` @ `660b981`)
 
 ## 목적
 
-001에서 fine-tuned CodeBERT(B)의 공개 test 우위가 ApacheJIT의 Hadoop 라벨 이상(`apache/hadoop`은 전부 음성, 같은 코드인 `hadoop-hdfs`/`hadoop-mapreduce`는 2012년 이후 약 90% 양성)에서 온다는 점을 발견했다. 002는 **데이터만 바꾼다.** Hadoop 계열 3개 저장소를 train/valid/test 모두에서 빼고, 나머지는 001과 똑같이 두어 비교가 어떻게 바뀌는지 본다.
+002와 같은 데이터(Hadoop 계열 제외)로 **seed 간 분산**을 보고, A(frozen)를 **수렴할 때까지** 학습한다. 학습은 Runpod CUDA GPU에서 한다(사용자 결정, 2026-09-29).
 
-## 사전 등록 (학습·평가 전에 확정, 2026-09-29)
+## 사전 등록 (학습 전 확정, 2026-09-29)
 
-| 항목 | 값 | 001과의 차이 |
+| 항목 | 값 | 002와의 차이 |
 |---|---|---|
-| 원본 | `experiments/.cache/canonical/apachejit-full` (001 최종 build, 106,659개) | 같음 |
-| **제외** | `apache/hadoop`, `apache/hadoop-hdfs`, `apache/hadoop-mapreduce` (저장소 단위, 라벨과 무관하게 전부) | **새로 추가** |
-| split | `split-public --train-before 2016-01-01T00:00:00Z --valid-before 2017-01-01T00:00:00Z --allow-retrospective` | 같음 |
-| 입력 | CodeBERT 512 / 메시지 64, head-tail | 같음 |
-| 모델 | rule, 정형 LR, A frozen, B finetune. README 기본 하이퍼파라미터, seed 42 | 같음 |
-| 선택 | public validation AP만 사용 | 같음 |
-| 주 지표 | 공개 test의 AP와 **프로젝트별 AP 평균**(양성 20개 이상인 프로젝트) | 프로젝트별 AP를 주 지표로 올림 |
-| 보조 | ROC-AUC, Recall/Precision@5·10%, week-cluster bootstrap 500회, project-prior 기준선 | project prior 추가 |
+| 데이터 | 002의 `data/views/public/{train,valid,test}`를 그대로 사용. 같은 split, 같은 CodeBERT view(manifest의 hash로 확인) | 같음 |
+| 장치 | Runpod CUDA GPU, fp32(PyTorch 기본값, TF32 끔) | **MPS → CUDA** |
+| seed | **42, 43, 44** (A와 B 각각) | seed 42 한 번 → 3개 |
+| epoch | **`--epochs 100`(안전 상한) + `--patience 2`**(baseline 기본값). "수렴" = validation AP가 2 epoch 연속 개선되지 않음 | 5 epoch 상한 → 사실상 없음 |
+| batch | **`--batch-size 32 --accumulation 1`** | 8×4 → 32×1 |
+| 그 외 | encoder lr 2e-5, head lr 1e-3, class_weight none, CodeBERT 512/64 head-tail | 같음 |
+| 정형 LR | 한 번(결정적인 LBFGS이므로 seed와 무관) | 같음 |
+| 평가 | seed마다 `predict_suite`(공개 test, rule/tabular/frozen/finetune, bootstrap 500). seed 간 평균 ± 표준편차, 프로젝트별 AP 평균 | seed 집계 추가 |
 
-**제외 목록을 정한 근거**: 원본 CSV의 프로젝트×연도별 양성 비율(아래). Hadoop 계열만 구조적으로 극단적이다. `hadoop`은 모든 연도에서 0%, hdfs와 mapreduce는 2012년 이후 72~97%다. 다른 프로젝트는 연도별로 오르내리지만 0% 또는 90% 이상으로 고정된 패턴은 없다.
+**batch 32×1과 8×4의 등가성**: `train_epoch`은 윈도 합계 loss를 윈도 크기로 나누고, 셔플은 batch 크기와 무관한 `randperm`(같은 generator seed)이다. 따라서 epoch마다 같은 32개 묶음으로 같은 gradient를 계산한다. padding 차이는 attention mask가 없애 준다. demo 인코더로 확인한 결과 옵티마이저 스텝 수가 같고, loss는 0.66740827 대 0.66740829였다. 파라미터 차이 4.5e-5는 Adam이 부동소수점 잡음을 키운 것이다(001의 MPS 테스트와 같은 현상). dropout 난수 흐름은 다르다.
 
-```
-project                     03   04   05   06   07   08   09   10   11   12   13   14   15   16   17   18   19   total
-apache/hadoop                .    .    .    .    .    .    0    0    0    0    0    0    0    0    0    0    0    0.0% n=11964
-apache/hadoop-hdfs           .    .    .    .    .    .   24   44   52   94   97   91   90   86   84   59   68   76.4% n=2907
-apache/hadoop-mapreduce      .    .    .    .    .    .   26   38   72   94   91   77   78   74    .    .    .   63.4% n=1321
-(나머지 12개 프로젝트: 연도별 2~84%, 2018~19년에는 모든 프로젝트에서 하락 → 라벨 우측 절단)
-```
-
-**독립성에 대한 고지**: 이 제외는 001의 **공개 test 결과를 보고 나서** 설계했다. 따라서 002의 공개 test는 설계 과정과 무관한 final test가 아니다. 다만 제외 기준 자체는 train 라벨만으로도 확인할 수 있는 데이터 결함(`apache/hadoop` train 5,026개 전부 음성)이고, 모델·하이퍼파라미터는 001과 같게 고정했다. 프로젝트별 AP를 주 지표로 올린 것도 001의 사후 분석에서 나온 결정이다.
+**해석상 주의**:
+- 장치(MPS → CUDA)와 epoch 상한이 002와 함께 바뀐다. 그래서 002 seed 42(MPS)와 003 seed 42(CUDA)의 차이는 장치와 epoch 상한의 효과가 섞인 값이다. B는 001과 002에서 모두 patience로 5 epoch 전에 멈췄으므로 epoch 상한의 영향은 주로 A에 나타날 것으로 예상한다.
+- 002와 마찬가지로, 이 공개 test는 001의 test를 본 뒤 설계한 실험의 test다.
 
 ## 실행 기록
-
-환경: 001과 같다(Python 3.13.5 uv venv, `.[neural,dev]`, `pytest -q` 55개 통과). 공유 캐시를 AGENTS.md §1.4의 방식으로 심링크했다.
-
-### 필터 (`tools/filter_records.py`)
-```bash
-python ../tools/filter_records.py .cache/canonical/apachejit-full/records.jsonl .cache/canonical/apachejit-no-hadoop \
-  --exclude-repos apache/hadoop apache/hadoop-hdfs apache/hadoop-mapreduce
-```
-- 제외: hadoop 11,962 / hadoop-hdfs 2,907 / hadoop-mapreduce 1,321, 남은 레코드 90,469개.
-- 결과는 이후 실험(003 등)이 재사용하도록 공유 캐시 `experiments/.cache/canonical/apachejit-no-hadoop/`에 두었다. `filter_report.json`에 원본과 출력의 SHA-256, 원본 build_report를 기록했다.
-
-### split-public
-```bash
-riskbench split-public --records data/canonical/apachejit-no-hadoop/records.jsonl --out data/splits/public \
-  --train-before 2016-01-01T00:00:00Z --valid-before 2017-01-01T00:00:00Z --allow-retrospective
-```
-
-| split | n | 양성 | 비율 | 001 |
-|---|---|---|---|---|
-| train | 56,870 | 16,682 | 29.3% | 65,478 / 29.4% |
-| valid | 8,709 | 2,843 | 32.6% | 10,480 / 29.4% |
-| test | 24,178 | 5,532 | 22.9% | 29,938 / 19.4% |
-
-- 제외 712건(`duplicate_patch` 708, `group_or_exact_patch_crosses_split` 4).
-- **test 24,178건은 001 test에서 Hadoop 계열을 뺀 부분집합과 크기가 정확히 같다.** 그래서 001 모델을 이 부분집합으로 평가한 값(정형 LR 0.580, B 0.551)과 002 모델을 같은 행에서 직접 비교할 수 있다. 행 ID가 같은지는 평가 후 확인한다.
-
-### 데이터 특성: ApacheJIT의 커밋 포함 방식 (사용자 질문으로 조사, 2026-09-29)
-
-결함 비율(원본 전체 26.5%, 이 실험 train 29.3%)이 높은 이유를 확인했다. 캐시된 저장소에서 CSV 기간의 `git log HEAD --no-merges`와 CSV를 비교했다.
-- CSV는 같은 기간 non-merge 커밋의 **일부만** 담는다. 대부분 50~61%이고 kafka 35%, zeppelin 36%, zookeeper 41%이며 **spark는 6%**(1,465 / 24,200)다.
-- 빠진 커밋의 특징(프로젝트별 250개 표본):
-  - camel: 빠진 커밋 중 코드 파일을 건드리는 비율 24%, 중앙값 5줄 → 주로 **비코드 커밋을 걸러낸 것**이다.
-  - kafka: 81%가 코드 변경, 중앙값 40줄(포함된 쪽 108줄).
-  - spark: 84%가 코드 변경, 중앙값 38줄(포함된 쪽 161줄) → 코드 변경인데도 **작은 커밋이 많이 빠졌다.**
-- spark의 결함 비율 43.1%는 기간 내 전체 non-merge 커밋 대비 2.6%에 해당한다. 결함 커밋은 대부분 포함하고 결함 없는 커밋을 줄여 뽑은 것으로 **추정**되지만, 빠진 커밋의 라벨을 모르므로 확정할 수 없다.
-- 의미: (1) AP, precision 같은 기저율 민감 지표의 절대값은 운영 환경으로 옮길 수 없다. (2) 포함 여부가 커밋 크기와 연관되어 있어, 크기 기반 모델(rule, 정형 LR)의 성능에 데이터셋 구성 효과가 섞일 수 있다. (3) 같은 test 안에서 모델끼리 비교하는 것은 유효하지만, "이 benchmark 안에서"로 한정해 해석한다.
-- 002의 설계는 바꾸지 않는다(001과 같은 성질). 모든 코드 변경 커밋에 SZZ를 다시 적용해 라벨을 새로 만드는 것은 별도 실험 후보로 둔다.
-
-### 이후 단계 (`scripts/run_pipeline.sh`, 08:43 시작)
-prepare(3개 병렬) → tabular(CPU)와 A→B(MPS, `tools/train_with_progress.py --every 200`) → predict_suite(공개 test, bootstrap 500) → leak_check, sensitivity, paired bootstrap 순으로 실행한다. 모델과 하이퍼파라미터 명령은 001과 같다. 단계별 로그는 `baseline/runs/logs/`에 남는다.
-
-| 단계 | 시각 | 결과 |
-|---|---|---|
-| prepare | 08:43 → 08:48 | 512 토큰 초과로 잘린 비율: train 52,160 / 56,870 (91.7%), valid 7,761 / 8,709 (89.1%), test 21,549 / 24,178 (89.1%) |
-| 정형 LR | 08:48 시작 | C = 0.1, **validation AP 0.670** (001: 0.588, valid 기저율이 0.294에서 0.326으로 바뀌었으므로 직접 비교하지 않음) |
-| A frozen | 08:48 → 09:17 (29분) | validation AP epoch 1~5: 0.536 → 0.551 → 0.559 → 0.566 → **0.570**(epoch 5 선택). 001처럼 **계속 상승해 미수렴** |
-| B finetune | 09:17 시작 | 래퍼 출력이 정상이다(800 배치마다). 7.8~8.2 ex/s |
-| B epoch 1 | 11:18 학습 종료(2시간 1분) + validation | validation AP **0.699** |
