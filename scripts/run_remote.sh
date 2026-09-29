@@ -20,7 +20,7 @@ for seed in $SEEDS; do
   M=runs/models/seed$seed; mkdir -p "$M"; ln -sfn ../tabular "$M/tabular"
   for mode in frozen finetune; do
     step "seed $seed train $mode"
-    python ../tools/train_with_progress.py --every 100 --mode $mode --model models/codebert-base \
+    python ../tools/train_with_progress.py --every 100 --amp bf16 --mode $mode --model models/codebert-base \
       --public-train data/views/public/train --public-valid data/views/public/valid --out "$M/$mode" \
       --epochs 100 --patience 2 --batch-size 32 --accumulation 1 --encoder-lr 2e-5 --head-lr 1e-3 \
       --seed $seed --device cuda > "$L/train-$mode-seed$seed.log" 2>&1

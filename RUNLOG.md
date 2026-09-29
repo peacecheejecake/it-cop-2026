@@ -25,4 +25,26 @@
 - 장치(MPS → CUDA)와 epoch 상한이 002와 함께 바뀐다. 그래서 002 seed 42(MPS)와 003 seed 42(CUDA)의 차이는 장치와 epoch 상한의 효과가 섞인 값이다. B는 001과 002에서 모두 patience로 5 epoch 전에 멈췄으므로 epoch 상한의 영향은 주로 A에 나타날 것으로 예상한다.
 - 002와 마찬가지로, 이 공개 test는 001의 test를 본 뒤 설계한 실험의 test다.
 
+## 사전 등록 수정 (학습 전, 2026-09-29 12:55)
+
+사용자 결정: **학습은 bf16 혼합 정밀도로 한다**(fp32 대조 실행은 하지 않음).
+- 방법: `tools/train_with_progress.py --amp bf16`이 `train_epoch`를 `torch.autocast(cuda, bfloat16)`로 감싼다. 가중치, 옵티마이저 상태, BCE-with-logits loss는 fp32다(autocast가 이 연산을 fp32로 유지). GradScaler는 필요 없다. validation 채점, frozen 임베딩 추출, test 추론은 fp32다.
+- fp16이 아니라 bf16인 이유: Blackwell에서 Tensor Core 속도는 같고, fp16은 GradScaler 때문에 baseline의 `train_epoch`를 고쳐야 하기 때문이다.
+- **결과: 002(fp32, MPS)와의 차이에는 장치, epoch 상한, 정밀도 세 가지가 섞인다. 이것들은 분리할 수 없다.** seed 간 분산 비교(003 내부)에는 영향이 없다.
+- 정밀도는 모델 디렉토리마다 `training_wrapper.json`에 기록한다.
+
+## Runpod 설정
+
+| 항목 | 값 |
+|---|---|
+| Pod | `n2m8dtxgz6s598` (`jit003-seeds-cuda`), Secure Cloud, EU-RO-1, **$2.09/시간** |
+| GPU | NVIDIA RTX PRO 6000 Blackwell Server Edition 96 GB, 드라이버 595.91.07, 호스트 CUDA 13.2 |
+| 이미지 | `runpod/pytorch:1.0.2-cu1281-torch280-ubuntu2404` (Python 3.12.3, torch 2.8.0+cu128, capability 12.0) |
+| 저장소 | 컨테이너 디스크 30 GB, `/workspace` 영구 디스크 30 GB |
+| 접속 | direct SSH(`runpodctl ssh info`), 키는 `runpodctl doctor`로 등록 |
+
+GPU 선택 근거: 사용자에게 fp32/bf16 처리량, 시간, 비용을 비교해 보여 준 뒤 사용자가 골랐다. 후보는 M3 Pro(실측 8 ex/s) 기준으로 환산한 추정치였다. RTX PRO 6000은 재고 HIGH였고 bf16 추정 약 1.1시간, 약 $2.3이었다.
+
+업로드 번들: `.cache/bundles/jit003-d85890d.tar.gz` (573 MB, sha256 `01fbe490…42b84`). 번들에 포함된 `run_remote.sh`는 bf16 수정 전 버전이라, 수정된 스크립트만 따로 복사한다(아래 커밋).
+
 ## 실행 기록
