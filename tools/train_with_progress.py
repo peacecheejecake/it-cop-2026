@@ -2,19 +2,35 @@
 
 riskbench only prints at epoch end (~2h per fine-tuning epoch on MPS); this wraps
 riskbench.neural.train_epoch's microbatch loop to print progress/throughput/ETA every N
-optimizer steps. Training math is untouched: the original train_epoch runs as-is.
-Usage: python train_with_progress.py [--every N] <train-codebert args...>
+optimizer steps. The original train_epoch runs as-is.
+
+--amp bf16 runs each training epoch under torch.autocast(bfloat16): weights, optimizer
+state and the BCE-with-logits loss stay fp32 (autocast keeps that op in fp32), and no
+GradScaler is needed because bf16 has fp32's exponent range. Validation scoring and
+embedding extraction stay fp32. The choice is written to <out>/training_wrapper.json
+(model.json is sealed by riskbench's manifest, so it is not edited).
+Usage: python train_with_progress.py [--every N] [--amp none|bf16] <train-codebert args...>
 """
+import json
 import sys
 import time
+from pathlib import Path
+
+import torch
 
 import riskbench.neural as neural
 from riskbench.cli import main
 
 args = sys.argv[1:]
-every = 50
-if args[:1] == ["--every"]:
-    every, args = int(args[1]), args[2:]
+every, amp = 50, "none"
+while args[:1] in (["--every"], ["--amp"]):
+    if args[0] == "--every":
+        every = int(args[1])
+    else:
+        amp = args[1]
+    args = args[2:]
+if amp not in ("none", "bf16"):
+    raise SystemExit(f"--amp must be none or bf16, got {amp!r}")
 
 _orig_train_epoch = neural.train_epoch
 state = {"epoch": 0}
@@ -41,10 +57,18 @@ class ProgressLoader:
 
 def train_epoch(model, loader, optimizer, device, accumulation=1, pos_weight=None):
     state["epoch"] += 1
-    return _orig_train_epoch(model, ProgressLoader(loader, accumulation), optimizer, device,
-                             accumulation, pos_weight)
+    loader = ProgressLoader(loader, accumulation)
+    if amp == "bf16":
+        with torch.autocast(device_type=torch.device(device).type, dtype=torch.bfloat16):
+            return _orig_train_epoch(model, loader, optimizer, device, accumulation, pos_weight)
+    return _orig_train_epoch(model, loader, optimizer, device, accumulation, pos_weight)
 
 
 neural.train_epoch = train_epoch
 sys.argv = ["riskbench", "train-codebert", *args]
+started = time.time()
 main()
+out = Path(args[args.index("--out") + 1])
+(out / "training_wrapper.json").write_text(json.dumps({
+    "wrapper": "tools/train_with_progress.py", "amp": amp, "every": every,
+    "wall_seconds": round(time.time() - started, 1), "torch": torch.__version__}, indent=2))
