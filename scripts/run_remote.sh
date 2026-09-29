@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
-# 003 on a Runpod CUDA pod. Run from <bundle>/baseline after unpacking the bundle (see RUNLOG).
+# 005 on a Runpod CUDA pod with a network volume at /workspace. Run from /workspace/jit005/baseline.
+# Training protocol is 003's (fp32, batch 32x1, epochs<=100, patience 2); every seed is then
+# scored on the ApacheJIT public test and the three JIT-Defects4J partitions.
 set -euo pipefail
 SEEDS="${SEEDS:-42 43 44}"
 L=runs/logs; mkdir -p "$L"
@@ -28,9 +30,12 @@ for seed in $SEEDS; do
       --epochs 100 --patience 2 --batch-size 32 --accumulation 1 --encoder-lr 2e-5 --head-lr 1e-3 \
       --seed $seed --device cuda > "$L/train-$mode-seed$seed.log" 2>&1
   done
-  step "seed $seed predict_suite"
-  python scripts/predict_suite.py --dataset data/views/public/test --models rule tabular frozen finetune \
-    --model-root "$M" --device cuda --batch-size 64 --out runs/evaluation/seed$seed --bootstrap 500 \
-    > "$L/predict-seed$seed.log" 2>&1
+  for target in public/test jd4j/train jd4j/valid jd4j/test; do
+    tag=${target/\//-}
+    step "seed $seed predict $tag"
+    python scripts/predict_suite.py --dataset data/views/$target --models rule tabular frozen finetune \
+      --model-root "$M" --device cuda --batch-size 64 --out runs/evaluation/seed$seed-$tag --bootstrap 500 \
+      > "$L/predict-seed$seed-$tag.log" 2>&1
+  done
 done
 step "done"

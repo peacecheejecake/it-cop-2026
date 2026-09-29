@@ -44,5 +44,20 @@ ApacheJIT(Hadoop 계열 제외)으로 학습한 002/003의 모델을 **처음 �
 - 크기 기반 feature는 처음 보는 프로젝트에서도 기저율 대비 2.8~3.4배의 향상을 유지한다. ROC-AUC는 0.81에서 0.71~0.75로 떨어진다.
 - 2017년 이후는 양성이 56개뿐이라 불확실성이 크다(구간은 `runs/evaluation/local-jd4j-*/metrics.json`).
 
-## 결과 2 — A/B (예정)
-003 seed별 A/B 모델은 Runpod Pod `n2m8dtxgz6s598`(정지 상태)에 있다. 추론에는 Pod 재시작이 필요하다(약 20~30분, 약 $1). 사용자 결정을 기다리는 중이다.
+## 사전 등록 v2 — 새 Pod에서 다시 학습 (사용자 지시 "이전 Pod는 잊고 새 Pod에서 005 진행", 2026-09-29)
+
+- 003의 가중치를 쓸 수 없으므로 **새 Pod에서 003 프로토콜 그대로 다시 학습**한다: fp32, batch 32×1, 상한 100 epoch, patience 2, seed 42/43/44, 002의 public view(SHA-256 확인).
+- 학습 직후 seed마다 **ApacheJIT public test**(003 재현 확인과 같은 행 기준선)와 **JIT-Defects4J 세 파티션**을 모두 추론한다(`scripts/run_remote.sh`).
+- 이번 Pod의 결과는 003 결과를 **대체하지 않는다**. ApacheJIT test 지표가 003과 seed 분산 범위 안에서 일치하는지를 재현성 점검으로 보고한다. 005의 주 결과는 같은 Pod·같은 모델 안에서의 "같은 프로젝트의 미래 대 처음 보는 프로젝트" 비교다.
+- **저장**: 모델 가중치와 결과를 **network volume**(`/workspace`)에 둔다. Pod를 종료해도 같은 데이터센터의 다른 호스트에서 다시 붙일 수 있다(AGENTS.md 교훈).
+- 로컬 002 모델(seed 42, MPS) 추론은 비용 없는 참고 대조로 병행한다.
+
+## 결과 2 — A/B
+
+### Pod 재시작 실패 (사용자가 005 진행을 승인한 뒤)
+`pod-action start` → `400 There are not enough free GPUs on the host machine to start this pod.` 정지한 Pod는 원래 호스트에 묶여 있고, 그 호스트의 GPU가 다른 사용자에게 할당되었다. REST API로는 GPU 없이 시작할 수 없다(`update-pod`로 GPU 수를 바꿀 수 없음). **003의 seed별 A/B 가중치는 그 호스트의 persistent 디스크에 있어 지금은 접근할 수 없다.** 003 결과 회수 때 가중치를 받지 않았고, 정지를 택하면서 이 위험을 사용자에게 알리지 않았다. 교훈은 AGENTS.md에 반영했다.
+
+### 대안: 002 모델(seed 42, MPS)로 로컬 추론
+- 근거: 002 B는 003 seed 42 B와 같은 24,178행 test에서 AP 0.534 대 0.537, 점수 Spearman 0.979다(002 RESULTS). 사실상 같은 모델로 본다. 정형 LR은 002와 003의 계수가 1e-15 수준까지 같다.
+- 한계: 002 A는 **5 epoch에서 멈춘 미수렴 버전**이다(003의 수렴한 A보다 ApacheJIT test에서 AP가 0.016 낮음). seed는 하나다.
+- 명령: `predict_suite.py --dataset data/views/jd4j/{train,valid,test} --models rule tabular frozen finetune --model-root ../../002-no-hadoop/baseline/runs/models --device mps --bootstrap 500`
