@@ -111,7 +111,7 @@ python scripts/smoke.py --out runs/smoke-core   # neural이면 --neural 추가
 | `001-baseline-smoke` | README 전체 파이프라인, 전체 ApacheJIT. B 우위가 Hadoop 라벨 이상에서 기인함을 발견 |
 | `002-no-hadoop` | 001과 동일 프로토콜, Hadoop 계열 3개 저장소만 제외 |
 | `003-seeds-cuda` | 002 데이터, Runpod CUDA에서 seed 42/43/44, 수렴까지(epoch 상한 100, patience 2). 정형 LR > B(−0.037±0.004), B 우위는 시간이 갈수록 소멸 |
-| `005-cross-project-jd4j` | 003 모델을 JIT-Defects4J(처음 보는 21개 프로젝트)에 재학습 없이 적용. 정형 LR은 기저율 대비 2.8~3.4배 향상 유지. A/B 추론 보류 중 |
+| `005-cross-project-jd4j` | 003 프로토콜을 새 Pod에서 재현(3 seed)한 뒤 JIT-Defects4J(처음 보는 21개 프로젝트)에 재학습 없이 적용. 처음 보는 프로젝트에서 B의 향상 배수(2.31)는 rule(2.39)보다 낮아지고 정형 LR(2.78)은 오른다. 가중치는 network volume `c8wdh0j8ek`(CA-MTL-3)에 보관 |
 
 데이터셋 출처·라이선스·알려진 문제는 루트 `DATASETS.md`에 기록한다.
 
