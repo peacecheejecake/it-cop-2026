@@ -116,6 +116,8 @@ python scripts/smoke.py --out runs/smoke-core   # neural이면 --neural 추가
 데이터셋 출처·라이선스·알려진 문제는 루트 `DATASETS.md`에 기록한다.
 
 원격 GPU(Runpod) 실험은 실험 커밋 + 입력 view + CodeBERT를 `experiments/.cache/bundles/<exp>-<commit>.tar`로 묶어 올리고(SHA-256 기록), 결과(`runs/models/*/model.json`, 예측, metrics, 로그)만 되받는다. Pod 생성·유지는 비용이 들므로 GPU 종류와 예상 비용을 사용자에게 먼저 확인받고, 끝나면 Pod를 종료한다.
+- **정지(stop)한 Pod는 원래 호스트의 GPU가 비어 있어야만 다시 켤 수 있다.** 003에서 정지한 Pod가 "not enough free GPUs on the host"로 재시작에 실패했고, 모델 가중치가 그 호스트의 persistent 디스크에 묶였다. 다시 쓸 산출물(모델 가중치 등)은 **network volume**에 두거나, Pod를 멈추기 전에 로컬로 받아 둔다.
+- 정밀도(bf16/fp16)나 배치 구성을 바꿀 때는 demo 인코더가 아니라 **실제 데이터로 짧게 검증**한 뒤 본 실행을 한다. 003에서 epoch 전체에 bf16 autocast를 씌우자 발산했다.
 
 ## 6. 참고 문서
 
