@@ -58,5 +58,25 @@ riskbench split-public --records data/canonical/apachejit-no-hadoop/records.json
 - 제외 712건(`duplicate_patch` 708, `group_or_exact_patch_crosses_split` 4).
 - **test 24,178건은 001 test에서 Hadoop 계열을 뺀 부분집합과 크기가 정확히 같다.** 그래서 001 모델을 이 부분집합으로 평가한 값(정형 LR 0.580, B 0.551)과 002 모델을 같은 행에서 직접 비교할 수 있다. 행 ID가 같은지는 평가 후 확인한다.
 
+### 데이터 특성: ApacheJIT의 커밋 포함 방식 (사용자 질문으로 조사, 2026-09-29)
+
+결함 비율(원본 전체 26.5%, 이 실험 train 29.3%)이 높은 이유를 확인했다. 캐시된 저장소에서 CSV 기간의 `git log HEAD --no-merges`와 CSV를 비교했다.
+- CSV는 같은 기간 non-merge 커밋의 **일부만** 담는다. 대부분 50~61%이고 kafka 35%, zeppelin 36%, zookeeper 41%이며 **spark는 6%**(1,465 / 24,200)다.
+- 빠진 커밋의 특징(프로젝트별 250개 표본):
+  - camel: 빠진 커밋 중 코드 파일을 건드리는 비율 24%, 중앙값 5줄 → 주로 **비코드 커밋을 걸러낸 것**이다.
+  - kafka: 81%가 코드 변경, 중앙값 40줄(포함된 쪽 108줄).
+  - spark: 84%가 코드 변경, 중앙값 38줄(포함된 쪽 161줄) → 코드 변경인데도 **작은 커밋이 많이 빠졌다.**
+- spark의 결함 비율 43.1%는 기간 내 전체 non-merge 커밋 대비 2.6%에 해당한다. 결함 커밋은 대부분 포함하고 결함 없는 커밋을 줄여 뽑은 것으로 **추정**되지만, 빠진 커밋의 라벨을 모르므로 확정할 수 없다.
+- 의미: (1) AP, precision 같은 기저율 민감 지표의 절대값은 운영 환경으로 옮길 수 없다. (2) 포함 여부가 커밋 크기와 연관되어 있어, 크기 기반 모델(rule, 정형 LR)의 성능에 데이터셋 구성 효과가 섞일 수 있다. (3) 같은 test 안에서 모델끼리 비교하는 것은 유효하지만, "이 benchmark 안에서"로 한정해 해석한다.
+- 002의 설계는 바꾸지 않는다(001과 같은 성질). 모든 코드 변경 커밋에 SZZ를 다시 적용해 라벨을 새로 만드는 것은 별도 실험 후보로 둔다.
+
 ### 이후 단계 (`scripts/run_pipeline.sh`, 08:43 시작)
 prepare(3개 병렬) → tabular(CPU)와 A→B(MPS, `tools/train_with_progress.py --every 200`) → predict_suite(공개 test, bootstrap 500) → leak_check, sensitivity, paired bootstrap 순으로 실행한다. 모델과 하이퍼파라미터 명령은 001과 같다. 단계별 로그는 `baseline/runs/logs/`에 남는다.
+
+| 단계 | 시각 | 결과 |
+|---|---|---|
+| prepare | 08:43 → 08:48 | 512 토큰 초과로 잘린 비율: train 52,160 / 56,870 (91.7%), valid 7,761 / 8,709 (89.1%), test 21,549 / 24,178 (89.1%) |
+| 정형 LR | 08:48 시작 | C = 0.1, **validation AP 0.670** (001: 0.588, valid 기저율이 0.294에서 0.326으로 바뀌었으므로 직접 비교하지 않음) |
+| A frozen | 08:48 → 09:17 (29분) | validation AP epoch 1~5: 0.536 → 0.551 → 0.559 → 0.566 → **0.570**(epoch 5 선택). 001처럼 **계속 상승해 미수렴** |
+| B finetune | 09:17 시작 | 래퍼 출력이 정상이다(800 배치마다). 7.8~8.2 ex/s |
+| B epoch 1 | 11:18 학습 종료(2시간 1분) + validation | validation AP **0.699** |
