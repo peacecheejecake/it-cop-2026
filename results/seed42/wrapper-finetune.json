@@ -1,0 +1,7 @@
+{
+  "wrapper": "tools/train_with_progress.py",
+  "amp": "none",
+  "every": 100,
+  "wall_seconds": 1681.3,
+  "torch": "2.8.0+cu128"
+}

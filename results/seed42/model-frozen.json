@@ -1,0 +1,195 @@
+{
+ "kind": "codebert",
+ "mode": "frozen",
+ "base_model": "models/codebert-base",
+ "revision": null,
+ "resolved_revision": null,
+ "demo_encoder": false,
+ "training_label_type": "bug_inducing_commit",
+ "pooling": "attention-masked-mean",
+ "head": "linear-logit",
+ "view": {
+  "tokenizer": "models/codebert-base",
+  "revision": null,
+  "tokenizer_signature": "38fa75cc8de1dbcccd104f153f795c39e33bd5b13607220630d45e3882f2046a",
+  "max_tokens": 512,
+  "message_tokens": 64,
+  "strategy": "message-cap+diff-head-tail-v1",
+  "pad_token_id": 1,
+  "synthetic_tokenizer": false,
+  "policy_hash": "05ce376cc5d3186f85fb0f38ca5a5c8541d860642360d520f17822ea963e04fc"
+ },
+ "seed": 42,
+ "epochs_requested": 100,
+ "selected_epoch": 19,
+ "encoder_lr": 2e-05,
+ "head_lr": 0.001,
+ "batch_size": 32,
+ "accumulation": 1,
+ "patience": 2,
+ "class_weight": "none",
+ "history": [
+  {
+   "epoch": 1,
+   "loss": 0.5661173023111857,
+   "optimizer_steps": 1778,
+   "examples": 56870,
+   "validation_ap": 0.5356816285920616
+  },
+  {
+   "epoch": 2,
+   "loss": 0.5411585190771165,
+   "optimizer_steps": 1778,
+   "examples": 56870,
+   "validation_ap": 0.5509819912445253
+  },
+  {
+   "epoch": 3,
+   "loss": 0.5302065385337535,
+   "optimizer_steps": 1778,
+   "examples": 56870,
+   "validation_ap": 0.5593906703768755
+  },
+  {
+   "epoch": 4,
+   "loss": 0.5244974555838438,
+   "optimizer_steps": 1778,
+   "examples": 56870,
+   "validation_ap": 0.5663501207632875
+  },
+  {
+   "epoch": 5,
+   "loss": 0.5209361391912681,
+   "optimizer_steps": 1778,
+   "examples": 56870,
+   "validation_ap": 0.569594799800613
+  },
+  {
+   "epoch": 6,
+   "loss": 0.5180529909224466,
+   "optimizer_steps": 1778,
+   "examples": 56870,
+   "validation_ap": 0.5717519496023191
+  },
+  {
+   "epoch": 7,
+   "loss": 0.516521040718732,
+   "optimizer_steps": 1778,
+   "examples": 56870,
+   "validation_ap": 0.5748168503519084
+  },
+  {
+   "epoch": 8,
+   "loss": 0.5138268774164064,
+   "optimizer_steps": 1778,
+   "examples": 56870,
+   "validation_ap": 0.5756604886708507
+  },
+  {
+   "epoch": 9,
+   "loss": 0.511667646350562,
+   "optimizer_steps": 1778,
+   "examples": 56870,
+   "validation_ap": 0.5788326982111772
+  },
+  {
+   "epoch": 10,
+   "loss": 0.5109332367219719,
+   "optimizer_steps": 1778,
+   "examples": 56870,
+   "validation_ap": 0.5799490372605987
+  },
+  {
+   "epoch": 11,
+   "loss": 0.5101809970771195,
+   "optimizer_steps": 1778,
+   "examples": 56870,
+   "validation_ap": 0.5830260563046629
+  },
+  {
+   "epoch": 12,
+   "loss": 0.5089279269970887,
+   "optimizer_steps": 1778,
+   "examples": 56870,
+   "validation_ap": 0.5836766965473379
+  },
+  {
+   "epoch": 13,
+   "loss": 0.5064037151090999,
+   "optimizer_steps": 1778,
+   "examples": 56870,
+   "validation_ap": 0.5852188202138602
+  },
+  {
+   "epoch": 14,
+   "loss": 0.5071534954266911,
+   "optimizer_steps": 1778,
+   "examples": 56870,
+   "validation_ap": 0.5873573906696188
+  },
+  {
+   "epoch": 15,
+   "loss": 0.506244558413502,
+   "optimizer_steps": 1778,
+   "examples": 56870,
+   "validation_ap": 0.5871837910541996
+  },
+  {
+   "epoch": 16,
+   "loss": 0.506496673664142,
+   "optimizer_steps": 1778,
+   "examples": 56870,
+   "validation_ap": 0.5886755039495558
+  },
+  {
+   "epoch": 17,
+   "loss": 0.5055166860362107,
+   "optimizer_steps": 1778,
+   "examples": 56870,
+   "validation_ap": 0.589468286507386
+  },
+  {
+   "epoch": 18,
+   "loss": 0.5046850790305865,
+   "optimizer_steps": 1778,
+   "examples": 56870,
+   "validation_ap": 0.5903956149285094
+  },
+  {
+   "epoch": 19,
+   "loss": 0.5049191983382941,
+   "optimizer_steps": 1778,
+   "examples": 56870,
+   "validation_ap": 0.5925044965444387
+  },
+  {
+   "epoch": 20,
+   "loss": 0.5041859528145137,
+   "optimizer_steps": 1778,
+   "examples": 56870,
+   "validation_ap": 0.5908800175089655
+  },
+  {
+   "epoch": 21,
+   "loss": 0.5024653386206079,
+   "optimizer_steps": 1778,
+   "examples": 56870,
+   "validation_ap": 0.5917543615512378
+  }
+ ],
+ "training_seconds": 43.43770631076768,
+ "device": "cuda",
+ "train_inputs_sha256": "d5af885868f9893e76cd5b1c382de3e7d715fdf39fcc8f2777f2e1c12b8f5754",
+ "valid_inputs_sha256": "37350e2386e6fa8cab9188216857fa2e32bd4e264c870c7820524aae7169f81b",
+ "retrospective_labels": true,
+ "versions": {
+  "python": "3.12.3",
+  "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.39",
+  "numpy": "2.1.2",
+  "scikit-learn": "1.9.1",
+  "torch": "2.8.0+cu128",
+  "transformers": "4.57.6",
+  "httpx": "0.28.1",
+  "safetensors": "0.8.0"
+ }
+}

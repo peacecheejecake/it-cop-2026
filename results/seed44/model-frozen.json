@@ -1,0 +1,132 @@
+{
+ "kind": "codebert",
+ "mode": "frozen",
+ "base_model": "models/codebert-base",
+ "revision": null,
+ "resolved_revision": null,
+ "demo_encoder": false,
+ "training_label_type": "bug_inducing_commit",
+ "pooling": "attention-masked-mean",
+ "head": "linear-logit",
+ "view": {
+  "tokenizer": "models/codebert-base",
+  "revision": null,
+  "tokenizer_signature": "38fa75cc8de1dbcccd104f153f795c39e33bd5b13607220630d45e3882f2046a",
+  "max_tokens": 512,
+  "message_tokens": 64,
+  "strategy": "message-cap+diff-head-tail-v1",
+  "pad_token_id": 1,
+  "synthetic_tokenizer": false,
+  "policy_hash": "05ce376cc5d3186f85fb0f38ca5a5c8541d860642360d520f17822ea963e04fc"
+ },
+ "seed": 44,
+ "epochs_requested": 100,
+ "selected_epoch": 10,
+ "encoder_lr": 2e-05,
+ "head_lr": 0.001,
+ "batch_size": 32,
+ "accumulation": 1,
+ "patience": 2,
+ "class_weight": "none",
+ "history": [
+  {
+   "epoch": 1,
+   "loss": 0.5668338643366326,
+   "optimizer_steps": 1778,
+   "examples": 56870,
+   "validation_ap": 0.5381757909564776
+  },
+  {
+   "epoch": 2,
+   "loss": 0.5425169120695169,
+   "optimizer_steps": 1778,
+   "examples": 56870,
+   "validation_ap": 0.5490784649112532
+  },
+  {
+   "epoch": 3,
+   "loss": 0.5300684003056888,
+   "optimizer_steps": 1778,
+   "examples": 56870,
+   "validation_ap": 0.5605717984708174
+  },
+  {
+   "epoch": 4,
+   "loss": 0.525858432852113,
+   "optimizer_steps": 1778,
+   "examples": 56870,
+   "validation_ap": 0.5621343402058292
+  },
+  {
+   "epoch": 5,
+   "loss": 0.5213718108496138,
+   "optimizer_steps": 1778,
+   "examples": 56870,
+   "validation_ap": 0.5683086486667305
+  },
+  {
+   "epoch": 6,
+   "loss": 0.5192045607297685,
+   "optimizer_steps": 1778,
+   "examples": 56870,
+   "validation_ap": 0.5724222978969606
+  },
+  {
+   "epoch": 7,
+   "loss": 0.5159141715851152,
+   "optimizer_steps": 1778,
+   "examples": 56870,
+   "validation_ap": 0.5760934395721988
+  },
+  {
+   "epoch": 8,
+   "loss": 0.5133185527206033,
+   "optimizer_steps": 1778,
+   "examples": 56870,
+   "validation_ap": 0.5794672455628994
+  },
+  {
+   "epoch": 9,
+   "loss": 0.512776745570991,
+   "optimizer_steps": 1778,
+   "examples": 56870,
+   "validation_ap": 0.5800369367322062
+  },
+  {
+   "epoch": 10,
+   "loss": 0.5094679233204905,
+   "optimizer_steps": 1778,
+   "examples": 56870,
+   "validation_ap": 0.5836042188116277
+  },
+  {
+   "epoch": 11,
+   "loss": 0.5094600870254192,
+   "optimizer_steps": 1778,
+   "examples": 56870,
+   "validation_ap": 0.583031332185848
+  },
+  {
+   "epoch": 12,
+   "loss": 0.5093069884738081,
+   "optimizer_steps": 1778,
+   "examples": 56870,
+   "validation_ap": 0.5824153232106957
+  }
+ ],
+ "training_seconds": 24.944881749805063,
+ "device": "cuda",
+ "train_inputs_sha256": "d5af885868f9893e76cd5b1c382de3e7d715fdf39fcc8f2777f2e1c12b8f5754",
+ "valid_inputs_sha256": "37350e2386e6fa8cab9188216857fa2e32bd4e264c870c7820524aae7169f81b",
+ "retrospective_labels": true,
+ "versions": {
+  "python": "3.12.3",
+  "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.39",
+  "numpy": "2.1.2",
+  "scikit-learn": "1.9.1",
+  "torch": "2.8.0+cu128",
+  "transformers": "4.57.6",
+  "httpx": "0.28.1",
+  "safetensors": "0.8.0"
+ }
+}
