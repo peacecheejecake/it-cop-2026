@@ -52,6 +52,18 @@ ApacheJIT(Hadoop 계열 제외)으로 학습한 002/003의 모델을 **처음 �
 - **저장**: 모델 가중치와 결과를 **network volume**(`/workspace`)에 둔다. Pod를 종료해도 같은 데이터센터의 다른 호스트에서 다시 붙일 수 있다(AGENTS.md 교훈).
 - 로컬 002 모델(seed 42, MPS) 추론은 비용 없는 참고 대조로 병행한다.
 
+### Runpod 설정 (v2)
+
+| 항목 | 값 |
+|---|---|
+| network volume | `c8wdh0j8ek` (`jit005-vol`), 20 GB STANDARD, CA-MTL-3 → `/workspace` |
+| Pod | `6y7c2qsnb5sc8b` (`jit005-cross-project`), Secure, CA-MTL-3, **$2.09/시간**, RTX PRO 6000 Blackwell SE 96 GB, 드라이버 595.91.07 |
+| 이미지 | `runpod/pytorch:1.0.2-cu1281-torch280-ubuntu2404` (torch 2.8.0+cu128, TF32 끔). 003과 같다 |
+| 번들 | `.cache/bundles/jit005-61bcd6f.tar.gz` (603 MB, sha256 `3618dc5a…a6a`). 업로드 2분 24초, 6개 view 모두 manifest SHA-256 일치 |
+| 데이터센터 선택 | RTX PRO 6000 재고와 network volume 지원이 모두 있는 곳 중, 같은 데이터센터에 A100도 있어 GPU를 바꿀 수 있는 CA-MTL-3 |
+
+실행: 09:20 UTC 시작. pytest 55개 통과 → 정형 LR(09:22) → seed 42 A(09:22~).
+
 ## 결과 2 — A/B
 
 ### Pod 재시작 실패 (사용자가 005 진행을 승인한 뒤)
