@@ -7,6 +7,9 @@ step() { echo "$(date '+%F %T') $*" | tee -a "$L/pipeline.log"; }
 
 step "env"
 nvidia-smi --query-gpu=name,memory.total,driver_version --format=csv | tee "$L/gpu.txt"
+# Ubuntu 24.04 system python is PEP 668-managed; the venv reuses the image's CUDA torch via system site-packages.
+[ -d /workspace/venv ] || python -m venv --system-site-packages /workspace/venv
+source /workspace/venv/bin/activate
 python -m pip install -q -e '.[neural,dev]' 2>&1 | tail -3
 python -c "import torch,transformers;print('torch',torch.__version__,'cuda',torch.version.cuda,'tf32',torch.backends.cuda.matmul.allow_tf32,'transformers',transformers.__version__)" | tee -a "$L/gpu.txt"
 python -m pip freeze > "$L/requirements-lock.txt"
