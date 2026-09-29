@@ -1,0 +1,35 @@
+{
+  "valid": {
+    "n": 8709,
+    "positives": 2843,
+    "change": {
+      "rows_matching_train": 56,
+      "rate": 0.0064,
+      "positives_matching": 1,
+      "label_agrees_with_train_majority": 54
+    },
+    "message": {
+      "rows_matching_train": 18,
+      "rate": 0.0021,
+      "positives_matching": 1,
+      "label_agrees_with_train_majority": 17
+    }
+  },
+  "test": {
+    "n": 24178,
+    "positives": 5532,
+    "change": {
+      "rows_matching_train": 108,
+      "rate": 0.0045,
+      "positives_matching": 2,
+      "label_agrees_with_train_majority": 106
+    },
+    "message": {
+      "rows_matching_train": 138,
+      "rate": 0.0057,
+      "positives_matching": 1,
+      "label_agrees_with_train_majority": 138
+    },
+    "excluding_matches_n": 23932
+  }
+}

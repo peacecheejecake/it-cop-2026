@@ -1,0 +1,235 @@
+{
+  "subsets": {
+    "full": {
+      "n": 24178,
+      "positives": 5532,
+      "models": {
+        "project_prior": {
+          "ap": 0.3321,
+          "roc_auc": 0.6093,
+          "top5_recall": 0.0992,
+          "top10_recall": 0.1948,
+          "top10_precision": 0.4456
+        },
+        "rule": {
+          "ap": 0.4989,
+          "roc_auc": 0.7835,
+          "top5_recall": 0.1377,
+          "top10_recall": 0.2623,
+          "top10_precision": 0.6001
+        },
+        "tabular": {
+          "ap": 0.5761,
+          "roc_auc": 0.8142,
+          "top5_recall": 0.1649,
+          "top10_recall": 0.301,
+          "top10_precision": 0.6886
+        },
+        "frozen": {
+          "ap": 0.4067,
+          "roc_auc": 0.7209,
+          "top5_recall": 0.113,
+          "top10_recall": 0.2104,
+          "top10_precision": 0.4814
+        },
+        "finetune": {
+          "ap": 0.5341,
+          "roc_auc": 0.8163,
+          "top5_recall": 0.1428,
+          "top10_recall": 0.2659,
+          "top10_precision": 0.6084
+        }
+      }
+    },
+    "no_hadoop_family": {
+      "n": 24178,
+      "positives": 5532,
+      "models": {
+        "project_prior": {
+          "ap": 0.3321,
+          "roc_auc": 0.6093,
+          "top5_recall": 0.0992,
+          "top10_recall": 0.1948,
+          "top10_precision": 0.4456
+        },
+        "rule": {
+          "ap": 0.4989,
+          "roc_auc": 0.7835,
+          "top5_recall": 0.1377,
+          "top10_recall": 0.2623,
+          "top10_precision": 0.6001
+        },
+        "tabular": {
+          "ap": 0.5761,
+          "roc_auc": 0.8142,
+          "top5_recall": 0.1649,
+          "top10_recall": 0.301,
+          "top10_precision": 0.6886
+        },
+        "frozen": {
+          "ap": 0.4067,
+          "roc_auc": 0.7209,
+          "top5_recall": 0.113,
+          "top10_recall": 0.2104,
+          "top10_precision": 0.4814
+        },
+        "finetune": {
+          "ap": 0.5341,
+          "roc_auc": 0.8163,
+          "top5_recall": 0.1428,
+          "top10_recall": 0.2659,
+          "top10_precision": 0.6084
+        }
+      }
+    },
+    "no_near_duplicates": {
+      "n": 23932,
+      "positives": 5529,
+      "models": {
+        "project_prior": {
+          "ap": 0.3341,
+          "roc_auc": 0.6083,
+          "top5_recall": 0.099,
+          "top10_recall": 0.1942,
+          "top10_precision": 0.4486
+        },
+        "rule": {
+          "ap": 0.499,
+          "roc_auc": 0.7813,
+          "top5_recall": 0.1362,
+          "top10_recall": 0.2603,
+          "top10_precision": 0.6011
+        },
+        "tabular": {
+          "ap": 0.5762,
+          "roc_auc": 0.8122,
+          "top5_recall": 0.1639,
+          "top10_recall": 0.2982,
+          "top10_precision": 0.6888
+        },
+        "frozen": {
+          "ap": 0.407,
+          "roc_auc": 0.718,
+          "top5_recall": 0.1123,
+          "top10_recall": 0.2084,
+          "top10_precision": 0.4812
+        },
+        "finetune": {
+          "ap": 0.5343,
+          "roc_auc": 0.8142,
+          "top5_recall": 0.1416,
+          "top10_recall": 0.2641,
+          "top10_precision": 0.6099
+        }
+      }
+    }
+  },
+  "per_project_ap": {
+    "apache/camel": {
+      "n": 6427,
+      "positives": 344,
+      "base_rate": 0.054,
+      "rule": 0.1528,
+      "tabular": 0.1885,
+      "frozen": 0.0892,
+      "finetune": 0.1265
+    },
+    "apache/cassandra": {
+      "n": 554,
+      "positives": 178,
+      "base_rate": 0.321,
+      "rule": 0.6043,
+      "tabular": 0.6223,
+      "frozen": 0.4445,
+      "finetune": 0.5694
+    },
+    "apache/flink": {
+      "n": 5454,
+      "positives": 1300,
+      "base_rate": 0.238,
+      "rule": 0.5483,
+      "tabular": 0.6259,
+      "frozen": 0.3694,
+      "finetune": 0.4989
+    },
+    "apache/groovy": {
+      "n": 1349,
+      "positives": 109,
+      "base_rate": 0.081,
+      "rule": 0.1547,
+      "tabular": 0.1971,
+      "frozen": 0.1549,
+      "finetune": 0.2743
+    },
+    "apache/hbase": {
+      "n": 2121,
+      "positives": 577,
+      "base_rate": 0.272,
+      "rule": 0.4675,
+      "tabular": 0.5012,
+      "frozen": 0.3571,
+      "finetune": 0.455
+    },
+    "apache/hive": {
+      "n": 2077,
+      "positives": 943,
+      "base_rate": 0.454,
+      "rule": 0.6994,
+      "tabular": 0.7345,
+      "frozen": 0.5482,
+      "finetune": 0.6598
+    },
+    "apache/ignite": {
+      "n": 2980,
+      "positives": 1016,
+      "base_rate": 0.341,
+      "rule": 0.6911,
+      "tabular": 0.7458,
+      "frozen": 0.4369,
+      "finetune": 0.6152
+    },
+    "apache/kafka": {
+      "n": 1640,
+      "positives": 647,
+      "base_rate": 0.395,
+      "rule": 0.6726,
+      "tabular": 0.7376,
+      "frozen": 0.5728,
+      "finetune": 0.7258
+    },
+    "apache/spark": {
+      "n": 537,
+      "positives": 160,
+      "base_rate": 0.298,
+      "rule": 0.5506,
+      "tabular": 0.6256,
+      "frozen": 0.4166,
+      "finetune": 0.4901
+    },
+    "apache/zeppelin": {
+      "n": 512,
+      "positives": 209,
+      "base_rate": 0.408,
+      "rule": 0.5788,
+      "tabular": 0.6337,
+      "frozen": 0.5295,
+      "finetune": 0.5435
+    },
+    "apache/zookeeper": {
+      "n": 254,
+      "positives": 36,
+      "base_rate": 0.142,
+      "rule": 0.2984,
+      "tabular": 0.3415,
+      "frozen": 0.2032,
+      "finetune": 0.2832
+    }
+  },
+  "per_project_mean_ap": {
+    "rule": 0.4926,
+    "tabular": 0.5412,
+    "frozen": 0.3748,
+    "finetune": 0.4765
+  },
+  "per_project_mean_base_rate": 0.2731
+}

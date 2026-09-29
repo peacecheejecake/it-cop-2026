@@ -80,3 +80,8 @@ prepare(3개 병렬) → tabular(CPU)와 A→B(MPS, `tools/train_with_progress.p
 | A frozen | 08:48 → 09:17 (29분) | validation AP epoch 1~5: 0.536 → 0.551 → 0.559 → 0.566 → **0.570**(epoch 5 선택). 001처럼 **계속 상승해 미수렴** |
 | B finetune | 09:17 시작 | 래퍼 출력이 정상이다(800 배치마다). 7.8~8.2 ex/s |
 | B epoch 1 | 11:18 학습 종료(2시간 1분) + validation | validation AP **0.699** |
+| B epoch 2 | 약 13:25 | validation AP **0.720** |
+| B epoch 3 | 약 15:35 | validation AP 0.708 (하락) |
+| B epoch 4 | 약 17:20 | validation AP 0.697 → patience 2로 조기 종료, **epoch 2 선택**(0.720). B 학습에 약 8시간 |
+| predict_suite | 17:21 → 17:41 | 공개 test, bootstrap 500 |
+| 분석 | 17:41 → 17:42 | leak_check, sensitivity, paired bootstrap → `RESULTS.md` |
