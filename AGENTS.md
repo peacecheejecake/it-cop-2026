@@ -110,7 +110,10 @@ python scripts/smoke.py --out runs/smoke-core   # neural이면 --neural 추가
 |---|---|
 | `001-baseline-smoke` | README 전체 파이프라인, 전체 ApacheJIT. B 우위가 Hadoop 라벨 이상에서 기인함을 발견 |
 | `002-no-hadoop` | 001과 동일 프로토콜, Hadoop 계열 3개 저장소만 제외 |
-| `003-seeds-cuda` | 002 데이터, Runpod CUDA에서 seed 42/43/44, 수렴까지(epoch 상한 100, patience 2) |
+| `003-seeds-cuda` | 002 데이터, Runpod CUDA에서 seed 42/43/44, 수렴까지(epoch 상한 100, patience 2). 정형 LR > B(−0.037±0.004), B 우위는 시간이 갈수록 소멸 |
+| `005-cross-project-jd4j` | 003 모델을 JIT-Defects4J(처음 보는 21개 프로젝트)에 재학습 없이 적용. 정형 LR은 기저율 대비 2.8~3.4배 향상 유지. A/B 추론 보류 중 |
+
+데이터셋 출처·라이선스·알려진 문제는 루트 `DATASETS.md`에 기록한다.
 
 원격 GPU(Runpod) 실험은 실험 커밋 + 입력 view + CodeBERT를 `experiments/.cache/bundles/<exp>-<commit>.tar`로 묶어 올리고(SHA-256 기록), 결과(`runs/models/*/model.json`, 예측, metrics, 로그)만 되받는다. Pod 생성·유지는 비용이 들므로 GPU 종류와 예상 비용을 사용자에게 먼저 확인받고, 끝나면 Pod를 종료한다.
 
