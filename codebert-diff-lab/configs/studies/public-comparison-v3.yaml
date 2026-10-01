@@ -118,4 +118,43 @@ cpt:
   device: cuda
   allow_cpu: false
   eval_batch_size: 64
-llm: PIN_REQUIRED
+llm:
+  # Pinned 2026-10-01 before any L0/L1 run or test access (user choice: Qwen2.5-Coder-7B-Instruct).
+  backend: local_hf
+  model_id: Qwen/Qwen2.5-Coder-7B-Instruct
+  revision: c03e6d358207e414f1eca0bb1891e29f1db0e242
+  tokenizer_revision: c03e6d358207e414f1eca0bb1891e29f1db0e242
+  license: apache-2.0
+  local_path: cache:models/qwen2.5-coder-7b-instruct
+  files_sha256:
+    config.json: c0242402ad6a13b331ea320feea8c7e3776ffb7a4eff0757b9cd667e116d9a28
+    generation_config.json: 1a628a5775bc69cde01c6749a531150ca4d3189652c618a174f7077923acf3b1
+    merges.txt: 599bab54075088774b1733fde865d5bd747cbcc7a547c5bc12610e874e26f5e3
+    tokenizer.json: c0382117ea329cdf097041132f6d735924b697924d6f6fc3945713e96ce87539
+    tokenizer_config.json: 959e7f1d9a1b7641a6d6ce05ca97b75c7894fcb66cbe5a040406458fb1128ee4
+    vocab.json: ca10d7e9fb3ed18575dd1e277a2579c16d108e32f27439684afa0e10b1440910
+    model-00001-of-00004.safetensors: 0b6f069918b07c064cbba8ae4f00f529aa9bbf84b7cdfcb7fc2694a40f6aa8ef
+    model-00002-of-00004.safetensors: c3d46733e7aa054ea7b063fbccd0a5a08446e7bd1814bef26936c5aa1331da62
+    model-00003-of-00004.safetensors: 9fe45dacee087385b3d2d6dd27a7413a8a56d95f145772facc148fa86fc73446
+    model-00004-of-00004.safetensors: 5aa6e5cbe642377fd441fb4e60e83cca96b2bcd9820e245b9ea06d94653f17f2
+  precision_profile: bf16
+  chat_template_hash: cd8e9439f0570856fd70470bf8889ebd8b5d1107207f67a5efb46e342330527f
+  task_prompt_id: jit-defect-binary-v1
+  task_prompt_hash: 64262bc533eb503a725a3f6b840ced81ee78fee0e04296ebf335b33c90d1f017
+  feature_serializer: jit14-named-raw-v1
+  scorer: candidate_loglikelihood
+  labels: ["0", "1"]
+  max_context_tokens: 8192
+  query_truncation: forbidden_after_evidence_freeze
+  train_weights: false
+  examples:
+    source_role: supervised_train
+    visibility: public
+    k: 4
+    class_counts: {negative: 2, positive: 2}
+    seeds: [42, 43, 44]
+    index_write_from_query: false
+  retrieval_enabled: false
+  device: cuda
+  allow_cpu: false
+  batch_token_budget: 32768

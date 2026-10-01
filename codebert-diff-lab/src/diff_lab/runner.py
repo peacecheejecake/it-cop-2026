@@ -28,10 +28,12 @@ from .registry import MATRIX_VERSION, Registry
 from .util import ExecutionError, IntegrityError, atomic_write_json, read_json, sha256_file, sha256_json, tree_digest
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-NEEDS_EVIDENCE = {"B1-TFIDF-S", "B2-S", "B3-S", "B4-S", "B5-S"}
+NEEDS_EVIDENCE = {"B1-TFIDF-S", "B2-S", "B3-S", "B4-S", "B5-S", "L0-S", "L1-S"}
 NEURAL = {"B2-S", "B3-S", "B4-S", "B5-S"}
+LLM = {"L0-S", "L1-S"}
 CPT_VARIANTS = {"B4-S": "mlm", "B5-S": "mlm+rmi"}
 SOURCE_PATTERNS = ("src/**/*.py", "pyproject.toml", "uv.lock")
+LLM_RUN_FILES = ("prompts/manifest.json", "usage.jsonl")
 REQUIRED_RUN_FILES = ("resolved-config.json", "environment.json", "data-lineage.json", "metrics.json", "metrics.jsonl",
                       "label-access-ledger.json", "evidence-manifest.json", "cost.json", "model/state.json",
                       "predictions/validation.parquet", "reports/summary.md")
@@ -162,7 +164,7 @@ def run_variant(cfg: StudyConfig, raw: dict, study_hash: str, variant: str, seed
     registry = Registry()
     v = registry.resolve(variant)
     require_pinned(raw, variant)
-    if variant not in MODELS and variant not in NEURAL:
+    if variant not in MODELS and variant not in NEURAL and variant not in LLM:
         raise ExecutionError(f"{variant} is not implemented in this milestone")
     if variant == "B0-LGBM" and "torch" in sys.modules:
         raise ExecutionError("B0-LGBM must run in a process that has not imported torch (two OpenMP runtimes segfault); "
@@ -192,7 +194,7 @@ def run_variant(cfg: StudyConfig, raw: dict, study_hash: str, variant: str, seed
             "scoped_config_sha256": scoped_config_hash(raw, variant), "started_at": datetime.now(UTC).isoformat()}
     atomic_write_json(run_dir / "run.json", {**base, "status": "running"})
     atomic_write_json(run_dir / "resolved-config.json", raw)
-    atomic_write_json(run_dir / "environment.json", environment(variant in NEURAL))
+    atomic_write_json(run_dir / "environment.json", environment(variant in NEURAL or variant in LLM))
     atomic_write_json(run_dir / "data-lineage.json", lineage)
     try:
         tr, va = frame["split"] == "train", frame["split"] == "valid"
@@ -201,7 +203,18 @@ def run_variant(cfg: StudyConfig, raw: dict, study_hash: str, variant: str, seed
         query = QueryView(split="valid", frame=frame[va].reset_index(drop=True), lineage=lineage)
         device = "cpu"
         cpt = None
-        if variant in NEURAL:
+        semantics = SCORE_SEMANTICS
+        if variant in LLM:
+            from .llm import SCORE_SEMANTICS as LLM_SEMANTICS
+            from .llm import LlmRun
+            t0 = time.perf_counter()
+            state = LlmRun(cfg, variant, seed, resolve_local_path(cfg.llm.local_path, PROJECT_ROOT), run_dir).fit_predict(
+                train_view, query)
+            scores = state.pop("scores")
+            pred_s, device = state["inference_seconds"], state["device"]
+            fit_s = time.perf_counter() - t0 - pred_s  # prompt building and model load; scoring time is pred_s
+            semantics = LLM_SEMANTICS
+        elif variant in NEURAL:
             from .evidence import load_tokenizer
             from .neural import NeuralRun
             local = resolve_local_path(cfg.model.local_path, PROJECT_ROOT)
@@ -231,7 +244,7 @@ def run_variant(cfg: StudyConfig, raw: dict, study_hash: str, variant: str, seed
             pred_s = time.perf_counter() - t1
         ids = query.ids
         pred = pd.DataFrame({"change_id": ids, "run_id": run_id, "score": scores.astype(float),
-                             "score_semantics": SCORE_SEMANTICS, "prediction_status": "ok",
+                             "score_semantics": semantics, "prediction_status": "ok",
                              "latency_ms": None if pred_s is None else pred_s * 1000 / max(len(ids), 1)})
         if len(pred) != int(va.sum()) or not pred["score"].between(0, 1).all():
             raise IntegrityError("prediction coverage/score range check failed")
@@ -254,11 +267,15 @@ def run_variant(cfg: StudyConfig, raw: dict, study_hash: str, variant: str, seed
         (run_dir / "metrics.jsonl").write_text("".join(json.dumps({"kind": "epoch", **h}, sort_keys=True) + "\n" for h in history))
         events = [{"kind": "threshold", "rule": thr["policy"], "chosen": thr["threshold"], "metric": "f1",
                    "split": "valid"}]
+        if variant in LLM:
+            events.insert(0, {"kind": "llm_configuration", "rule": "single pre-registered model/template/scorer; no sweep",
+                              "candidates": 1, "split": "none"})
         if variant in NEURAL:
             events.insert(0, {"kind": "checkpoint_epoch", "rule": "max validation AP, ties -> earlier", "metric": "validation_ap",
                               "chosen_epoch": state["best_epoch"], "candidates": len(state["history"]), "split": "valid"})
         atomic_write_json(run_dir / "label-access-ledger.json", {
-            "gradient_label_count": int(tr.sum()), "demo_unique_label_count": 0, "index_labeled_count": 0,
+            "gradient_label_count": 0 if variant in LLM else int(tr.sum()),
+            "demo_unique_label_count": state.get("demo_unique_label_count", 0) if variant in LLM else 0, "index_labeled_count": 0,
             "selection_label_count": int(va.sum()), "adaptation_mode": v.adaptation_mode,
             "rmi_synthetic_target_count": cpt["token_accounting"]["rmi_targets"] if cpt else 0,
             "cpt_label_count": 0, "cpt_unlabeled_input_count": cpt["token_accounting"]["corpus_changes"] if cpt else 0,
@@ -276,7 +293,7 @@ def run_variant(cfg: StudyConfig, raw: dict, study_hash: str, variant: str, seed
             atomic_write_json(run_dir / "token-accounting.json", acct)
         atomic_write_json(run_dir / "cost.json", {
             "wall_seconds": fit_s + (pred_s or 0.0), "fit_seconds": fit_s, "predict_seconds": pred_s,
-            "device": device, "gpu_seconds": fit_s if device.startswith("cuda") else 0,
+            "device": device, "gpu_seconds": (fit_s + (pred_s or 0.0)) if device.startswith("cuda") else 0,
             "peak_cuda_bytes": state.get("peak_cuda_bytes"), "peak_cuda_reserved_bytes": state.get("peak_cuda_reserved_bytes"),
             "inference_latency": "not measured (null); needs a separate inference benchmark" if pred_s is None else "measured",
             "note": "neural fit_seconds include per-epoch validation scoring"})
@@ -286,7 +303,7 @@ def run_variant(cfg: StudyConfig, raw: dict, study_hash: str, variant: str, seed
             f"selection-validation AP {metrics['ap']}, ROC-AUC {metrics['roc_auc']}, "
             f"Recall@5% {metrics['recall_at_5pct']['recall']}, Recall@10% {metrics['recall_at_10pct']['recall']}\n\n"
             + (f"best epoch {state['best_epoch']} of {len(state['history'])}\n" if variant in NEURAL else ""))
-        artifacts = {rel: sha256_file(run_dir / rel) for rel in REQUIRED_RUN_FILES}
+        artifacts = {rel: sha256_file(run_dir / rel) for rel in REQUIRED_RUN_FILES + (LLM_RUN_FILES if variant in LLM else ())}
         done = {**base, "status": "completed", "finished_at": datetime.now(UTC).isoformat(), "artifacts_sha256": artifacts,
                 "validation_ap": metrics["ap"], **({"cpt_id": cpt["cpt_id"]} if cpt else {})}
         atomic_write_json(run_dir / "run.json", done)

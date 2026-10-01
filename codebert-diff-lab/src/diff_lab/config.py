@@ -189,6 +189,54 @@ class CptCfg(Strict):
         return v
 
 
+class LlmExamplesCfg(Strict):
+    source_role: Literal["supervised_train"]
+    visibility: Literal["public"]
+    k: int = Field(ge=1)
+    class_counts: dict[Literal["negative", "positive"], int]
+    seeds: list[int]
+    index_write_from_query: Literal[False]
+
+    @model_validator(mode="after")
+    def _k(self) -> LlmExamplesCfg:
+        if sum(self.class_counts.values()) != self.k or set(self.class_counts) != {"negative", "positive"}:
+            raise ValueError("class_counts must cover negative and positive and sum to k")
+        return self
+
+
+class LlmCfg(Strict):
+    """Frozen local LLM for L0-S/L1-S (spec implementation-plan §6 llm, protocol §11/§12)."""
+    backend: Literal["local_hf"]
+    model_id: str
+    revision: str = Field(pattern=r"^[0-9a-f]{40}$")
+    tokenizer_revision: str = Field(pattern=r"^[0-9a-f]{40}$")
+    license: str
+    local_path: str
+    files_sha256: dict[str, str]
+    precision_profile: Literal["bf16", "fp32"]
+    chat_template_hash: str = Field(pattern=r"^[0-9a-f]{64}$")
+    task_prompt_id: Literal["jit-defect-binary-v1"]
+    task_prompt_hash: str = Field(pattern=r"^[0-9a-f]{64}$")
+    feature_serializer: Literal["jit14-named-raw-v1"]
+    scorer: Literal["candidate_loglikelihood"]
+    labels: list[Literal["0", "1"]]
+    max_context_tokens: int = Field(ge=512)
+    query_truncation: Literal["forbidden_after_evidence_freeze"]
+    train_weights: Literal[False]
+    examples: LlmExamplesCfg
+    retrieval_enabled: Literal[False]
+    device: Literal["cuda", "mps", "cpu"]
+    allow_cpu: bool = False
+    batch_token_budget: int = Field(ge=512)
+
+    @field_validator("labels")
+    @classmethod
+    def _labels(cls, v: list[str]) -> list[str]:
+        if v != ["0", "1"]:
+            raise ValueError('labels must be ["0", "1"] (index 1 is the positive class)')
+        return v
+
+
 class StudyConfig(Strict):
     schema_version: Literal[2]
     matrix_version: Literal[2]
@@ -205,7 +253,7 @@ class StudyConfig(Strict):
     seeds: list[int]
     evaluation: EvaluationCfg
     policy: PolicyCfg
-    llm: dict[str, Any] | Literal["PIN_REQUIRED"] | None = None
+    llm: LlmCfg | Literal["PIN_REQUIRED"] | None = None
     cpt: CptCfg | Literal["PIN_REQUIRED"] | None = None
     finetune: FinetuneCfg | Literal["PIN_REQUIRED"] | None = None
 
