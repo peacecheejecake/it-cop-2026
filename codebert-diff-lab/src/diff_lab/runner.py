@@ -43,9 +43,14 @@ def git_state() -> dict:
     def run(*a: str) -> str:
         return subprocess.run(["git", *a], capture_output=True, text=True, cwd=PROJECT_ROOT, check=True).stdout.strip()
     try:
-        return {"sha": run("rev-parse", "HEAD"), "dirty": bool(run("status", "--porcelain", "--", "."))}
+        return {"sha": run("rev-parse", "HEAD"), "dirty": bool(run("status", "--porcelain", "--", ".")), "source": "git"}
     except (subprocess.CalledProcessError, FileNotFoundError):
-        return {"sha": None, "dirty": None}
+        pass
+    # Remote bundles are `git archive` exports without .git; the bundler writes the commit here.
+    marker = PROJECT_ROOT / "CODE_SHA"
+    if marker.is_file():
+        return {"sha": marker.read_text().strip(), "dirty": None, "source": "bundle-marker"}
+    return {"sha": None, "dirty": None, "source": None}
 
 
 def environment() -> dict:

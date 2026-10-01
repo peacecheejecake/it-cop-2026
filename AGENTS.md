@@ -122,11 +122,12 @@ python scripts/smoke.py --out runs/smoke-core   # neural이면 --neural 추가
 | `002-no-hadoop` | 001과 동일 프로토콜, Hadoop 계열 3개 저장소만 제외 |
 | `003-seeds-cuda` | 002 데이터, Runpod CUDA에서 seed 42/43/44, 수렴까지(epoch 상한 100, patience 2). 정형 LR > B(−0.037±0.004), B 우위는 시간이 갈수록 소멸 |
 | `006-dl-m2-cpu-baselines` | **[diff-lab]** M0 감사 + M2 CPU 기준선(public validation): B1-TFIDF-S AP 0.546 > B0-LR 0.319 > B0-LGBM 0.211(시작 설정 과적합) |
+| `007-dl-m3-encoder` | **[diff-lab]** M3(H100, fp32, seed 42/43/44, public validation): B3-S full FT AP 0.527±0.024 < B1-TFIDF-S 0.546, B2-S frozen 0.377±0.005(20 epoch 상한에서 미수렴). B3 best 가중치는 worktree `artifacts/`(로컬)에 있다 |
 | `005-cross-project-jd4j` | 003 프로토콜을 새 Pod에서 재현(3 seed)한 뒤 JIT-Defects4J(처음 보는 21개 프로젝트)에 재학습 없이 적용. 처음 보는 프로젝트에서 B의 향상 배수(2.31)는 rule(2.39)보다 낮아지고 정형 LR(2.78)은 오른다. 가중치는 network volume `c8wdh0j8ek`(CA-MTL-3)에 보관 |
 
 데이터셋 출처·라이선스·알려진 문제는 루트 `DATASETS.md`에 기록한다.
 
-원격 GPU(Runpod) 실험은 실험 커밋 + 입력 view + CodeBERT를 `experiments/.cache/bundles/<exp>-<commit>.tar`로 묶어 올리고(SHA-256 기록), 결과(`runs/models/*/model.json`, 예측, metrics, 로그)만 되받는다. Pod 생성·유지는 비용이 들므로 GPU 종류와 예상 비용을 사용자에게 먼저 확인받고, 끝나면 Pod를 종료한다.
+원격 GPU(Runpod) 실험은 실험 커밋 + 입력 view + CodeBERT를(diff-lab은 `git archive` 결과에 `codebert-diff-lab/CODE_SHA`로 커밋 SHA를 넣는다. 넣지 않으면 run의 `git.sha`가 null이 된다) `experiments/.cache/bundles/<exp>-<commit>.tar`로 묶어 올리고(SHA-256 기록), 결과(`runs/models/*/model.json`, 예측, metrics, 로그)만 되받는다. Pod 생성·유지는 비용이 들므로 GPU 종류와 예상 비용을 사용자에게 먼저 확인받고, 끝나면 Pod를 종료한다.
 - **정지(stop)한 Pod는 원래 호스트의 GPU가 비어 있어야만 다시 켤 수 있다.** 003에서 정지한 Pod가 "not enough free GPUs on the host"로 재시작에 실패했고, 모델 가중치가 그 호스트의 persistent 디스크에 묶였다. 다시 쓸 산출물(모델 가중치 등)은 **network volume**에 두거나, Pod를 멈추기 전에 로컬로 받아 둔다.
 - 정밀도(bf16/fp16)나 배치 구성을 바꿀 때는 demo 인코더가 아니라 **실제 데이터로 짧게 검증**한 뒤 본 실행을 한다. 003에서 epoch 전체에 bf16 autocast를 씌우자 발산했다.
 
