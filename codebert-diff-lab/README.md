@@ -3,6 +3,8 @@
 Implementation of the **CodeBERT Diff Lab spec v0.2** (`docs/spec-v0.2/`, copied verbatim with `SHA256SUMS`).
 Public-only training, public-validation selection, sealed public test until study freeze, internal data evaluation-only.
 
+Latest results: [`docs/results-2026-10-01.md`](docs/results-2026-10-01.md) (M0–M4, study v3, public validation).
+
 ## Status (what exists vs. what the spec plans)
 
 | Milestone | Scope | State |
