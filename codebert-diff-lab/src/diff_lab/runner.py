@@ -28,9 +28,9 @@ from .registry import MATRIX_VERSION, Registry
 from .util import ExecutionError, IntegrityError, atomic_write_json, read_json, sha256_file, sha256_json, tree_digest
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-NEEDS_EVIDENCE = {"B1-TFIDF-S", "B2-S", "B3-S", "B4-S"}
-NEURAL = {"B2-S", "B3-S", "B4-S"}
-CPT_VARIANTS = {"B4-S"}
+NEEDS_EVIDENCE = {"B1-TFIDF-S", "B2-S", "B3-S", "B4-S", "B5-S"}
+NEURAL = {"B2-S", "B3-S", "B4-S", "B5-S"}
+CPT_VARIANTS = {"B4-S": "mlm", "B5-S": "mlm+rmi"}
 SOURCE_PATTERNS = ("src/**/*.py", "pyproject.toml", "uv.lock")
 REQUIRED_RUN_FILES = ("resolved-config.json", "environment.json", "data-lineage.json", "metrics.json", "metrics.jsonl",
                       "label-access-ledger.json", "evidence-manifest.json", "cost.json", "model/state.json",
@@ -146,14 +146,14 @@ def scoped_config_hash(raw: dict, variant: str) -> str:
 
 
 def _run_cpt(cfg: StudyConfig, seed: int, frame: pd.DataFrame, lineage: dict, git: dict, local: Path, tok,  # noqa: ANN001
-             artifacts_dir: Path) -> dict:
-    from .cpt import CptCorpusView, MlmCpt, cpt_id_for
-    cols = ["change_id", "split", "cpt_role", "query_text", "message_text", "code_text"]
+             artifacts_dir: Path, task: str) -> dict:
+    from .cpt import CPT_COLUMNS, CptCorpusView, CptRun, cpt_id_for
+    cols = list(CPT_COLUMNS)
     tr = frame[frame["cpt_role"] == "cpt_train"][cols].reset_index(drop=True)
     dv = frame[frame["cpt_role"] == "cpt_dev"][cols].reset_index(drop=True)
-    cid = cpt_id_for(cfg, seed, lineage, git, "mlm")
+    cid = cpt_id_for(cfg, seed, lineage, git, task)
     out = artifacts_dir / "cpt" / cid
-    res = MlmCpt(cfg, seed, local, out, tok).run(CptCorpusView("cpt_train", tr, lineage), CptCorpusView("cpt_dev", dv, lineage))
+    res = CptRun(cfg, seed, local, out, tok, task).run(CptCorpusView("cpt_train", tr, lineage), CptCorpusView("cpt_dev", dv, lineage))
     return {"cpt_id": cid, **res}
 
 
@@ -209,12 +209,14 @@ def run_variant(cfg: StudyConfig, raw: dict, study_hash: str, variant: str, seed
             t0 = time.perf_counter()
             init = None
             if variant in CPT_VARIANTS:
-                cpt = _run_cpt(cfg, seed, frame, lineage, {"sha": git["sha"], "source_digest": source}, local, tok, artifacts_dir)
+                cpt = _run_cpt(cfg, seed, frame, lineage, {"sha": git["sha"], "source_digest": source}, local, tok, artifacts_dir,
+                               CPT_VARIANTS[variant])
                 init = artifacts_dir / "cpt" / cpt["cpt_id"] / "encoder"
             state = NeuralRun(cfg, variant, seed, local, run_dir, tok, init_encoder=init).fit_predict(
                 train_view, query, y[va].to_numpy(), cfg.evaluation.tie_salt)
             if cpt is not None:
-                state["cpt"] = {k: cpt[k] for k in ("cpt_id", "plan_sha256", "lm_head_newly_initialized", "encoder_init_state_sha256",
+                state["cpt"] = {k: cpt[k] for k in ("cpt_id", "task", "plan_sha256", "lm_head_newly_initialized",
+                                                    "encoder_init_state_sha256",
                                                     "exported_encoder_state_sha256", "dev", "precision")}
             scores = state.pop("scores")
             # Validation scores come from per-epoch evaluation inside fit; inference latency is not measured here.
@@ -257,7 +259,8 @@ def run_variant(cfg: StudyConfig, raw: dict, study_hash: str, variant: str, seed
                               "chosen_epoch": state["best_epoch"], "candidates": len(state["history"]), "split": "valid"})
         atomic_write_json(run_dir / "label-access-ledger.json", {
             "gradient_label_count": int(tr.sum()), "demo_unique_label_count": 0, "index_labeled_count": 0,
-            "selection_label_count": int(va.sum()), "rmi_synthetic_target_count": 0, "adaptation_mode": v.adaptation_mode,
+            "selection_label_count": int(va.sum()), "adaptation_mode": v.adaptation_mode,
+            "rmi_synthetic_target_count": cpt["token_accounting"]["rmi_targets"] if cpt else 0,
             "cpt_label_count": 0, "cpt_unlabeled_input_count": cpt["token_accounting"]["corpus_changes"] if cpt else 0,
             "selection_events": events,
             "selection_use": "checkpoint epoch / threshold selection and reporting on public validation"})

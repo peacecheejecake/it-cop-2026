@@ -11,11 +11,14 @@ from diff_lab.config import FEATURE_PROFILE_JIT14  # noqa: E402
 from diff_lab.cpt import (  # noqa: E402
     CptCorpusView,
     MlmCpt,
+    build_rmi_pool,
     load_cpt_encoder,
     lr_at,
     mask_sample,
+    plan_mlm_rmi,
     plan_windows,
     replacement_candidates,
+    rmi_examples,
     structure_chars,
     tokenize_corpus,
 )
@@ -43,7 +46,7 @@ def _cfg(tmp_path, encoder, cpt=CPT, ft=FT):  # noqa: ANN001
 
 def _row(cid: str, msg: str, adds: list[str], dels: list[str], split="train", role="cpt_train") -> dict:  # noqa: ANN001
     code = "\n".join([f"+ {a}" for a in adds] + [f"- {d}" for d in dels])
-    return {"change_id": cid, "split": split, "cpt_role": role, "message_text": msg, "code_text": code,
+    return {"change_id": cid, "split": split, "cpt_role": role, "group_id": f"g-{cid}", "message_text": msg, "code_text": code,
             "query_text": (msg + "\n" + code) if code else msg}
 
 
@@ -163,8 +166,8 @@ def test_cpt_resume_matches_uninterrupted(tmp_path, tok, tiny_encoder, monkeypat
     full = MlmCpt(cfg, 5, tiny_encoder, tmp_path / "full", tok).run(_corpus(24), _corpus(6, "cpt_dev"))
     orig = cpt_mod.MlmCpt._checkpoint
 
-    def crash(self, path, model, opt, st, plan_hash):  # noqa: ANN001, ANN202
-        orig(self, path, model, opt, st, plan_hash)
+    def crash(self, path, model, rmi_head, opt, st, plan_hash):  # noqa: ANN001, ANN202
+        orig(self, path, model, rmi_head, opt, st, plan_hash)
         raise _Stop
 
     monkeypatch.setattr(cpt_mod.MlmCpt, "_checkpoint", crash)
@@ -214,3 +217,87 @@ def _views(n=16):  # noqa: ANN001
     tr = TrainingDatasetView(split="train", frame=f.iloc[:n].reset_index(drop=True), lineage=PUBLIC,
                              labels=y.iloc[:n].reset_index(drop=True))
     return tr, QueryView(split="valid", frame=f.iloc[n:].reset_index(drop=True), lineage={}), y.iloc[n:].to_numpy()
+
+
+def _rmi_corpus(n: int, role: str = "cpt_train") -> CptCorpusView:
+    rows = []
+    for i in range(n):
+        group = f"g{i // 2}"  # pairs of rows share an exact-duplicate group
+        msg = f"fix issue {i % (n // 2)}"  # every message appears twice
+        rows.append({**_row(f"{role}{i}", msg, [f"if (x{i} == null) return -{i};"], ["y = a - b;"], role=role), "group_id": group})
+    rows.append({**_row(f"{role}-empty", "  ", ["x = 1;"], []), "cpt_role": role, "group_id": "ge"})
+    rows.append({**_row(f"{role}-msgonly", "only message", [], []), "cpt_role": role, "group_id": "gm"})
+    return CptCorpusView(role, pd.DataFrame(rows), PUBLIC)
+
+
+def test_rmi_pool_marks_ineligible_with_reasons():
+    pool = build_rmi_pool(_rmi_corpus(20))
+    assert pool.ineligible == {"cpt_train-empty": "empty_message", "cpt_train-msgonly": "no_code"}
+    assert len(pool) == 20 and len(pool.sha256) == 64
+
+
+def test_rmi_negatives_exclude_self_same_message_and_group(tok):
+    pool = build_rmi_pool(_rmi_corpus(40))
+    anchors = np.arange(len(pool)).repeat(25)
+    ids, y, trunc, partners = rmi_examples(tok, pool, anchors, np.random.default_rng(3), 0.5, 512)
+    assert y.mean() == pytest.approx(0.5, abs=0.05) and trunc == 0
+    for a, x, t, j in zip(anchors, ids, y, partners, strict=True):
+        text = tok.decode(x[1:-1])
+        if t == 1:
+            assert j == -1 and text == pool.messages[a] + "\n" + pool.codes[a]
+        else:
+            assert j != a and pool.msg_hash[j] != pool.msg_hash[a] and pool.groups[j] != pool.groups[a]
+            assert text == pool.messages[j] + "\n" + pool.codes[a]
+    again, y2, _, p2 = rmi_examples(tok, pool, anchors, np.random.default_rng(3), 0.5, 512)
+    assert (y2 == y).all() and p2 == partners and all((u == v).all() for u, v in zip(again, ids, strict=True))
+
+
+def test_rmi_input_is_cut_to_max_length(tok):
+    long_code = "\n".join(f"+ line_{k} = compute(value_{k}, other_{k})" for k in range(200))
+    rows = [{**_row(f"c{i}", f"message {i} " + "word " * 40, [], []), "code_text": long_code,
+             "query_text": f"message {i} " + "word " * 40 + "\n" + long_code, "group_id": f"g{i}"} for i in range(4)]
+    pool = build_rmi_pool(CptCorpusView("cpt_train", pd.DataFrame(rows), PUBLIC))
+    ids, _, trunc, _ = rmi_examples(tok, pool, np.arange(4), np.random.default_rng(0), 0.5, 128)
+    assert all(len(x) <= 128 for x in ids) and trunc == 4
+
+
+def test_mlm_rmi_plan_alternates_and_meets_budget(tok):
+    pool = build_rmi_pool(_rmi_corpus(30))
+    lengths = np.full(30, 20)
+    a = plan_mlm_rmi(lengths, tok, pool, 7, 4, 900, 0.5, 512)
+    tasks = [s["task"] for s in a["steps"]]
+    assert tasks == ["mlm", "rmi"] * (len(tasks) // 2) + (["mlm"] if len(tasks) % 2 else [])
+    toks = [int(lengths[s["items"]].sum()) if s["task"] == "mlm" else sum(len(x) for x in s["ids"]) for s in a["steps"]]
+    assert sum(toks) == a["planned_tokens"] >= 900 > sum(toks[:-1])
+    assert plan_mlm_rmi(lengths, tok, pool, 7, 4, 900, 0.5, 512)["plan_sha256"] == a["plan_sha256"]
+
+
+def test_b5_cpt_end_to_end_resume_and_transfer(tmp_path, tok, tiny_encoder, monkeypatch):
+    cfg = _cfg(tmp_path, tiny_encoder, {**CPT, "budget": 600})
+    full = MlmCpt(cfg, 5, tiny_encoder, tmp_path / "full", tok, "mlm+rmi").run(_rmi_corpus(24), _rmi_corpus(8, "cpt_dev"))
+    acc = full["token_accounting"]
+    assert acc["mlm_updates"] > 0 and acc["rmi_updates"] > 0 and abs(acc["mlm_updates"] - acc["rmi_updates"]) <= 1
+    assert acc["mlm_input_tokens"] + acc["rmi_input_tokens"] == acc["forward_tokens"] >= 600
+    assert acc["rmi"]["ineligible"] == {"cpt_train-empty": "empty_message", "cpt_train-msgonly": "no_code"}
+    assert {"dev_rmi_loss", "dev_rmi_accuracy", "dev_rmi_auc"} <= set(full["dev"][-1])
+    from safetensors.torch import load_file
+    keys = load_file(str(tmp_path / "full" / "encoder" / "encoder.safetensors")).keys()
+    assert not any(k.startswith(("lm_head", "0.", "3.")) for k in keys)
+    orig = cpt_mod.MlmCpt._checkpoint
+
+    def crash(self, path, model, rmi_head, opt, st, plan_hash):  # noqa: ANN001, ANN202
+        orig(self, path, model, rmi_head, opt, st, plan_hash)
+        raise _Stop
+
+    monkeypatch.setattr(cpt_mod.MlmCpt, "_checkpoint", crash)
+    with pytest.raises(_Stop):
+        MlmCpt(cfg, 5, tiny_encoder, tmp_path / "resumed", tok, "mlm+rmi").run(_rmi_corpus(24), _rmi_corpus(8, "cpt_dev"))
+    monkeypatch.setattr(cpt_mod.MlmCpt, "_checkpoint", orig)
+    resumed = MlmCpt(cfg, 5, tiny_encoder, tmp_path / "resumed", tok, "mlm+rmi").run(_rmi_corpus(24), _rmi_corpus(8, "cpt_dev"))
+    assert resumed["exported_encoder_state_sha256"] == full["exported_encoder_state_sha256"]
+    tr, va, yv = _views()
+    r5 = NeuralRun(cfg, "B5-S", 5, tiny_encoder, tmp_path / "b5", tok, init_encoder=tmp_path / "full" / "encoder").fit_predict(
+        tr, va, yv, "salt")
+    r3 = NeuralRun(cfg, "B3-S", 5, tiny_encoder, tmp_path / "b3", tok).fit_predict(tr, va, yv, "salt")
+    assert r5["head_init_state_sha256"] == r3["head_init_state_sha256"]
+    assert r5["encoder"]["cpt_export"]["task"] == "mlm+rmi"

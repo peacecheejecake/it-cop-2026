@@ -1,6 +1,6 @@
 """Downstream encoder runs: B2-S (frozen + fusion head), B3-S/B4-S (full fine-tuning) (spec FR-08/09/11/19, AT-09/10/14/28).
 
-B4-S is B3-S started from a diff-MLM CPT encoder export (`init_encoder`); only the encoder
+B4-S/B5-S are B3-S started from a diff-MLM (B5: MLM+RMI) CPT encoder export (`init_encoder`); only the encoder
 transfers, the head is initialised by the same seeded rule and the optimizer is fresh.
 
 Both start from the same pinned CodeBERT snapshot and the same seeded head init and share
@@ -162,10 +162,10 @@ class NeuralRun:
 
     def __init__(self, cfg: StudyConfig, variant: str, seed: int, encoder_path: Path, run_dir: Path, tokenizer,  # noqa: ANN001
                  init_encoder: Path | None = None):
-        if variant not in ("B2-S", "B3-S", "B4-S"):
+        if variant not in ("B2-S", "B3-S", "B4-S", "B5-S"):
             raise ExecutionError(f"NeuralRun does not implement {variant}")
-        if (variant == "B4-S") != (init_encoder is not None):
-            raise ExecutionError("B4-S (and only B4-S) fine-tunes from a CPT encoder export")
+        if (variant in ("B4-S", "B5-S")) != (init_encoder is not None):
+            raise ExecutionError("B4-S/B5-S (and only they) fine-tune from a CPT encoder export")
         self.init_encoder = init_encoder
         if not isinstance(cfg.finetune, FinetuneCfg):
             raise ExecutionError("finetune section is not pinned")

@@ -15,7 +15,8 @@ Latest results: [`docs/results-2026-10-01.md`](docs/results-2026-10-01.md) (M0�
 | M3 | B2-S (frozen CodeBERT + fusion head) / B3-S (full FT), resume, T14 profile | implemented, CPU/MPS-verified on tiny + real CodeBERT; CUDA run pending |
 | M4 | B4-S diff-MLM CPT (10M-token plan, structure-protected masking, resume, encoder-only export) → B3-S fine-tuning | implemented, CPU-tested; real CodeBERT 1-update check on MPS; CUDA run pending |
 | v3 | study `public-comparison-v3`: separate encoder/head lr, split `upstream-clean2`, lineage validator, generation checkpoints, CPU-mapped resume (Codex review fixes) | implemented; B0–B4 rerun under v3 = experiment 009 |
-| M5–M6 | MLM+RMI CPT, local LLM L0/L1, freeze/test/report/export | not implemented yet |
+| M5 | B5-S MLM+RMI CPT (train-only negative pool, alternating 1:1 updates, shared 10M budget, per-task accounting) → v3 FT | implemented, CPU-tested; real CodeBERT 2-update check on MPS; CUDA run = experiment 010 |
+| M6L–M6 | local LLM L0/L1, freeze/test/report/export | not implemented yet |
 
 ## Commands (run from this directory)
 
@@ -48,7 +49,7 @@ src/diff_lab/
   evidence.py                     matched EvidenceView, renderer message-add-del-text-v2
   features.py, models.py          train-only structured pipeline; B0-LR, B0-LGBM, B1-TFIDF-S
   neural.py                        B2-S/B3-S/B4-S fusion head, frozen-encoder cache, training loop, resume, T14 profile
-  cpt.py                           diff-MLM CPT corpus/masking/plan/resume and encoder export (B4-S)
+  cpt.py                           diff-MLM (B4-S) and MLM+RMI (B5-S) CPT: corpus, masking, RMI sampler, plan, resume, encoder export
   metrics.py                      AP / ROC-AUC / Recall@q (ceil, hash ties) / validation max-F1 threshold
   lineage.py                       approval -> snapshot -> split -> evidence -> tokenizer cross-checks before any fit
   policy.py, config.py, registry.py
