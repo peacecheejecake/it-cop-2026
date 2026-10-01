@@ -15,6 +15,7 @@ baseline 코드의 실제 버그를 고치는 경우가 아니면, 실험용 변
 - **현재 study는 `public-comparison-v3`**(2026-10-01 등록)이다. v2(인코더와 head가 같은 lr 1e-5)는 B2-S head가 덜 학습되는 문제 때문에 test를 열기 전에 대체했고, v2 결과(006~008)는 초기 프로토콜의 기록으로만 남긴다. v3은 encoder lr 1e-5 / head lr 1e-3을 분리하고, split `upstream-clean2`(CPT-dev를 중복 그룹 단위로 뽑음)를 쓴다.
 - **study v3는 freeze되었고 public test를 1회 평가했다**(2026-10-01, `exp/011`). 이후 공개 test를 보고 모델·설정·예산을 바꾸면 그 결과는 새 study/holdout으로 표기해야 하며 v3의 untouched 비교라고 주장할 수 없다(사양 §12).
 - **public test는 study freeze 전에는 열지 않는다**(코드가 거부한다). validation으로 고른 뒤 9개 primary variant를 모두 freeze하고 한 번에 평가한다.
+- **사내 데이터 평가는 `diff-lab predict`(evaluation-only)로만 한다**(`codebert-diff-lab/docs/internal-offline-eval.md`). 사내 데이터로 학습·보정·demo/index 변경을 하는 코드 경로는 없고 만들지 않는다. 실제 사내 평가(M7)는 데이터 반입 승인 후 별도 실험으로 진행한다.
 - uv 명령은 사내 TLS 프록시 때문에 `--system-certs`를 붙인다. Python은 3.11(`uv python install 3.11 --system-certs`).
 - GPU(B2~B5)와 로컬 LLM(L0/L1)은 비용·모델 선택이 필요하므로 해당 단계 전에 사용자에게 GPU 종류·예상 비용·LLM 후보(revision·license·메모리)를 확인받는다.
 

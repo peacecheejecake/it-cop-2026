@@ -17,6 +17,7 @@ Final results: [`docs/results-final-2026-10-01.md`](docs/results-final-2026-10-0
 | v3 | study `public-comparison-v3`: separate encoder/head lr, split `upstream-clean2`, lineage validator, generation checkpoints, CPU-mapped resume (Codex review fixes) | done (exp 009) |
 | M5 | B5-S MLM+RMI CPT (train-only negative pool, alternating 1:1 updates, shared 10M budget, per-task accounting) → v3 FT | done (exp 010) |
 | M6L | L0-S / L1-S with frozen Qwen2.5-Coder-7B-Instruct (pinned revision + file sha256), candidate log-likelihood scorer, 3 static 4-shot demo sets | done (exp 011) |
+| Internal-Ready | `bundle unpack/verify`, `predict` (offline, label-free, network-blocked, frozen public demos only) — `docs/internal-offline-eval.md` | done (synthetic + public-reformatted fixtures); real internal evaluation is M7 |
 | M6 | `study freeze` (all variants x replicates, validation re-derived from frozen state), `experiment test` (one-shot public test), `study report` (seed-paired diffs + project bootstrap), `study export` (inference-only bundle) | done (exp 011): freeze `b6afa59f3a2a9550`, public test evaluated once |
 
 ## Commands (run from this directory)
@@ -57,4 +58,5 @@ src/diff_lab/
   policy.py, config.py, registry.py
   runner.py, cli/main.py          run-folder contract, label-access ledger, public-test gate
   frozen.py, study.py              predictors rebuilt from frozen state; freeze / test / report / export
+  offline.py                       bundle verify/unpack and evaluation-only offline predict for internal data
 ```
