@@ -67,3 +67,15 @@ Branch `exp/011-dl-m6-final`, branched from main `4f7792b` and fast-forwarded to
 
 - The L0/L1 freeze check is not exact reproduction; it relies on a tolerance plus rank agreement, for the bf16 batch-composition reason above.
 - Validation-to-test drops are large for every model, including deterministic B0-LR (0.319 → 0.215). See RESULTS.
+
+## Definition-of-done report (main `ed`, regenerated locally)
+
+- `study report` now also emits DoD status, a label-access ledger summary, cost, prediction failures, matched evidence and replication axes. It writes JSON, Markdown and CSV (`results/report/report-final.{json,md,csv}`). AP and paired differences are identical to report-corrected.
+- On the first local regeneration, matched_evidence was **FAIL**: three evidence-manifest sha256 values coexisted (009/010/011). The cause was that each experiment rebuilt the evidence, so the import timestamps in the snapshot manifests differed.
+- The per-change query content hash (`query_hash_digest 7d8774b4…`) is identical for every text-reading variant. Matched evidence is now judged on content (AT-29), and the number of evidence builds is recorded as information.
+- Result: **DoD-Core complete, DoD-Comparative complete** (all checks pass). DoD-Internal-Ready is checked separately. DoD-Internal-Evaluated needs internal data. L2 was not run.
+- Replication axes:
+  - B0/B1 are deterministic, so they count as 1 effective training seed.
+  - B2–B5 have 3 training seeds each.
+  - L0 has no replicate axis.
+  - L1's 3 demo sets are not training seeds (AT-38).
