@@ -87,3 +87,10 @@ def test_clean2_keeps_duplicate_groups_on_one_side():
     assert 0.04 <= len(dev) / n <= 0.08
     assert _dev_ids(clean, "upstream-clean2") == dev
     assert len(_dev_ids(clean, "upstream-clean1")) == round(n * 0.05)
+
+
+def test_environment_for_non_neural_runs_does_not_import_torch():
+    import subprocess
+    import sys
+    code = "import sys; from diff_lab.runner import environment; e = environment(False); assert 'torch' not in sys.modules, 'torch'"
+    assert subprocess.run([sys.executable, "-c", code], capture_output=True, text=True).returncode == 0

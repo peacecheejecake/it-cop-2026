@@ -11,6 +11,7 @@ import json
 import os
 import platform
 import subprocess
+import sys
 import time
 import traceback
 from datetime import UTC, datetime
@@ -59,7 +60,7 @@ def git_state() -> dict:
     return {"sha": None, "dirty": None, "source": None}
 
 
-def environment() -> dict:
+def environment(neural: bool) -> dict:
     pkgs = {p: metadata.version(p) for p in ("numpy", "pandas", "pyarrow", "scikit-learn", "scipy", "transformers",
                                              "tokenizers", "pydantic") if _installed(p)}
     if _installed("lightgbm"):
@@ -69,8 +70,10 @@ def environment() -> dict:
            "cpu_count": os.cpu_count(), "packages": pkgs, "uv_lock_sha256": sha256_file(lock) if lock.exists() else None,
            "git": git_state()}
     if _installed("torch"):
+        env["packages"]["torch"] = metadata.version("torch")
+    # Importing torch loads its OpenMP runtime; with LightGBM's libomp in the same process that segfaults (exp 009).
+    if neural and _installed("torch"):
         import torch
-        env["packages"]["torch"] = torch.__version__
         env["cuda"] = {"available": torch.cuda.is_available(), "version": torch.version.cuda,
                        "device_name": torch.cuda.get_device_name(0) if torch.cuda.is_available() else None,
                        "tf32_matmul": torch.backends.cuda.matmul.allow_tf32}
@@ -161,6 +164,9 @@ def run_variant(cfg: StudyConfig, raw: dict, study_hash: str, variant: str, seed
     require_pinned(raw, variant)
     if variant not in MODELS and variant not in NEURAL:
         raise ExecutionError(f"{variant} is not implemented in this milestone")
+    if variant == "B0-LGBM" and "torch" in sys.modules:
+        raise ExecutionError("B0-LGBM must run in a process that has not imported torch (two OpenMP runtimes segfault); "
+                             "run it in a separate `experiment run` invocation from the neural variants")
     frame, y, lineage = load_frames(cfg, data_dir, variant)
     git = git_state()
     if git["sha"] is None:
@@ -186,7 +192,7 @@ def run_variant(cfg: StudyConfig, raw: dict, study_hash: str, variant: str, seed
             "scoped_config_sha256": scoped_config_hash(raw, variant), "started_at": datetime.now(UTC).isoformat()}
     atomic_write_json(run_dir / "run.json", {**base, "status": "running"})
     atomic_write_json(run_dir / "resolved-config.json", raw)
-    atomic_write_json(run_dir / "environment.json", environment())
+    atomic_write_json(run_dir / "environment.json", environment(variant in NEURAL))
     atomic_write_json(run_dir / "data-lineage.json", lineage)
     try:
         tr, va = frame["split"] == "train", frame["split"] == "valid"
