@@ -302,9 +302,129 @@ def report(cfg: StudyConfig, data_dir: Path, artifacts_dir: Path, freeze_path: P
     result = {"freeze_id": rec["freeze_id"], "study_id": cfg.study_id, "test_n": int(len(yv)), "test_positives": int(yv.sum()),
               "projects": int(len(uniq)), "variants": table, "paired_differences": pairs, "per_project_test_ap": per_project,
               "bootstrap": {"unit": "project", "reps": n_boot, "seed": seed,
-                            "note": "project resampling interval; separate from seed variance (seed_sd)"}}
+                            "note": "project resampling interval; separate from seed variance (seed_sd)"},
+              **study_checks(cfg, rec, artifacts_dir, test_dir)}
     atomic_write_json(out, result)
+    write_report_tables(result, out.with_suffix(".md"), out.with_suffix(".csv"))
     return result
+
+
+CORE = ("B0-LR", "B0-LGBM", "B1-TFIDF-S", "B2-S", "B3-S", "B4-S", "B5-S")
+COMPARATIVE = CORE + ("L0-S", "L1-S")
+
+
+def study_checks(cfg: StudyConfig, rec: dict, artifacts_dir: Path, test_dir: Path) -> dict:
+    """DoD-Core / DoD-Comparative status (spec requirements §10, AT-29/38/40) plus ledger, cost and failure summaries."""
+    by_v: dict[str, list[dict]] = {}
+    for e in rec["runs"]:
+        by_v.setdefault(e["variant_id"], []).append(e)
+    ledger, cost, failures, evidence, replication = {}, {}, {}, {}, {}
+    for v, es in by_v.items():
+        led = [read_json(artifacts_dir / "runs" / e["run_id"] / "label-access-ledger.json") for e in es]
+        ledger[v] = {k: sorted({x.get(k, 0) for x in led}) for k in ("gradient_label_count", "demo_unique_label_count",
+                                                                       "selection_label_count", "cpt_label_count",
+                                                                       "rmi_synthetic_target_count", "index_labeled_count")}
+        ledger[v]["adaptation_mode"] = led[0]["adaptation_mode"]
+        c = [read_json(artifacts_dir / "runs" / e["run_id"] / "cost.json") for e in es]
+        cpt_s = []
+        for e in es:
+            ta = artifacts_dir / "runs" / e["run_id"] / "token-accounting.json"
+            if ta.exists() and "cpt" in read_json(ta):
+                cpt_s.append(read_json(ta)["cpt"]["train_seconds_this_attempt"])
+        cost[v] = {"device": sorted({x["device"] for x in c}), "gpu_seconds_total": float(sum(x.get("gpu_seconds") or 0 for x in c)),
+                   "wall_seconds_mean": float(np.mean([x["wall_seconds"] for x in c])),
+                   "cpt_seconds_mean": float(np.mean(cpt_s)) if cpt_s else None,
+                   "peak_cuda_bytes_max": max((x.get("peak_cuda_bytes") or 0) for x in c) or None}
+        bad = 0
+        for e in es:
+            vp = pd.read_parquet(artifacts_dir / "runs" / e["run_id"] / "predictions" / "validation.parquet")
+            bad += int((vp["prediction_status"] != "ok").sum())
+            tp = test_dir / e["run_id"] / "predictions.parquet"
+            if tp.exists():
+                bad += int((~np.isfinite(pd.read_parquet(tp)["score"].to_numpy())).sum())
+        failures[v] = bad
+        em = [read_json(artifacts_dir / "runs" / e["run_id"] / "evidence-manifest.json") for e in es]
+        evidence[v] = {"evidence_manifest_sha256": sorted({x.get("evidence_manifest_sha256") or "none" for x in em}),
+                       "query_hash_digest": sorted({x.get("query_hash_digest") or "none" for x in em}),
+                       "structured_columns": sorted({",".join(x["structured_columns"]) for x in em})}
+        seeds = sorted(e["seed"] for e in es)
+        deterministic = v in ("B0-LR", "B0-LGBM", "B1-TFIDF-S", "L0-S")
+        replication[v] = {"replicate_axis": "demo_set" if v == "L1-S" else ("none" if v == "L0-S" else "training_seed"),
+                          "replicates": seeds,
+                          "n_training_seeds_effective": 0 if v.startswith("L") else (1 if deterministic else len(seeds)),
+                          "n_demo_sets": len(seeds) if v == "L1-S" else 0,
+                          "note": "deterministic: identical replicates are not independent" if deterministic and len(seeds) > 1 else None}
+    text_variants = [v for v in by_v if v != "B0-LR" and v != "B0-LGBM"]
+    # Matched evidence is judged on content: experiments rebuild the evidence (manifest hashes differ by import time),
+    # but the per-change query content hashes must be identical for every text-reading variant (AT-29).
+    digests = {d for v in text_variants for d in evidence[v]["query_hash_digest"]}
+    col_sets = {tuple(evidence[v]["structured_columns"]) for v in by_v}
+    matched = len(digests) == 1 and "none" not in digests
+    evidence_builds = sorted({m for v in text_variants for m in evidence[v]["evidence_manifest_sha256"]})
+    tested = {v: all((test_dir / e["run_id"] / "metrics.json").exists() for e in by_v[v]) for v in by_v}
+
+    def status(required: tuple[str, ...]) -> dict:
+        missing = [v for v in required if v not in by_v]
+        untested = [v for v in required if v in by_v and not tested[v]]
+        failing = [v for v in required if failures.get(v)]
+        checks = {"all_variants_frozen": not missing, "all_variants_tested_once": not untested, "matched_evidence": matched,
+                  "same_structured_columns": len(col_sets) == 1, "no_prediction_failures": not failing,
+                  "label_ledger_present": all(v in ledger for v in required if v in by_v)}
+        return {"complete": all(checks.values()), "checks": checks, "missing": missing, "untested": untested, "failing": failing}
+
+    comp = status(COMPARATIVE)
+    if any(v not in by_v for v in ("L0-S", "L1-S")):
+        comp["complete"] = False  # AT-40: no Comparative claim without the LLM variants
+    return {"dod": {"core": status(CORE), "comparative": comp,
+                    "internal_ready": {"complete": False, "note": "evaluated separately (bundle verify + offline predict fixture)"},
+                    "internal_evaluated": {"complete": False, "note": "requires approved internal data (M7)"},
+                    "l2": "not executed (extension, not required)"},
+            "label_ledger": ledger, "cost": cost, "prediction_failures": failures, "evidence": evidence,
+            "evidence_matching": {"query_hash_digests": sorted(digests), "distinct_evidence_builds": len(evidence_builds),
+                                  "criterion": "identical per-change query content hashes across text-reading variants"},
+            "replication": replication}
+
+
+def write_report_tables(r: dict, md: Path, csv: Path) -> None:
+    rows = []
+    for v, t in r["variants"].items():
+        rows.append({"variant": v, **{k: t[k]["mean"] for k in t}, "test_ap_sd": t["test_ap"]["sd"], "n": t["test_ap"]["n"]})
+    pd.DataFrame(rows).to_csv(csv, index=False)
+    lines = [f"# Study report {r['study_id']} (freeze {r['freeze_id']})", "",
+             f"Public test: {r['test_n']} changes, {r['test_positives']} positives, {r['projects']} projects. "
+             "Validation numbers are selection-validation; test was evaluated once after freeze.", "",
+             "| variant | valid AP | test AP | sd | ROC-AUC | Recall@5% | Recall@10% | F1@thr |", "|---|---|---|---|---|---|---|---|"]
+    for row in rows:
+        sd = "" if row["test_ap_sd"] is None else f"{row['test_ap_sd']:.3f}"
+        lines.append(f"| {row['variant']} | {row['valid_ap']:.3f} | {row['test_ap']:.3f} | {sd} | {row['test_roc_auc']:.3f} | "
+                     f"{row['test_recall_at_5pct']:.3f} | {row['test_recall_at_10pct']:.3f} | {row['test_f1_at_threshold']:.3f} |")
+    lines += ["", "| pair | test AP diff | project bootstrap 95% CI | P(diff<=0) |", "|---|---|---|---|"]
+    for p in r["paired_differences"]:
+        lo, hi = p["project_bootstrap_95ci"]
+        pr = p["project_bootstrap_p_le_0"]
+        lines.append(f"| {p['a']} - {p['b']} | {p['test_ap_diff_mean']:+.4f} | [{lo:+.3f}, {hi:+.3f}] | {pr:.3f} |")
+    lines += ["", "## Definition-of-done status", ""]
+    for k in ("core", "comparative"):
+        d = r["dod"][k]
+        lines.append(f"- **DoD-{k.capitalize()}**: {'complete' if d['complete'] else 'NOT complete'} — "
+                     + ", ".join(f"{c}={'ok' if ok else 'FAIL'}" for c, ok in d["checks"].items()))
+    lines += [f"- DoD-Internal-Ready: {r['dod']['internal_ready']['note']}",
+              f"- DoD-Internal-Evaluated: {r['dod']['internal_evaluated']['note']}",
+              f"- L2: {r['dod']['l2']}", "", "## Replication axes", ""]
+    for v, x in r["replication"].items():
+        lines.append(f"- {v}: axis={x['replicate_axis']}, replicates={x['replicates']}, effective training seeds="
+                     f"{x['n_training_seeds_effective']}, demo sets={x['n_demo_sets']}" + (f" ({x['note']})" if x["note"] else ""))
+    lines += ["", "## Label access (per run)", "",
+              "| variant | mode | gradient | demo | selection | CPT labels | RMI synthetic |",
+              "|---|---|---|---|---|---|---|"]
+    for v, x in r["label_ledger"].items():
+        lines.append(f"| {v} | {x['adaptation_mode']} | {x['gradient_label_count']} | {x['demo_unique_label_count']} | "
+                     f"{x['selection_label_count']} | {x['cpt_label_count']} | {x['rmi_synthetic_target_count']} |")
+    lines += ["", "## Cost", "", "| variant | device | GPU s (all replicates) | CPT s (mean) |", "|---|---|---|---|"]
+    for v, x in r["cost"].items():
+        cs = "" if x["cpt_seconds_mean"] is None else f"{x['cpt_seconds_mean']:.0f}"
+        lines.append(f"| {v} | {','.join(x['device'])} | {x['gpu_seconds_total']:.0f} | {cs} |")
+    md.write_text("\n".join(lines) + "\n")
 
 
 def export_bundle(cfg: StudyConfig, raw: dict, artifacts_dir: Path, freeze_path: Path, out: Path) -> dict:
