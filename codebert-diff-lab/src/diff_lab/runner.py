@@ -28,12 +28,13 @@ from .registry import MATRIX_VERSION, Registry
 from .util import ExecutionError, IntegrityError, atomic_write_json, read_json, sha256_file, sha256_json, tree_digest
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-NEEDS_EVIDENCE = {"B1-TFIDF-S", "B2-S", "B3-S", "B4-S", "B5-S", "L0-S", "L1-S"}
+NEEDS_EVIDENCE = {"B1-TFIDF-S", "B2-S", "B3-S", "B4-S", "B5-S", "L0-S", "L1-S", "L2-S"}
 NEURAL = {"B2-S", "B3-S", "B4-S", "B5-S"}
-LLM = {"L0-S", "L1-S"}
+LLM = {"L0-S", "L1-S", "L2-S"}
 CPT_VARIANTS = {"B4-S": "mlm", "B5-S": "mlm+rmi"}
 SOURCE_PATTERNS = ("src/**/*.py", "pyproject.toml", "uv.lock")
 LLM_RUN_FILES = ("prompts/manifest.json", "usage.jsonl")
+L2_RUN_FILES = ("index/index.json", "index/items.parquet")
 REQUIRED_RUN_FILES = ("resolved-config.json", "environment.json", "data-lineage.json", "metrics.json", "metrics.jsonl",
                       "label-access-ledger.json", "evidence-manifest.json", "cost.json", "model/state.json",
                       "predictions/validation.parquet", "reports/summary.md")
@@ -277,7 +278,8 @@ def run_variant(cfg: StudyConfig, raw: dict, study_hash: str, variant: str, seed
                               "chosen_epoch": state["best_epoch"], "candidates": len(state["history"]), "split": "valid"})
         atomic_write_json(run_dir / "label-access-ledger.json", {
             "gradient_label_count": 0 if variant in LLM else int(tr.sum()),
-            "demo_unique_label_count": state.get("demo_unique_label_count", 0) if variant in LLM else 0, "index_labeled_count": 0,
+            "demo_unique_label_count": state.get("demo_unique_label_count", 0) if variant in LLM else 0,
+            "index_labeled_count": state.get("index_labeled_count", 0) if variant in LLM else 0,
             "selection_label_count": int(va.sum()), "adaptation_mode": v.adaptation_mode,
             "rmi_synthetic_target_count": cpt["token_accounting"]["rmi_targets"] if cpt else 0,
             "cpt_label_count": 0, "cpt_unlabeled_input_count": cpt["token_accounting"]["corpus_changes"] if cpt else 0,
@@ -305,7 +307,8 @@ def run_variant(cfg: StudyConfig, raw: dict, study_hash: str, variant: str, seed
             f"selection-validation AP {metrics['ap']}, ROC-AUC {metrics['roc_auc']}, "
             f"Recall@5% {metrics['recall_at_5pct']['recall']}, Recall@10% {metrics['recall_at_10pct']['recall']}\n\n"
             + (f"best epoch {state['best_epoch']} of {len(state['history'])}\n" if variant in NEURAL else ""))
-        artifacts = {rel: sha256_file(run_dir / rel) for rel in REQUIRED_RUN_FILES + (LLM_RUN_FILES if variant in LLM else ())}
+        extra = (LLM_RUN_FILES if variant in LLM else ()) + (L2_RUN_FILES if variant == "L2-S" else ())
+        artifacts = {rel: sha256_file(run_dir / rel) for rel in REQUIRED_RUN_FILES + extra}
         done = {**base, "status": "completed", "finished_at": datetime.now(UTC).isoformat(), "artifacts_sha256": artifacts,
                 "validation_ap": metrics["ap"], **({"cpt_id": cpt["cpt_id"]} if cpt else {})}
         atomic_write_json(run_dir / "run.json", done)

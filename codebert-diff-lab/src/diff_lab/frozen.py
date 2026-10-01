@@ -146,7 +146,14 @@ class FrozenLlm:
         from .util import sha256_text
         self.manifest = read_json(run_dir / "prompts" / "manifest.json")
         self.cfg, self.variant, self.seed, self.path, self.train = cfg, variant, seed, model_path, train
-        self.demos = None
+        self.demos, self.index = None, None
+        if variant == "L2-S":
+            from .llm import RetrievalIndex
+            self.index = RetrievalIndex.load(run_dir / "index", cfg.llm.retrieval)
+            if self.index.sha256 != self.manifest["retrieval"]["index_sha256"]:
+                raise IntegrityError("L2 index differs from the frozen prompt manifest")
+            if train is not None and RetrievalIndex.build(train, cfg.llm.retrieval).sha256 != self.index.sha256:
+                raise IntegrityError("L2 index is not reproducible from public train")
         if variant == "L1-S":
             if demos is None:
                 if train is None:
@@ -161,7 +168,7 @@ class FrozenLlm:
     def predict(self, view: QueryView, out_dir: Path) -> np.ndarray:
         from .llm import LlmRun
         out_dir.mkdir(parents=True, exist_ok=True)
-        res = LlmRun(self.cfg, self.variant, self.seed, self.path, out_dir).fit_predict(self.train, view, self.demos)
+        res = LlmRun(self.cfg, self.variant, self.seed, self.path, out_dir).fit_predict(self.train, view, self.demos, self.index)
         if read_json(out_dir / "prompts" / "manifest.json") != self.manifest:
             raise IntegrityError("prompt manifest at prediction time differs from the frozen manifest")
         return res["scores"]

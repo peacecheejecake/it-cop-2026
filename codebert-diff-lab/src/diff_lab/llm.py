@@ -1,4 +1,4 @@
-"""Frozen local LLM scorers L0-S (zero-shot) and L1-S (static 4-shot) (spec protocol §11/§12, comparison-matrix §6).
+"""Frozen local LLM scorers L0-S (zero-shot), L1-S (static 4-shot), L2-S (retrieved 4-shot) (spec protocol §11/§12, matrix §6).
 
 No weights are trained. Each query is the matched EvidenceView text plus the jit14 features
 serialized by name, inside one fixed task template (`TASK_PROMPT_ID`, pinned by hash). The
@@ -8,6 +8,11 @@ must be single tokens appended without changing the prompt tokenisation, checked
 
 L1 uses three fixed demo sets (seeds 42/43/44), each 2 positive + 2 negative public-train
 changes drawn label-stratified and order-shuffled by the seed, identical for every query.
+L2 retrieves, per query, the most similar public-train changes of each class (same 2/2 class mix and k
+as L1) by cosine similarity in a char n-gram TF-IDF space fitted on public train only. Train items
+with the query's exact content are excluded; ties break by sha256(seed:change_id); the four demos are
+ordered by a permutation seeded from (seed, query id). The index is saved and hashed with the run; the
+public benchmark has no time filter (static), which is reported, not hidden.
 Prompts are never truncated: a query over `max_context_tokens` is recorded as failed and the
 run refuses to report (no silent fallback). Batches are left-padded with explicit position
 ids so only the last position's logits are needed.
@@ -84,6 +89,78 @@ def select_demos(train: TrainingDatasetView, cfg: LlmCfg, seed: int) -> pd.DataF
     demos = train.frame.iloc[[i for i, _ in rows]].copy()
     demos["demo_label"] = [lab for _, lab in rows]
     return demos.reset_index(drop=True)
+
+
+class RetrievalIndex:
+    """Frozen public-train retrieval index for L2 (vectorizer state + items), identified by a content hash."""
+
+    def __init__(self, vec, matrix, items: pd.DataFrame, sha256: str) -> None:  # noqa: ANN001
+        self.vec, self.matrix, self.items, self.sha256 = vec, matrix, items, sha256
+
+    @staticmethod
+    def _vectorizer(rc, vocabulary=None):  # noqa: ANN001, ANN205
+        from sklearn.feature_extraction.text import TfidfVectorizer
+        return TfidfVectorizer(analyzer="char", ngram_range=tuple(rc.ngram_range), lowercase=rc.lowercase, min_df=rc.min_df,
+                               max_features=rc.max_features, dtype=np.float32, vocabulary=vocabulary)
+
+    @staticmethod
+    def _hash(vocab: dict, idf: np.ndarray, items: pd.DataFrame) -> str:
+        return sha256_json({"vocab": sha256_json(vocab), "idf": sha256_text(idf.astype(np.float64).tobytes().hex()),
+                            "items": sha256_json(list(zip(items["change_id"], items["demo_label"].astype(int).tolist(),
+                                                          items["query_content_hash"], strict=True)))})
+
+    @classmethod
+    def build(cls, train: TrainingDatasetView, rc) -> RetrievalIndex:  # noqa: ANN001
+        require_training_view(train)
+        if rc.fit_role != "supervised_train":
+            raise PolicyError("L2 index must be fitted on public supervised train only")
+        items = train.frame[["change_id", "query_text", *FEATURE_PROFILE_JIT14]].copy()
+        items["demo_label"] = train.labels.to_numpy().astype(int)
+        items["query_content_hash"] = [sha256_text(t) for t in items["query_text"]]
+        vec = cls._vectorizer(rc)
+        matrix = vec.fit_transform(items["query_text"])
+        vocab = {k: int(v) for k, v in vec.vocabulary_.items()}
+        return cls(vec, matrix, items.reset_index(drop=True), cls._hash(vocab, vec.idf_, items))
+
+    def save(self, d: Path) -> None:
+        d.mkdir(parents=True, exist_ok=True)
+        atomic_write_json(d / "index.json", {"vocabulary": {k: int(v) for k, v in self.vec.vocabulary_.items()},
+                                             "idf": self.vec.idf_.tolist(), "sha256": self.sha256})
+        self.items.to_parquet(d / "items.parquet", index=False)
+
+    @classmethod
+    def load(cls, d: Path, rc) -> RetrievalIndex:  # noqa: ANN001
+        meta = json.loads((d / "index.json").read_text())
+        items = pd.read_parquet(d / "items.parquet")
+        idf = np.asarray(meta["idf"], dtype=np.float64)
+        if cls._hash(meta["vocabulary"], idf, items) != meta["sha256"]:
+            raise IntegrityError("L2 retrieval index hash mismatch")
+        vec = cls._vectorizer(rc, vocabulary=meta["vocabulary"])
+        vec.idf_ = idf
+        return cls(vec, vec.transform(items["query_text"]), items, meta["sha256"])
+
+    def retrieve(self, queries: pd.DataFrame, seed: int, counts: dict[str, int]) -> list[pd.DataFrame]:
+        import hashlib
+        tb = np.array([int(hashlib.sha256(f"{seed}:{c}".encode()).hexdigest()[:12], 16) for c in self.items["change_id"]])
+        labels = self.items["demo_label"].to_numpy()
+        hashes = self.items["query_content_hash"].to_numpy()
+        qh = [sha256_text(t) for t in queries["query_text"]]
+        out = []
+        for start in range(0, len(queries), 256):
+            sims = (self.vec.transform(queries["query_text"].iloc[start:start + 256]) @ self.matrix.T).toarray()
+            for r in range(sims.shape[0]):
+                i = start + r
+                picks = []
+                for label, n in ((1, counts["positive"]), (0, counts["negative"])):
+                    ok = np.flatnonzero((labels == label) & (hashes != qh[i]))
+                    if len(ok) < n:
+                        raise ExecutionError(f"fewer than {n} eligible public demos of class {label}; no fallback")
+                    order = np.lexsort((tb[ok], -sims[r, ok]))
+                    picks += ok[order[:n]].tolist()
+                qid = str(queries["change_id"].iloc[i])
+                perm = np.random.default_rng([seed, int(hashlib.sha256(qid.encode()).hexdigest()[:12], 16)]).permutation(len(picks))
+                out.append(self.items.iloc[[picks[j] for j in perm]].reset_index(drop=True))
+        return out
 
 
 def build_messages(row: pd.Series, demos: pd.DataFrame | None) -> list[dict]:
@@ -167,27 +244,37 @@ class LlmRun:
     """L0-S / L1-S over a QueryView with a frozen local model; writes prompts/manifest.json and usage.jsonl."""
 
     def __init__(self, cfg: StudyConfig, variant: str, seed: int, model_path: Path, run_dir: Path) -> None:
-        if variant not in ("L0-S", "L1-S"):
+        if variant not in ("L0-S", "L1-S", "L2-S"):
             raise ExecutionError(f"LlmRun does not implement {variant}")
         if not isinstance(cfg.llm, LlmCfg):
             raise ExecutionError("llm section is not pinned")
         self.cfg, self.lc, self.variant, self.seed, self.path, self.run_dir = cfg, cfg.llm, variant, seed, model_path, run_dir
 
-    def fit_predict(self, train: TrainingDatasetView | None, valid: QueryView, demos: pd.DataFrame | None = None) -> dict:
-        """`demos` (L1 only) are frozen public demo rows supplied by an export bundle; otherwise they are drawn from `train`."""
+    def fit_predict(self, train: TrainingDatasetView | None, valid: QueryView, demos: pd.DataFrame | None = None,
+                    index: RetrievalIndex | None = None) -> dict:
+        """L1 `demos` / L2 `index` may come from an export bundle (frozen public artifacts); otherwise built from `train`."""
         torch = _torch()
         from transformers import AutoModelForCausalLM
 
         lc = self.lc
         verify_model_files(lc, self.path)
         tok, label_ids = load_llm_tokenizer(lc, self.path)
+        per_query = None
         if self.variant == "L1-S":
             demos = demos if demos is not None else select_demos(train, lc, self.seed)
         elif demos is not None:
-            raise PolicyError("L0-S is zero-shot; demos are not allowed (AT-30)")
+            raise PolicyError(f"{self.variant} does not take static demos (L0 is zero-shot, AT-30; L2 retrieves)")
+        if self.variant == "L2-S":
+            if not lc.retrieval_enabled:
+                raise PolicyError("L2-S needs llm.retrieval_enabled with a pinned retrieval section")
+            index = index if index is not None else RetrievalIndex.build(train, lc.retrieval)
+            index.save(self.run_dir / "index")
+            per_query = index.retrieve(valid.frame, self.seed, lc.examples.class_counts)
+        elif index is not None:
+            raise PolicyError("only L2-S uses a retrieval index")
         prompts, status = [], []
-        for _, row in valid.frame.iterrows():
-            ids = encode_prompt(tok, build_messages(row, demos), label_ids)
+        for i, (_, row) in enumerate(valid.frame.iterrows()):
+            ids = encode_prompt(tok, build_messages(row, per_query[i] if per_query is not None else demos), label_ids)
             prompts.append(ids)
             status.append("ok" if len(ids) <= lc.max_context_tokens else "context_overflow")
         failed = [c for c, s in zip(valid.ids, status, strict=True) if s != "ok"]
@@ -210,24 +297,29 @@ class LlmRun:
             raise IntegrityError("non-finite label log-probabilities")
         p1 = normalize(lp)
         lens = [len(p) for p in prompts]
-        demo_tokens = 0
-        if demos is not None:
-            base = len(encode_prompt(tok, build_messages(valid.frame.iloc[0], None), label_ids))
-            demo_tokens = lens[0] - base
+        base = [len(encode_prompt(tok, build_messages(r, None), label_ids)) for _, r in valid.frame.iterrows()] \
+            if (demos is not None or per_query is not None) else lens
+        demo_tok = [n - b for n, b in zip(lens, base, strict=True)]
+        demo_tokens = int(np.mean(demo_tok)) if demo_tok else 0
         (self.run_dir / "prompts").mkdir(parents=True, exist_ok=True)
         demo_info = None if demos is None else [
             {"change_id": d["change_id"], "label": int(d["demo_label"]), "content_sha256": sha256_text(user_message(d))}
             for _, d in demos.iterrows()]
-        atomic_write_json(self.run_dir / "prompts" / "manifest.json", {
+        retrieval_info = {} if per_query is None else {"retrieval": {**lc.retrieval.model_dump(), "index_sha256": index.sha256,
+                                                                      "index_items": int(len(index.items))}}
+        atomic_write_json(self.run_dir / "prompts" / "manifest.json", {**retrieval_info,
             "variant": self.variant, "model_id": lc.model_id, "revision": lc.revision, "precision": lc.precision_profile,
             "chat_template_sha256": lc.chat_template_hash, "task_prompt_id": TASK_PROMPT_ID, "task_prompt_sha256": task_prompt_hash(),
             "scorer": lc.scorer, "labels": lc.labels, "label_token_ids": label_ids, "feature_serializer": lc.feature_serializer,
-            "demo_seed": self.seed if demos is not None else None, "demos": demo_info,
+            "demo_seed": self.seed if (demos is not None or per_query is not None) else None, "demos": demo_info,
             "query_truncation": lc.query_truncation, "max_context_tokens": lc.max_context_tokens})
         with open(self.run_dir / "usage.jsonl", "w") as f:
-            for cid, n, s, (l0, l1) in zip(valid.ids, lens, status, lp, strict=True):
-                f.write(json.dumps({"change_id": cid, "prompt_tokens": n, "demo_tokens": demo_tokens, "status": s,
-                                    "logp_0": float(l0), "logp_1": float(l1)}) + "\n")
+            for i, (cid, n, s, (l0, l1)) in enumerate(zip(valid.ids, lens, status, lp, strict=True)):
+                rec = {"change_id": cid, "prompt_tokens": n, "demo_tokens": demo_tok[i], "status": s, "logp_0": float(l0),
+                       "logp_1": float(l1)}
+                if per_query is not None:
+                    rec["demo_ids"] = per_query[i]["change_id"].tolist()
+                f.write(json.dumps(rec) + "\n")
         mass = np.exp(lp).sum(axis=1)
         return {"scores": p1, "device": str(device), "inference_seconds": dt, "latency_ms_mean": dt * 1000 / len(prompts),
                 "peak_cuda_bytes": torch.cuda.max_memory_allocated() if device.type == "cuda" else None,
@@ -235,5 +327,8 @@ class LlmRun:
                                   "demo_tokens_per_query": demo_tokens},
                 "label_probability_mass": {"mean": float(mass.mean()), "min": float(mass.min())},
                 "demo_ids": None if demos is None else demos["change_id"].tolist(),
-                "demo_unique_label_count": 0 if demos is None else len(demos), "seed_axis": "demo_set" if demos is not None
-                else "none (deterministic scorer)"}
+                "demo_unique_label_count": (len(demos) if demos is not None else
+                                            len({c for d in per_query for c in d["change_id"]}) if per_query is not None else 0),
+                "index_labeled_count": int(len(index.items)) if per_query is not None else 0,
+                "seed_axis": "demo_set" if demos is not None else ("retrieval_tie_break_and_order" if per_query is not None
+                                                                   else "none (deterministic scorer)")}

@@ -17,6 +17,8 @@ Final results: [`docs/results-final-2026-10-01.md`](docs/results-final-2026-10-0
 | v3 | study `public-comparison-v3`: separate encoder/head lr, split `upstream-clean2`, lineage validator, generation checkpoints, CPU-mapped resume (Codex review fixes) | done (exp 009) |
 | M5 | B5-S MLM+RMI CPT (train-only negative pool, alternating 1:1 updates, shared 10M budget, per-task accounting) → v3 FT | done (exp 010) |
 | M6L | L0-S / L1-S with frozen Qwen2.5-Coder-7B-Instruct (pinned revision + file sha256), candidate log-likelihood scorer, 3 static 4-shot demo sets | done (exp 011) |
+| L2 (ext) | L2-S retrieved 4-shot (class-conditional char TF-IDF cosine over public train, frozen hashed index), study `public-comparison-v3-l2ext` | implemented, CPU-tested; GPU run pending |
+| Internal eval | `internal evaluate` deployment-level evaluator (registered protocol `configs/internal/internal-eval-v1.yaml`, observation window, linkage, size bias) | implemented, synthetic-tested; waiting for internal data |
 | Internal-Ready | `bundle unpack/verify`, `predict` (offline, label-free, network-blocked, frozen public demos only) — `docs/internal-offline-eval.md` | done (synthetic + public-reformatted fixtures); real internal evaluation is M7 |
 | M6 | `study freeze` (all variants x replicates, validation re-derived from frozen state), `experiment test` (one-shot public test), `study report` (seed-paired diffs + project bootstrap), `study export` (inference-only bundle) | done (exp 011): freeze `b6afa59f3a2a9550`, public test evaluated once |
 

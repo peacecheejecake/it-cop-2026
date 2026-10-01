@@ -157,3 +157,56 @@ def test_model_file_pin_mismatch_refused(tmp_path, tiny_llm):
 
 def test_root_constant_resolves():
     assert (Path(ROOT) / "configs").exists()
+
+
+def _l2_cfg(tmp_path, model_dir):  # noqa: ANN001, ANN202
+    retrieval = {"method": "class_conditional_tfidf_char_cosine", "fit_role": "supervised_train", "field": "query_text",
+                 "ngram_range": [3, 5], "lowercase": False, "min_df": 1, "max_features": 5000, "exclude_same_content": True,
+                 "time_filter": "none_static_benchmark", "order": "seeded_permutation_per_query", "tie_break": "seeded_hash"}
+    return _llm_cfg(tmp_path, model_dir, retrieval_enabled=True, retrieval=retrieval)
+
+
+def test_retrieval_config_requires_section(tmp_path, tiny_llm):
+    with pytest.raises(Exception, match="retrieval"):
+        _llm_cfg(tmp_path, tiny_llm, retrieval_enabled=True)
+
+
+def test_l2_index_is_train_only_class_conditional_and_excludes_identical_query(tmp_path, tiny_llm):
+    from diff_lab.llm import RetrievalIndex
+    cfg = _l2_cfg(tmp_path, tiny_llm).llm
+    tr = _train()
+    idx = RetrievalIndex.build(tr, cfg.retrieval)
+    with pytest.raises(Exception, match="TrainingDatasetView"):
+        RetrievalIndex.build(QueryView(split="valid", frame=_frame(3), lineage={}), cfg.retrieval)
+    q = _frame(3, offset=500)
+    q.loc[0, "query_text"] = tr.frame["query_text"].iloc[3]
+    demos = idx.retrieve(q, 42, cfg.examples.class_counts)
+    assert all(sorted(d["demo_label"]) == [0, 0, 1, 1] for d in demos)
+    assert tr.frame["change_id"].iloc[3] not in set(demos[0]["change_id"])
+    assert set(demos[0]["change_id"]) <= set(tr.ids)
+    again = idx.retrieve(q, 42, cfg.examples.class_counts)
+    assert all(a["change_id"].tolist() == b["change_id"].tolist() for a, b in zip(demos, again, strict=True))
+    d = tmp_path / "idx"
+    idx.save(d)
+    assert RetrievalIndex.load(d, cfg.retrieval).sha256 == idx.sha256
+    items = pd.read_parquet(d / "items.parquet")
+    items.loc[0, "demo_label"] = 1 - items.loc[0, "demo_label"]
+    items.to_parquet(d / "items.parquet")
+    with pytest.raises(Exception, match="hash mismatch"):
+        RetrievalIndex.load(d, cfg.retrieval)
+
+
+def test_l2_run_records_per_query_demos_and_freezes(tmp_path, tiny_llm):
+    from diff_lab.frozen import FrozenLlm
+    cfg = _l2_cfg(tmp_path, tiny_llm)
+    tr, va = _train(), QueryView(split="valid", frame=_frame(4, offset=100), lineage={})
+    r = LlmRun(cfg, "L2-S", 42, tiny_llm, tmp_path / "run").fit_predict(tr, va)
+    man = json.loads((tmp_path / "run" / "prompts" / "manifest.json").read_text())
+    usage = [json.loads(x) for x in (tmp_path / "run" / "usage.jsonl").read_text().splitlines()]
+    assert man["retrieval"]["index_sha256"] and all(len(u["demo_ids"]) == 4 for u in usage)
+    assert r["index_labeled_count"] == len(tr) and r["seed_axis"].startswith("retrieval")
+    f = FrozenLlm(tmp_path / "run", cfg, "L2-S", 42, tiny_llm, tr)
+    s = f.predict(va, tmp_path / "again")
+    assert np.allclose(s, r["scores"], atol=1e-6)
+    with pytest.raises(Exception, match="static demos"):
+        LlmRun(cfg, "L2-S", 42, tiny_llm, tmp_path / "x").fit_predict(tr, va, demos=tr.frame.iloc[:4].assign(demo_label=1))

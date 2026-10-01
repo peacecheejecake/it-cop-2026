@@ -204,6 +204,21 @@ class LlmExamplesCfg(Strict):
         return self
 
 
+class RetrievalCfg(Strict):
+    """L2-S retriever (spec comparison-matrix §6, T39): class-conditional char n-gram TF-IDF cosine over public train."""
+    method: Literal["class_conditional_tfidf_char_cosine"]
+    fit_role: Literal["supervised_train"]
+    field: Literal["query_text"]
+    ngram_range: list[int]
+    lowercase: bool
+    min_df: int = Field(ge=1)
+    max_features: int = Field(ge=1)
+    exclude_same_content: Literal[True]
+    time_filter: Literal["none_static_benchmark"]
+    order: Literal["seeded_permutation_per_query"]
+    tie_break: Literal["seeded_hash"]
+
+
 class LlmCfg(Strict):
     """Frozen local LLM for L0-S/L1-S (spec implementation-plan §6 llm, protocol §11/§12)."""
     backend: Literal["local_hf"]
@@ -224,10 +239,17 @@ class LlmCfg(Strict):
     query_truncation: Literal["forbidden_after_evidence_freeze"]
     train_weights: Literal[False]
     examples: LlmExamplesCfg
-    retrieval_enabled: Literal[False]
+    retrieval_enabled: bool
+    retrieval: RetrievalCfg | None = None
     device: Literal["cuda", "mps", "cpu"]
     allow_cpu: bool = False
     batch_token_budget: int = Field(ge=512)
+
+    @model_validator(mode="after")
+    def _retrieval(self) -> LlmCfg:
+        if self.retrieval_enabled != (self.retrieval is not None):
+            raise ValueError("retrieval_enabled requires a retrieval section (and only then)")
+        return self
 
     @field_validator("labels")
     @classmethod
@@ -264,6 +286,7 @@ SECTIONS_READ = {
     "B2-S": ["dataset", "model", "structured", "finetune"], "B3-S": ["dataset", "model", "structured", "finetune"],
     "B4-S": ["dataset", "model", "structured", "finetune", "cpt"], "B5-S": ["dataset", "model", "structured", "finetune", "cpt"],
     "L0-S": ["dataset", "model", "structured", "llm"], "L1-S": ["dataset", "model", "structured", "llm"],
+    "L2-S": ["dataset", "model", "structured", "llm"],
 }
 
 

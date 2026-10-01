@@ -50,6 +50,9 @@ python scripts/smoke.py --out runs/smoke-core   # neural이면 --neural 추가
 - `requirements-tested-core.txt`의 버전은 출발점일 뿐이며, 실제 설치 후 `uv pip freeze`로 그 실험만의 lock을 별도로 남긴다.
 
 ### 1.4 데이터/모델 캐시 재사용
+
+> 2026-10-01: legacy(riskbench) 캐시 `git/`, `canonical/`, `raw/apachejit-v2`, `jit003/jit005` 번들은 삭제했다. 현재 캐시는 `raw/jit-defects4j`, `models/`(CodeBERT, Qwen tokenizer), diff-lab 번들뿐이다. 아래 구조 설명은 legacy 기록이다. full diff(before→after)가 필요한 후속 연구는 공개 저장소를 다시 clone해야 한다.
+
 - ApacheJIT ZIP, git mirror clone, CodeBERT 가중치 등은 용량이 크고 재다운로드 비용이 크다.
 - 실험 간 공유 캐시를 `experiments/.cache/`(git-ignored) 아래에 두고, 각 실험의 `data/git`, `models/`에는 심볼릭 링크로 연결한다. 실험마다 수 GB짜리 repo mirror를 통째로 복제하지 않는다.
 - 공유 캐시 구조 (전체 ApacheJIT 기준, 새 실험은 이것부터 링크한다):

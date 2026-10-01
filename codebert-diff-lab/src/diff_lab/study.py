@@ -32,7 +32,7 @@ from .registry import Registry
 from .runner import LLM, NEURAL, PROJECT_ROOT, environment, git_state, load_frames, scoped_config_hash
 from .util import ConfigError, ExecutionError, IntegrityError, PolicyError, atomic_write_json, read_json, sha256_file, sha256_json
 
-REPLICATES = {"L0-S": [42]}
+REPLICATES = {"L0-S": [42]}  # deterministic scorer; L1 demo sets and L2 tie-break/order seeds use the study seeds
 PAIRS = [("B3-S", "B2-S"), ("B4-S", "B3-S"), ("B5-S", "B4-S"), ("B5-S", "B3-S"), ("L1-S", "L0-S"), ("B1-TFIDF-S", "B0-LR"),
          ("B2-S", "B1-TFIDF-S"), ("B3-S", "B1-TFIDF-S"), ("B3-S", "L1-S")]
 VALID_TOL = {"cpu": 1e-9, "neural": 2e-3}
@@ -447,7 +447,8 @@ def export_bundle(cfg: StudyConfig, raw: dict, artifacts_dir: Path, freeze_path:
             for rel in ["run.json", "model/state.json", "resolved-config.json", "evidence-manifest.json", "metrics.json",
                         *e["checkpoint_files_sha256"],  # whole best generation: its pointer verifies every listed file
                         *(["model/lightgbm.txt"] if (d / "model" / "lightgbm.txt").exists() else []),
-                        *(["prompts/manifest.json"] if (d / "prompts" / "manifest.json").exists() else [])]:
+                        *(["prompts/manifest.json"] if (d / "prompts" / "manifest.json").exists() else []),
+                        *([f"index/{f}" for f in ("index.json", "items.parquet")] if (d / "index" / "index.json").exists() else [])]:
                 add(d / rel, f"runs/{e['run_id']}/{rel}")
         manifest = {"freeze_id": rec["freeze_id"], "study_id": cfg.study_id, "files_sha256": files,
                     "base_models": {"encoder": {"id": cfg.model.base, "revision": cfg.model.revision,
