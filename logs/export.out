@@ -1,0 +1,6 @@
+{
+  "bundle": "export/bundle.tar.gz",
+  "bundle_sha256": "3bde2025017c21735868aac4f8a428ab3a0c1f53b3c3b6f775ccf27e2efdb504",
+  "files": 178,
+  "freeze_id": "b6afa59f3a2a9550"
+}

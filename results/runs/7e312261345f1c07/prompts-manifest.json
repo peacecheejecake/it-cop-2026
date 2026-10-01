@@ -1,0 +1,44 @@
+{
+  "chat_template_sha256": "cd8e9439f0570856fd70470bf8889ebd8b5d1107207f67a5efb46e342330527f",
+  "demo_seed": 42,
+  "demos": [
+    {
+      "change_id": "jitd4j:commons-collections:6c9fa119f5488b12020c9c64455efdd56d9c89e1",
+      "content_sha256": "af528eaca195b3380e211d07ee058f157a85e58d84ef425ee5f06cd248dd46bc",
+      "label": 1
+    },
+    {
+      "change_id": "jitd4j:commons-math:149e1179d3f0dca862a3ce416bc5d9bf5e511fa6",
+      "content_sha256": "8b783970a08920c2948e9a369f605daba7472c0d0bc2a81d6d7905e6fb8ab6ec",
+      "label": 0
+    },
+    {
+      "change_id": "jitd4j:ant-ivy:23e7c3b44ddb18eecaed97ef68aa26220a085a37",
+      "content_sha256": "fa3ba91e2466b66c80a23fffc899a60f833c672828c36ed41b3a87c0206bebbc",
+      "label": 1
+    },
+    {
+      "change_id": "jitd4j:ant-ivy:d55ed9283104db6e145dfce0970dd6d5f2a91806",
+      "content_sha256": "16221680a5177eb019a08f9e1bde24857303590e8154a5fd48cb3c66695c20dd",
+      "label": 0
+    }
+  ],
+  "feature_serializer": "jit14-named-raw-v1",
+  "label_token_ids": [
+    15,
+    16
+  ],
+  "labels": [
+    "0",
+    "1"
+  ],
+  "max_context_tokens": 8192,
+  "model_id": "Qwen/Qwen2.5-Coder-7B-Instruct",
+  "precision": "bf16",
+  "query_truncation": "forbidden_after_evidence_freeze",
+  "revision": "c03e6d358207e414f1eca0bb1891e29f1db0e242",
+  "scorer": "candidate_loglikelihood",
+  "task_prompt_id": "jit-defect-binary-v1",
+  "task_prompt_sha256": "64262bc533eb503a725a3f6b840ced81ee78fee0e04296ebf335b33c90d1f017",
+  "variant": "L1-S"
+}

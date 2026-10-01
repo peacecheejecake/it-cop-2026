@@ -1,0 +1,186 @@
+{
+  "environment": {
+    "cpu_count": 224,
+    "cuda": {
+      "available": true,
+      "device_name": "NVIDIA H100 80GB HBM3",
+      "tf32_matmul": false,
+      "version": "13.0"
+    },
+    "git": {
+      "dirty": null,
+      "sha": "e1b2b1a07bc4f4ff8cc11c4db39b8c2916967514",
+      "source": "bundle-marker"
+    },
+    "machine": "x86_64",
+    "mps_available": false,
+    "packages": {
+      "lightgbm": "4.7.0",
+      "numpy": "2.4.6",
+      "pandas": "2.3.3",
+      "pyarrow": "21.0.0",
+      "pydantic": "2.13.5",
+      "scikit-learn": "1.9.1",
+      "scipy": "1.17.1",
+      "tokenizers": "0.22.2",
+      "torch": "2.14.1",
+      "transformers": "4.57.6"
+    },
+    "platform": "Linux-6.8.0-106-generic-x86_64-with-glibc2.39",
+    "python": "3.11.13",
+    "uv_lock_sha256": "c5d3af5f294bbfe3cac966b6e577b92d82d663a7daf2751795ef475edebae7ef"
+  },
+  "evaluated": [
+    {
+      "ap": 0.21474218540650997,
+      "run_id": "d03f2f7dc1e6225d",
+      "seed": 42,
+      "variant_id": "B0-LR"
+    },
+    {
+      "ap": 0.21474218540650997,
+      "run_id": "f77b38ba5211e2ec",
+      "seed": 43,
+      "variant_id": "B0-LR"
+    },
+    {
+      "ap": 0.21474218540650997,
+      "run_id": "b4e00e44f7d661ec",
+      "seed": 44,
+      "variant_id": "B0-LR"
+    },
+    {
+      "ap": 0.19740412373313582,
+      "run_id": "cabd1c09e6768333",
+      "seed": 42,
+      "variant_id": "B0-LGBM"
+    },
+    {
+      "ap": 0.19740412373313582,
+      "run_id": "019dde5b836b1cbe",
+      "seed": 43,
+      "variant_id": "B0-LGBM"
+    },
+    {
+      "ap": 0.19740412373313582,
+      "run_id": "c548eafa62601cfe",
+      "seed": 44,
+      "variant_id": "B0-LGBM"
+    },
+    {
+      "ap": 0.4400036643152769,
+      "run_id": "8c206ab91ff2b2e9",
+      "seed": 42,
+      "variant_id": "B1-TFIDF-S"
+    },
+    {
+      "ap": 0.4400036643152769,
+      "run_id": "6a73ddc7f7360718",
+      "seed": 43,
+      "variant_id": "B1-TFIDF-S"
+    },
+    {
+      "ap": 0.4400036643152769,
+      "run_id": "a0cd309c4908791d",
+      "seed": 44,
+      "variant_id": "B1-TFIDF-S"
+    },
+    {
+      "ap": 0.49187301133082234,
+      "run_id": "93738449d18845e7",
+      "seed": 42,
+      "variant_id": "B2-S"
+    },
+    {
+      "ap": 0.45647591926288184,
+      "run_id": "3e66f3cfaa7c99e4",
+      "seed": 43,
+      "variant_id": "B2-S"
+    },
+    {
+      "ap": 0.47557557318193044,
+      "run_id": "e68dd81b5c97a46a",
+      "seed": 44,
+      "variant_id": "B2-S"
+    },
+    {
+      "ap": 0.5713900513496679,
+      "run_id": "67fca1136ea2bd0c",
+      "seed": 42,
+      "variant_id": "B3-S"
+    },
+    {
+      "ap": 0.6141613274240774,
+      "run_id": "733fb98bec2f83f4",
+      "seed": 43,
+      "variant_id": "B3-S"
+    },
+    {
+      "ap": 0.6089960884941308,
+      "run_id": "d535e4419ac800b1",
+      "seed": 44,
+      "variant_id": "B3-S"
+    },
+    {
+      "ap": 0.5507991882161599,
+      "run_id": "ecb244b9107cd580",
+      "seed": 42,
+      "variant_id": "B4-S"
+    },
+    {
+      "ap": 0.6094631745504431,
+      "run_id": "a3284655e4ea5660",
+      "seed": 43,
+      "variant_id": "B4-S"
+    },
+    {
+      "ap": 0.6097857817247126,
+      "run_id": "1e41d109a57131bb",
+      "seed": 44,
+      "variant_id": "B4-S"
+    },
+    {
+      "ap": 0.5460732084319464,
+      "run_id": "60269328794d8df7",
+      "seed": 42,
+      "variant_id": "B5-S"
+    },
+    {
+      "ap": 0.5976126385322561,
+      "run_id": "e1b8ef1f29915aaf",
+      "seed": 43,
+      "variant_id": "B5-S"
+    },
+    {
+      "ap": 0.5963746014828248,
+      "run_id": "810917980633be9b",
+      "seed": 44,
+      "variant_id": "B5-S"
+    },
+    {
+      "ap": 0.12488451045086342,
+      "run_id": "26aa929271e3dc95",
+      "seed": 42,
+      "variant_id": "L0-S"
+    },
+    {
+      "ap": 0.17802146226794469,
+      "run_id": "7e312261345f1c07",
+      "seed": 42,
+      "variant_id": "L1-S"
+    },
+    {
+      "ap": 0.16530423260954905,
+      "run_id": "2947c9dc912ca647",
+      "seed": 43,
+      "variant_id": "L1-S"
+    },
+    {
+      "ap": 0.1713549629364428,
+      "run_id": "e1384c2a5ab9532e",
+      "seed": 44,
+      "variant_id": "L1-S"
+    }
+  ],
+  "freeze_id": "b6afa59f3a2a9550"
+}

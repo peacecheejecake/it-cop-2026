@@ -1,0 +1,43 @@
+{
+  "adaptation_mode": "static_few_shot",
+  "artifacts_sha256": {
+    "cost.json": "330027c58fbfae478ebd918509465f5cb94049c02a2f7c1904791eb3a3140d6d",
+    "data-lineage.json": "72b0935ab220c14f42caf7419fd028d3ea6fdd44022d68bb9353941d08b2b20b",
+    "environment.json": "ab721cfd2396b3dbec76b2754969632ea46288bf28608f8ade2e0b05303d8ca5",
+    "evidence-manifest.json": "5cc76e5a50b4c02d74ec183c96448f6b0f9f72717887cfc66eb85ec69dab4d6c",
+    "label-access-ledger.json": "c011de515f6f3882642c0db19da6d78e505945d9be3a3701211641b1d1ec3c51",
+    "metrics.json": "1269870d0abdcb340e714a4f60812196145964d61181996fac4db690b3e50e6f",
+    "metrics.jsonl": "0464c2f5cf68e4c7412a38d686804f630ec0e0d01827dbd7cb95bf6bc28ae6a4",
+    "model/state.json": "783de21209d886e4532d3a76d9e28f02db7d209742f5f4d2330196e2bfaabcee",
+    "predictions/validation.parquet": "18d5d9fcfd60ff4a0f7cdda7bf1c7fe907edc43aff9e7d14bfb384f44b594740",
+    "prompts/manifest.json": "a43143f5a1de6c2baa66d4089101cf2e993ba3e368a01074181c849ddba9ccc1",
+    "reports/summary.md": "6d18ef6a2b0e79c9e3f89faaf4ffbe2ff5b0a4fe4551ab1a453c8b0b28a8fe79",
+    "resolved-config.json": "8d92869ab6f08f64976a388cda48319c5194ec52b2902d7a6298ecc6b4392f18",
+    "usage.jsonl": "4480dbbc8d16a3a3ccae737f875a711246ab00acf585d2e72496497b58640638"
+  },
+  "attempt": 1,
+  "code_git": {
+    "dirty": null,
+    "sha": "2e754516dc4d73acdfc40639258d519e6c43d445",
+    "source": "bundle-marker"
+  },
+  "evidence_profile": "matched",
+  "family": "L1",
+  "finished_at": "2026-10-01T11:26:24.414117+00:00",
+  "information_profile": "text_and_structured",
+  "matrix_version": 2,
+  "protocol_version": "v3",
+  "registry_sha256": "37b2591e226cd22ec81a51e6c944e72fa27518ea26f1dd9594433ac7b6ef7021",
+  "run_id": "7e312261345f1c07",
+  "scoped_config_sha256": "0f4192f88f95763c41ec6fc37be309def1639385ab33f43111d95cd052376598",
+  "seed": 42,
+  "source_digest": "8519c541d7fd568a0b41ed7d12e0b10e0ed87882ddad9ba5e5a6fd07d1be9368",
+  "split_evaluated": "valid",
+  "started_at": "2026-10-01T11:18:50.804132+00:00",
+  "status": "completed",
+  "study_id": "public-comparison-v3",
+  "study_sha256": "b829fc71583e35b81dc8e657b31b9c0940eb194e0cda8d5f4e99b18b5d4f63f3",
+  "track": "controlled",
+  "validation_ap": 0.22492797975317388,
+  "variant_id": "L1-S"
+}

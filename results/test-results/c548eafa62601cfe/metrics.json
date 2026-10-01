@@ -1,0 +1,48 @@
+{
+  "ap": 0.19740412373313582,
+  "at_threshold": {
+    "f1": 0.2565104166666667,
+    "precision": 0.18567389255419417,
+    "predicted_positive": 1061,
+    "recall": 0.4147368421052632,
+    "threshold": 0.0951224826544098
+  },
+  "device": "cuda",
+  "evaluated_at": "2026-10-01T11:54:54.746612+00:00",
+  "evaluation_role": "frozen_final_test",
+  "freeze_id": "b6afa59f3a2a9550",
+  "n": 5480,
+  "null_reason": null,
+  "null_reasons": {
+    "ap": null,
+    "roc_auc": null
+  },
+  "positives": 475,
+  "predict_seconds": 1.5055651757866144,
+  "prevalence": 0.08667883211678833,
+  "recall_at_10pct": {
+    "boundary_tie_size": 1,
+    "k": 548,
+    "null_reason": null,
+    "precision": 0.23175182481751824,
+    "recall": 0.2673684210526316,
+    "selection_rate": 0.1,
+    "tp": 127
+  },
+  "recall_at_5pct": {
+    "boundary_tie_size": 1,
+    "k": 274,
+    "null_reason": null,
+    "precision": 0.2664233576642336,
+    "recall": 0.15368421052631578,
+    "selection_rate": 0.05,
+    "tp": 73
+  },
+  "roc_auc": 0.6758452074241548,
+  "run_id": "c548eafa62601cfe",
+  "seed": 44,
+  "split": "test",
+  "threshold_source": "frozen validation max-F1 threshold",
+  "unique_scores": 5444,
+  "variant_id": "B0-LGBM"
+}

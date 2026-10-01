@@ -1,0 +1,33 @@
+{
+  "isolation": "macos-sandbox-exec-deny-network",
+  "snapshot": "jitd4j-audit1",
+  "split_stats": {
+    "test": {
+      "language": {
+        "java": 5480
+      },
+      "n": 5480,
+      "positives": 475,
+      "projects": 21,
+      "unique_ids": 5480
+    },
+    "train": {
+      "language": {
+        "java": 16374
+      },
+      "n": 16374,
+      "positives": 1390,
+      "projects": 21,
+      "unique_ids": 16374
+    },
+    "valid": {
+      "language": {
+        "java": 5465
+      },
+      "n": 5465,
+      "positives": 467,
+      "projects": 21,
+      "unique_ids": 5465
+    }
+  }
+}

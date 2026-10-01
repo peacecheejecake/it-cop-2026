@@ -1,0 +1,31 @@
+freeze: B0-LR seed 42 d03f2f7dc1e6225d reproduced validation (max |diff| 3.3e-16)
+freeze: B0-LR seed 43 f77b38ba5211e2ec reproduced validation (max |diff| 3.3e-16)
+freeze: B0-LR seed 44 b4e00e44f7d661ec reproduced validation (max |diff| 3.3e-16)
+freeze: B0-LGBM seed 42 cabd1c09e6768333 reproduced validation (max |diff| 2.8e-17)
+freeze: B0-LGBM seed 43 019dde5b836b1cbe reproduced validation (max |diff| 2.8e-17)
+freeze: B0-LGBM seed 44 c548eafa62601cfe reproduced validation (max |diff| 2.8e-17)
+freeze: B1-TFIDF-S seed 42 8c206ab91ff2b2e9 reproduced validation (max |diff| 3.3e-16)
+freeze: B1-TFIDF-S seed 43 6a73ddc7f7360718 reproduced validation (max |diff| 3.3e-16)
+freeze: B1-TFIDF-S seed 44 a0cd309c4908791d reproduced validation (max |diff| 3.3e-16)
+freeze: B2-S seed 42 93738449d18845e7 reproduced validation (max |diff| 0.0e+00)
+freeze: B2-S seed 43 3e66f3cfaa7c99e4 reproduced validation (max |diff| 0.0e+00)
+freeze: B2-S seed 44 e68dd81b5c97a46a reproduced validation (max |diff| 0.0e+00)
+freeze: B3-S seed 42 67fca1136ea2bd0c reproduced validation (max |diff| 0.0e+00)
+freeze: B3-S seed 43 733fb98bec2f83f4 reproduced validation (max |diff| 0.0e+00)
+freeze: B3-S seed 44 d535e4419ac800b1 reproduced validation (max |diff| 0.0e+00)
+freeze: B4-S seed 42 ecb244b9107cd580 reproduced validation (max |diff| 0.0e+00)
+freeze: B4-S seed 43 a3284655e4ea5660 reproduced validation (max |diff| 0.0e+00)
+freeze: B4-S seed 44 1e41d109a57131bb reproduced validation (max |diff| 0.0e+00)
+freeze: B5-S seed 42 60269328794d8df7 reproduced validation (max |diff| 0.0e+00)
+freeze: B5-S seed 43 e1b8ef1f29915aaf reproduced validation (max |diff| 0.0e+00)
+freeze: B5-S seed 44 810917980633be9b reproduced validation (max |diff| 0.0e+00)
+freeze: L0-S seed 42 26aa929271e3dc95 reproduced validation (max |diff| 3.1e-02)
+freeze: L1-S seed 42 7e312261345f1c07 reproduced validation (max |diff| 3.0e-02)
+freeze: L1-S seed 43 2947c9dc912ca647 reproduced validation (max |diff| 3.1e-02)
+freeze: L1-S seed 44 e1384c2a5ab9532e reproduced validation (max |diff| 3.1e-02)
+{
+  "freeze_id": "b6afa59f3a2a9550",
+  "out": "freeze/freeze.json",
+  "runs": 25,
+  "skipped": []
+}

@@ -1,0 +1,23 @@
+[
+  {
+    "run_id": "7e312261345f1c07",
+    "seed": 42,
+    "status": "completed",
+    "validation_ap": 0.22492797975317388,
+    "variant_id": "L1-S"
+  },
+  {
+    "run_id": "2947c9dc912ca647",
+    "seed": 43,
+    "status": "completed",
+    "validation_ap": 0.1844073789631958,
+    "variant_id": "L1-S"
+  },
+  {
+    "run_id": "e1384c2a5ab9532e",
+    "seed": 44,
+    "status": "completed",
+    "validation_ap": 0.20368235988593866,
+    "variant_id": "L1-S"
+  }
+]

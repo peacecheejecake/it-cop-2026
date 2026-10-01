@@ -1,0 +1,19 @@
+{
+  "demo_ids": null,
+  "demo_unique_label_count": 0,
+  "device": "cuda",
+  "inference_seconds": 89.08965711854398,
+  "label_probability_mass": {
+    "mean": 0.9992933260903929,
+    "min": 0.9985718666751833
+  },
+  "latency_ms_mean": 16.301858576128815,
+  "peak_cuda_bytes": 21937317888,
+  "prompt_tokens": {
+    "demo_tokens_per_query": 0,
+    "max": 1251,
+    "mean": 553.3835315645014,
+    "total": 3024241
+  },
+  "seed_axis": "none (deterministic scorer)"
+}

@@ -1,0 +1,48 @@
+{
+  "ap": 0.6097857817247126,
+  "at_threshold": {
+    "f1": 0.5822510822510824,
+    "precision": 0.5991091314031181,
+    "predicted_positive": 449,
+    "recall": 0.5663157894736842,
+    "threshold": 0.5315398573875427
+  },
+  "device": "cuda",
+  "evaluated_at": "2026-10-01T11:57:27.420508+00:00",
+  "evaluation_role": "frozen_final_test",
+  "freeze_id": "b6afa59f3a2a9550",
+  "n": 5480,
+  "null_reason": null,
+  "null_reasons": {
+    "ap": null,
+    "roc_auc": null
+  },
+  "positives": 475,
+  "predict_seconds": 13.003945928066969,
+  "prevalence": 0.08667883211678833,
+  "recall_at_10pct": {
+    "boundary_tie_size": 1,
+    "k": 548,
+    "null_reason": null,
+    "precision": 0.5383211678832117,
+    "recall": 0.6210526315789474,
+    "selection_rate": 0.1,
+    "tp": 295
+  },
+  "recall_at_5pct": {
+    "boundary_tie_size": 1,
+    "k": 274,
+    "null_reason": null,
+    "precision": 0.7262773722627737,
+    "recall": 0.4189473684210526,
+    "selection_rate": 0.05,
+    "tp": 199
+  },
+  "roc_auc": 0.9114388769125612,
+  "run_id": "1e41d109a57131bb",
+  "seed": 44,
+  "split": "test",
+  "threshold_source": "frozen validation max-F1 threshold",
+  "unique_scores": 5480,
+  "variant_id": "B4-S"
+}

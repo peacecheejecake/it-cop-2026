@@ -1,0 +1,24 @@
+{
+  "demo_ids": [
+    "jitd4j:commons-compress:93a15dde57abc1953d889abe5aa84341c835bbb8",
+    "jitd4j:commons-beanutils:6b47d450aa9d1e512c472bcb8d4688dcc7026e7f",
+    "jitd4j:commons-io:2e16d85893141e996eef35892ddabc3c2bf19ccc",
+    "jitd4j:opennlp:c102a5c4bd4afa9b3856fd41112d01733d7d0f27"
+  ],
+  "demo_unique_label_count": 4,
+  "device": "cuda",
+  "inference_seconds": 339.70574895478785,
+  "label_probability_mass": {
+    "mean": 0.9990814124800516,
+    "min": 0.9974210124623802
+  },
+  "latency_ms_mean": 62.16024683527682,
+  "peak_cuda_bytes": 21955244032,
+  "prompt_tokens": {
+    "demo_tokens_per_query": 1576,
+    "max": 2827,
+    "mean": 2129.3835315645015,
+    "total": 11637081
+  },
+  "seed_axis": "demo_set"
+}
