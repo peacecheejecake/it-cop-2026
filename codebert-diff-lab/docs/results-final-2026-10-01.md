@@ -83,6 +83,16 @@ Every variant drops on test: B3 −0.089, B1 −0.106, and deterministic B0-LR �
 - **L0/L1 reproducibility:** freeze verified it with a tolerance (bf16 batch composition), not exact reproduction.
 - **Internal (company) data:** not evaluated yet. The `study export` inference-only bundle is ready.
 
+## Definition-of-done status
+
+| DoD | Status | Basis |
+|---|---|---|
+| DoD-Core (B0–B5) | **Complete** | All variants frozen and tested once; matched evidence (same query content hash `7d8774b4…`); same structured columns; no prediction failures; label ledger present. See `report-final.md` on branch `exp/011`. |
+| DoD-Comparative (+L0/L1) | **Complete** | Same checks plus L0/L1 results. Replicate axes are separated: B2–B5 have 3 training seeds, B0/B1 are deterministic (1 effective seed), L0 has no replicate axis, and L1 has 3 demo sets (not training seeds). |
+| DoD-Internal-Ready | **Complete (synthetic and public-reformatted fixtures)** | Bundle verify/unpack; label-free offline predict with network blocked; no zero-fill; only frozen public demos accepted (AT-19/20/21/25/30/35). Public test changes in the internal format reproduce the frozen test scores (B0/B1 ≤2e-16, B2–B5 ≤2e-6). See `docs/internal-offline-eval.md`. |
+| DoD-Internal-Evaluated | Not done | Requires approved internal data (M7) |
+| L2 (retrieval few-shot) | Not run | Extension; not required |
+
 ## Reproduction and artifacts
 
 - **Code:** main (`codebert-diff-lab/`). Freeze, test and report ran on commit `e1b2b1a`, with the report F1 fix in `4cba508`.
