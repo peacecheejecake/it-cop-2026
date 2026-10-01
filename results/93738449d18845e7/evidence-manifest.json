@@ -1,0 +1,22 @@
+{
+  "evidence_manifest_sha256": "01c5c998cd0d6a7866ab974b3c15d605b5041dd141be0ace74e175ba3caa96c2",
+  "evidence_profile": "matched",
+  "query_hash_digest": "7d8774b4545993e08636d7a91310c851166bf6e6e0ecff7ef31bdc78207c7371",
+  "structured_columns": [
+    "ns",
+    "nd",
+    "nf",
+    "entropy",
+    "la",
+    "ld",
+    "lt",
+    "fix",
+    "ndev",
+    "age",
+    "nuc",
+    "exp",
+    "rexp",
+    "sexp"
+  ],
+  "structured_feature_profile": "jit14-audited-v1"
+}

@@ -1,0 +1,36 @@
+{
+  "cpt": {
+    "budget": 10000000,
+    "budget_unit": "nonpadding_input_token_exposures",
+    "corpus_changes": 15375,
+    "corpus_tokens_per_pass": 4547062,
+    "cpt_id": "c2305b5b3659f995",
+    "cpt_train_rows_with_dev_identical_text": 1,
+    "dev_evals": 12,
+    "dev_forward_tokens_per_eval": 239066,
+    "excluded": {
+      "dev": {},
+      "train": {}
+    },
+    "forced_single_target_samples": 79,
+    "forward_tokens": 10029404,
+    "mlm_input_tokens": 10029404,
+    "mlm_target_tokens": 1319366,
+    "optimizer_updates": 265,
+    "passes": 2.205688860191482,
+    "planned_updates": 265,
+    "rmi_input_tokens": 0,
+    "train_seconds_this_attempt": 329.4624842815101,
+    "unique_changes_seen": 15375,
+    "warmup_updates": 16
+  },
+  "downstream": {
+    "encoder_forward_train_tokens": 33502896,
+    "epochs": 7,
+    "frozen_embedding_pass_tokens": 0,
+    "optimizer_updates": 3542,
+    "train_examples": 16184,
+    "train_tokens_per_epoch": 4786128,
+    "unit": "nonpadding_input_tokens"
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "device": "cpu",
+  "fit_seconds": 0.024530499998945743,
+  "gpu_seconds": 0,
+  "inference_latency": "measured",
+  "note": "neural fit_seconds include per-epoch validation scoring",
+  "peak_cuda_bytes": null,
+  "peak_cuda_reserved_bytes": null,
+  "predict_seconds": 0.0010056249448098242,
+  "wall_seconds": 0.025536124943755567
+}

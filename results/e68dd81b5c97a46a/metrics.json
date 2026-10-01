@@ -1,0 +1,46 @@
+{
+  "ap": 0.6218095808805457,
+  "at_threshold": {
+    "f1": 0.5781544256120528,
+    "precision": 0.5159663865546219,
+    "predicted_positive": 595,
+    "recall": 0.6573875802997858,
+    "threshold": 0.1905248463153839
+  },
+  "evaluation_role": "selection_validation",
+  "n": 5465,
+  "note": "selection-validation: the threshold and the checkpoint epoch were chosen on this same validation set, so AP/recall/F1 are optimistic; only the sealed test after freeze is an independent estimate",
+  "null_reason": null,
+  "null_reasons": {
+    "ap": null,
+    "roc_auc": null
+  },
+  "positives": 467,
+  "prevalence": 0.08545288197621226,
+  "recall_at_10pct": {
+    "boundary_tie_size": 1,
+    "k": 547,
+    "null_reason": null,
+    "precision": 0.5283363802559415,
+    "recall": 0.6188436830835118,
+    "selection_rate": 0.1000914913083257,
+    "tp": 289
+  },
+  "recall_at_5pct": {
+    "boundary_tie_size": 1,
+    "k": 274,
+    "null_reason": null,
+    "precision": 0.7262773722627737,
+    "recall": 0.4261241970021413,
+    "selection_rate": 0.05013723696248856,
+    "tp": 199
+  },
+  "roc_auc": 0.8892464908875757,
+  "split": "valid",
+  "threshold_selection": {
+    "f1": 0.5781544256120528,
+    "policy": "validation_max_f1_then_highest_threshold",
+    "threshold": 0.1905248463153839
+  },
+  "unique_scores": 5465
+}

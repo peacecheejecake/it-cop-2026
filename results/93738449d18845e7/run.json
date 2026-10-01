@@ -1,0 +1,41 @@
+{
+  "adaptation_mode": "frozen_encoder_train_head",
+  "artifacts_sha256": {
+    "cost.json": "3d7e8036337fcd032a7fba43604861f7648bcd339e21555d333153771f6c8204",
+    "data-lineage.json": "e6ce1edc5981948f7221066a4d622642268d1b715216421b651cfaa2a7d0a16d",
+    "environment.json": "070d2e6b4757d857509508d33b732f3b245287001f37592ceb9e2d89ea6ed169",
+    "evidence-manifest.json": "bc3bc1af681a29f99fce2b96b6f9f9801ad8fec5c65aeb7fc77ccf8a37137ef0",
+    "label-access-ledger.json": "72e47cc5bbb5f1cd2cf694be63970a32285ac18d4ae8ad7725e20602b8bde116",
+    "metrics.json": "7cf6ae93090ec782f8ae41ce4cb0180ff3b7d8f696c70f38075b53a00c56cec2",
+    "metrics.jsonl": "2c66ca6ea608633151c5952e8d94ae3b288d878b954a7c4cdfee747e56aa6aac",
+    "model/state.json": "e97ea197e4a528430cf8aaa1a3e251daef569171e67a97e0e54c709a50bfa489",
+    "predictions/validation.parquet": "b2c4075d1cb729e1d8fcc0914156de32ebcf9cabdffe5b009e3b02373ed95e65",
+    "reports/summary.md": "20c9eeec061165f42e7b5da7fe8da7c6e7ff54170af5cdb2b9294a8f60475d8a",
+    "resolved-config.json": "0e809e84a7439184f2a517d6752a436b34f2adf9ec1249a939705d7060a49d41"
+  },
+  "attempt": 1,
+  "code_git": {
+    "dirty": null,
+    "sha": "9fd51deae4a974c02c4af1525758c9ee3a4637c9",
+    "source": "bundle-marker"
+  },
+  "evidence_profile": "matched",
+  "family": "B2",
+  "finished_at": "2026-10-01T06:11:16.912737+00:00",
+  "information_profile": "text_and_structured",
+  "matrix_version": 2,
+  "protocol_version": "v3",
+  "registry_sha256": "37b2591e226cd22ec81a51e6c944e72fa27518ea26f1dd9594433ac7b6ef7021",
+  "run_id": "93738449d18845e7",
+  "scoped_config_sha256": "572e03b202fad704ebbd30ec8b961f6086b3e7b98b567b8b41775d45452f200f",
+  "seed": 42,
+  "source_digest": "edc6192d2db1b7a7ff01bb2518b7a84845caa7393d94080d8229b12da09f4b61",
+  "split_evaluated": "valid",
+  "started_at": "2026-10-01T06:08:50.749306+00:00",
+  "status": "completed",
+  "study_id": "public-comparison-v3",
+  "study_sha256": "25e65fa389f67d131b3bd2ff2bf4837e475953bc738d37357a0d7f57ae3cebc0",
+  "track": "controlled",
+  "validation_ap": 0.6227009819733857,
+  "variant_id": "B2-S"
+}

@@ -1,0 +1,215 @@
+B2-S seed=42 epoch=1 loss=0.2501 val_ap=0.4039 best=0.4039@1
+B2-S seed=42 epoch=2 loss=0.2292 val_ap=0.5349 best=0.5349@2
+B2-S seed=42 epoch=3 loss=0.2229 val_ap=0.4795 best=0.5349@2
+B2-S seed=42 epoch=4 loss=0.2182 val_ap=0.5540 best=0.5540@4
+B2-S seed=42 epoch=5 loss=0.2144 val_ap=0.5417 best=0.5540@4
+B2-S seed=42 epoch=6 loss=0.2096 val_ap=0.5356 best=0.5540@4
+B2-S seed=42 epoch=7 loss=0.2093 val_ap=0.5680 best=0.5680@7
+B2-S seed=42 epoch=8 loss=0.2063 val_ap=0.5739 best=0.5739@8
+B2-S seed=42 epoch=9 loss=0.2053 val_ap=0.5868 best=0.5868@9
+B2-S seed=42 epoch=10 loss=0.2034 val_ap=0.5836 best=0.5868@9
+B2-S seed=42 epoch=11 loss=0.2030 val_ap=0.5645 best=0.5868@9
+B2-S seed=42 epoch=12 loss=0.2022 val_ap=0.5921 best=0.5921@12
+B2-S seed=42 epoch=13 loss=0.2001 val_ap=0.5644 best=0.5921@12
+B2-S seed=42 epoch=14 loss=0.1991 val_ap=0.5849 best=0.5921@12
+B2-S seed=42 epoch=15 loss=0.1977 val_ap=0.6023 best=0.6023@15
+B2-S seed=42 epoch=16 loss=0.1976 val_ap=0.6053 best=0.6053@16
+B2-S seed=42 epoch=17 loss=0.1988 val_ap=0.5847 best=0.6053@16
+B2-S seed=42 epoch=18 loss=0.1969 val_ap=0.6107 best=0.6107@18
+B2-S seed=42 epoch=19 loss=0.1960 val_ap=0.6185 best=0.6185@19
+B2-S seed=42 epoch=20 loss=0.1947 val_ap=0.6147 best=0.6185@19
+B2-S seed=42 epoch=21 loss=0.1935 val_ap=0.5970 best=0.6185@19
+B2-S seed=42 epoch=22 loss=0.1926 val_ap=0.6120 best=0.6185@19
+B2-S seed=42 epoch=23 loss=0.1955 val_ap=0.6156 best=0.6185@19
+B2-S seed=42 epoch=24 loss=0.1940 val_ap=0.6214 best=0.6214@24
+B2-S seed=42 epoch=25 loss=0.1941 val_ap=0.5886 best=0.6214@24
+B2-S seed=42 epoch=26 loss=0.1935 val_ap=0.6128 best=0.6214@24
+B2-S seed=42 epoch=27 loss=0.1923 val_ap=0.6227 best=0.6227@27
+B2-S seed=42 epoch=28 loss=0.1919 val_ap=0.6157 best=0.6227@27
+B2-S seed=42 epoch=29 loss=0.1936 val_ap=0.6057 best=0.6227@27
+B2-S seed=42 epoch=30 loss=0.1916 val_ap=0.6093 best=0.6227@27
+B2-S seed=42 epoch=31 loss=0.1902 val_ap=0.6177 best=0.6227@27
+B2-S seed=42 epoch=32 loss=0.1913 val_ap=0.6164 best=0.6227@27
+B2-S seed=43 epoch=1 loss=0.2514 val_ap=0.4525 best=0.4525@1
+B2-S seed=43 epoch=2 loss=0.2304 val_ap=0.5031 best=0.5031@2
+B2-S seed=43 epoch=3 loss=0.2222 val_ap=0.5103 best=0.5103@3
+B2-S seed=43 epoch=4 loss=0.2165 val_ap=0.5594 best=0.5594@4
+B2-S seed=43 epoch=5 loss=0.2127 val_ap=0.5787 best=0.5787@5
+B2-S seed=43 epoch=6 loss=0.2096 val_ap=0.5221 best=0.5787@5
+B2-S seed=43 epoch=7 loss=0.2083 val_ap=0.5529 best=0.5787@5
+B2-S seed=43 epoch=8 loss=0.2062 val_ap=0.5679 best=0.5787@5
+B2-S seed=43 epoch=9 loss=0.2048 val_ap=0.5946 best=0.5946@9
+B2-S seed=43 epoch=10 loss=0.2015 val_ap=0.5973 best=0.5973@10
+B2-S seed=43 epoch=11 loss=0.2034 val_ap=0.5496 best=0.5973@10
+B2-S seed=43 epoch=12 loss=0.2038 val_ap=0.5729 best=0.5973@10
+B2-S seed=43 epoch=13 loss=0.2026 val_ap=0.6028 best=0.6028@13
+B2-S seed=43 epoch=14 loss=0.2005 val_ap=0.6039 best=0.6039@14
+B2-S seed=43 epoch=15 loss=0.2020 val_ap=0.5988 best=0.6039@14
+B2-S seed=43 epoch=16 loss=0.1995 val_ap=0.5927 best=0.6039@14
+B2-S seed=43 epoch=17 loss=0.1973 val_ap=0.5860 best=0.6039@14
+B2-S seed=43 epoch=18 loss=0.1983 val_ap=0.6022 best=0.6039@14
+B2-S seed=43 epoch=19 loss=0.1963 val_ap=0.5990 best=0.6039@14
+B2-S seed=44 epoch=1 loss=0.2471 val_ap=0.4428 best=0.4428@1
+B2-S seed=44 epoch=2 loss=0.2285 val_ap=0.5283 best=0.5283@2
+B2-S seed=44 epoch=3 loss=0.2206 val_ap=0.5150 best=0.5283@2
+B2-S seed=44 epoch=4 loss=0.2185 val_ap=0.5601 best=0.5601@4
+B2-S seed=44 epoch=5 loss=0.2129 val_ap=0.5719 best=0.5719@5
+B2-S seed=44 epoch=6 loss=0.2112 val_ap=0.5520 best=0.5719@5
+B2-S seed=44 epoch=7 loss=0.2086 val_ap=0.5702 best=0.5719@5
+B2-S seed=44 epoch=8 loss=0.2073 val_ap=0.5865 best=0.5865@8
+B2-S seed=44 epoch=9 loss=0.2067 val_ap=0.5877 best=0.5877@9
+B2-S seed=44 epoch=10 loss=0.2041 val_ap=0.5858 best=0.5877@9
+B2-S seed=44 epoch=11 loss=0.2033 val_ap=0.5947 best=0.5947@11
+B2-S seed=44 epoch=12 loss=0.2032 val_ap=0.5798 best=0.5947@11
+B2-S seed=44 epoch=13 loss=0.2010 val_ap=0.5909 best=0.5947@11
+B2-S seed=44 epoch=14 loss=0.2006 val_ap=0.6010 best=0.6010@14
+B2-S seed=44 epoch=15 loss=0.2002 val_ap=0.6062 best=0.6062@15
+B2-S seed=44 epoch=16 loss=0.1997 val_ap=0.5853 best=0.6062@15
+B2-S seed=44 epoch=17 loss=0.1975 val_ap=0.6136 best=0.6136@17
+B2-S seed=44 epoch=18 loss=0.1968 val_ap=0.5689 best=0.6136@17
+B2-S seed=44 epoch=19 loss=0.1960 val_ap=0.6218 best=0.6218@19
+B2-S seed=44 epoch=20 loss=0.1955 val_ap=0.5977 best=0.6218@19
+B2-S seed=44 epoch=21 loss=0.1954 val_ap=0.6184 best=0.6218@19
+B2-S seed=44 epoch=22 loss=0.1957 val_ap=0.6140 best=0.6218@19
+B2-S seed=44 epoch=23 loss=0.1936 val_ap=0.6150 best=0.6218@19
+B2-S seed=44 epoch=24 loss=0.1941 val_ap=0.6173 best=0.6218@19
+B3-S seed=42 epoch=1 loss=0.2126 val_ap=0.6523 best=0.6523@1
+B3-S seed=42 epoch=2 loss=0.1692 val_ap=0.6676 best=0.6676@2
+B3-S seed=42 epoch=3 loss=0.1429 val_ap=0.6808 best=0.6808@3
+B3-S seed=42 epoch=4 loss=0.1138 val_ap=0.6438 best=0.6808@3
+B3-S seed=42 epoch=5 loss=0.0847 val_ap=0.6179 best=0.6808@3
+B3-S seed=42 epoch=6 loss=0.0541 val_ap=0.5569 best=0.6808@3
+B3-S seed=42 epoch=7 loss=0.0395 val_ap=0.5749 best=0.6808@3
+B3-S seed=42 epoch=8 loss=0.0215 val_ap=0.5514 best=0.6808@3
+B3-S seed=43 epoch=1 loss=0.2169 val_ap=0.6582 best=0.6582@1
+B3-S seed=43 epoch=2 loss=0.1656 val_ap=0.6957 best=0.6957@2
+B3-S seed=43 epoch=3 loss=0.1395 val_ap=0.6612 best=0.6957@2
+B3-S seed=43 epoch=4 loss=0.1044 val_ap=0.6586 best=0.6957@2
+B3-S seed=43 epoch=5 loss=0.0779 val_ap=0.6345 best=0.6957@2
+B3-S seed=43 epoch=6 loss=0.0446 val_ap=0.5664 best=0.6957@2
+B3-S seed=43 epoch=7 loss=0.0266 val_ap=0.5135 best=0.6957@2
+B3-S seed=44 epoch=1 loss=0.2094 val_ap=0.6729 best=0.6729@1
+B3-S seed=44 epoch=2 loss=0.1666 val_ap=0.6848 best=0.6848@2
+B3-S seed=44 epoch=3 loss=0.1407 val_ap=0.5861 best=0.6848@2
+B3-S seed=44 epoch=4 loss=0.1081 val_ap=0.6598 best=0.6848@2
+B3-S seed=44 epoch=5 loss=0.0739 val_ap=0.5676 best=0.6848@2
+B3-S seed=44 epoch=6 loss=0.0500 val_ap=0.5249 best=0.6848@2
+B3-S seed=44 epoch=7 loss=0.0306 val_ap=0.5381 best=0.6848@2
+CPT-MLM seed=42 update=25/265 loss=7.5784 dev=7.3322 tokens=944688
+CPT-MLM seed=42 update=50/265 loss=4.9126 dev=4.6161 tokens=1896024
+CPT-MLM seed=42 update=75/265 loss=3.9028 dev=3.4998 tokens=2843150
+CPT-MLM seed=42 update=100/265 loss=3.0978 dev=2.8264 tokens=3763090
+CPT-MLM seed=42 update=125/265 loss=2.5613 dev=2.3697 tokens=4736021
+CPT-MLM seed=42 update=150/265 loss=2.3424 dev=2.0660 tokens=5686527
+CPT-MLM seed=42 update=175/265 loss=2.1550 dev=1.8639 tokens=6624076
+CPT-MLM seed=42 update=200/265 loss=1.9793 dev=1.7369 tokens=7559848
+CPT-MLM seed=42 update=225/265 loss=1.9744 dev=1.6549 tokens=8511556
+CPT-MLM seed=42 update=250/265 loss=1.8740 dev=1.6150 tokens=9463038
+CPT-MLM seed=42 update=265/265 loss=1.9335 dev=1.6087 tokens=10029313
+B4-S seed=42 epoch=1 loss=0.2179 val_ap=0.6587 best=0.6587@1
+B4-S seed=42 epoch=2 loss=0.1700 val_ap=0.6369 best=0.6587@1
+B4-S seed=42 epoch=3 loss=0.1447 val_ap=0.6477 best=0.6587@1
+B4-S seed=42 epoch=4 loss=0.1091 val_ap=0.6143 best=0.6587@1
+B4-S seed=42 epoch=5 loss=0.0800 val_ap=0.5503 best=0.6587@1
+B4-S seed=42 epoch=6 loss=0.0467 val_ap=0.5240 best=0.6587@1
+CPT-MLM seed=43 update=25/265 loss=7.1628 dev=6.7606 tokens=924536
+CPT-MLM seed=43 update=50/265 loss=4.7348 dev=4.3599 tokens=1887568
+CPT-MLM seed=43 update=75/265 loss=3.5917 dev=3.3125 tokens=2830874
+CPT-MLM seed=43 update=100/265 loss=2.9598 dev=2.6869 tokens=3777353
+CPT-MLM seed=43 update=125/265 loss=2.5336 dev=2.2435 tokens=4732301
+CPT-MLM seed=43 update=150/265 loss=2.3967 dev=1.9466 tokens=5683189
+CPT-MLM seed=43 update=175/265 loss=2.0910 dev=1.7535 tokens=6633881
+CPT-MLM seed=43 update=200/265 loss=1.8931 dev=1.6290 tokens=7577894
+CPT-MLM seed=43 update=225/265 loss=1.7535 dev=1.5520 tokens=8523741
+CPT-MLM seed=43 update=250/265 loss=1.6719 dev=1.5166 tokens=9469460
+CPT-MLM seed=43 update=265/265 loss=1.7418 dev=1.5107 tokens=10030687
+B4-S seed=43 epoch=1 loss=0.2153 val_ap=0.6587 best=0.6587@1
+B4-S seed=43 epoch=2 loss=0.1654 val_ap=0.6857 best=0.6857@2
+B4-S seed=43 epoch=3 loss=0.1401 val_ap=0.6441 best=0.6857@2
+B4-S seed=43 epoch=4 loss=0.1088 val_ap=0.6130 best=0.6857@2
+B4-S seed=43 epoch=5 loss=0.0732 val_ap=0.5661 best=0.6857@2
+B4-S seed=43 epoch=6 loss=0.0502 val_ap=0.5081 best=0.6857@2
+B4-S seed=43 epoch=7 loss=0.0307 val_ap=0.5184 best=0.6857@2
+CPT-MLM seed=44 update=25/265 loss=7.3335 dev=6.8896 tokens=944913
+CPT-MLM seed=44 update=50/265 loss=4.7423 dev=4.4329 tokens=1881891
+CPT-MLM seed=44 update=75/265 loss=3.6676 dev=3.3672 tokens=2823315
+CPT-MLM seed=44 update=100/265 loss=2.9371 dev=2.7016 tokens=3780150
+CPT-MLM seed=44 update=125/265 loss=2.6941 dev=2.2559 tokens=4733077
+CPT-MLM seed=44 update=150/265 loss=2.2720 dev=1.9571 tokens=5685261
+CPT-MLM seed=44 update=175/265 loss=2.2307 dev=1.7555 tokens=6626807
+CPT-MLM seed=44 update=200/265 loss=1.8670 dev=1.6337 tokens=7566682
+CPT-MLM seed=44 update=225/265 loss=1.8649 dev=1.5612 tokens=8526575
+CPT-MLM seed=44 update=250/265 loss=1.8182 dev=1.5214 tokens=9465683
+CPT-MLM seed=44 update=265/265 loss=1.7324 dev=1.5161 tokens=10029404
+B4-S seed=44 epoch=1 loss=0.2080 val_ap=0.6610 best=0.6610@1
+B4-S seed=44 epoch=2 loss=0.1638 val_ap=0.6764 best=0.6764@2
+B4-S seed=44 epoch=3 loss=0.1404 val_ap=0.6364 best=0.6764@2
+B4-S seed=44 epoch=4 loss=0.1080 val_ap=0.6490 best=0.6764@2
+B4-S seed=44 epoch=5 loss=0.0685 val_ap=0.5582 best=0.6764@2
+B4-S seed=44 epoch=6 loss=0.0492 val_ap=0.5410 best=0.6764@2
+B4-S seed=44 epoch=7 loss=0.0290 val_ap=0.5102 best=0.6764@2
+[
+  {
+    "run_id": "93738449d18845e7",
+    "seed": 42,
+    "status": "completed",
+    "validation_ap": 0.6227009819733857,
+    "variant_id": "B2-S"
+  },
+  {
+    "run_id": "3e66f3cfaa7c99e4",
+    "seed": 43,
+    "status": "completed",
+    "validation_ap": 0.60389988676387,
+    "variant_id": "B2-S"
+  },
+  {
+    "run_id": "e68dd81b5c97a46a",
+    "seed": 44,
+    "status": "completed",
+    "validation_ap": 0.6218095808805457,
+    "variant_id": "B2-S"
+  },
+  {
+    "run_id": "67fca1136ea2bd0c",
+    "seed": 42,
+    "status": "completed",
+    "validation_ap": 0.6807554534024605,
+    "variant_id": "B3-S"
+  },
+  {
+    "run_id": "733fb98bec2f83f4",
+    "seed": 43,
+    "status": "completed",
+    "validation_ap": 0.6956999038481345,
+    "variant_id": "B3-S"
+  },
+  {
+    "run_id": "d535e4419ac800b1",
+    "seed": 44,
+    "status": "completed",
+    "validation_ap": 0.6847917903437035,
+    "variant_id": "B3-S"
+  },
+  {
+    "run_id": "ecb244b9107cd580",
+    "seed": 42,
+    "status": "completed",
+    "validation_ap": 0.6587250051579621,
+    "variant_id": "B4-S"
+  },
+  {
+    "run_id": "a3284655e4ea5660",
+    "seed": 43,
+    "status": "completed",
+    "validation_ap": 0.6856661176637823,
+    "variant_id": "B4-S"
+  },
+  {
+    "run_id": "1e41d109a57131bb",
+    "seed": 44,
+    "status": "completed",
+    "validation_ap": 0.6763990865840699,
+    "variant_id": "B4-S"
+  }
+]

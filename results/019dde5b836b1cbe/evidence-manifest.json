@@ -1,0 +1,22 @@
+{
+  "evidence_manifest_sha256": null,
+  "evidence_profile": "matched",
+  "query_hash_digest": null,
+  "structured_columns": [
+    "ns",
+    "nd",
+    "nf",
+    "entropy",
+    "la",
+    "ld",
+    "lt",
+    "fix",
+    "ndev",
+    "age",
+    "nuc",
+    "exp",
+    "rexp",
+    "sexp"
+  ],
+  "structured_feature_profile": "jit14-audited-v1"
+}

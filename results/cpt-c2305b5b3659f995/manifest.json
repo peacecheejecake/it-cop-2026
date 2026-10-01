@@ -1,0 +1,12 @@
+{
+  "artifact_kind": "cpt_encoder_export",
+  "base_revision": "3b0952feddeffad0063f274080e3c23d75e7eb39",
+  "encoder_safetensors_sha256": "77c948f4a72995939925daf75c05bcdbf7ed13a91c729c5d784ca41d7831a445",
+  "encoder_state_sha256": "56069927ea42d0835a13380f660f48f258fd7dd403b3f22019bc5041b4196abf",
+  "hidden_size": 768,
+  "includes_mlm_head": false,
+  "includes_optimizer": false,
+  "optimizer_updates": 265,
+  "seed": 44,
+  "task": "mlm"
+}

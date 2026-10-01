@@ -1,0 +1,41 @@
+{
+  "adaptation_mode": "supervised_encoder_head",
+  "artifacts_sha256": {
+    "cost.json": "6043da7b75b29ca734c1a3832dbe70180a85bd50ad74fd2b6c574804cf19cc34",
+    "data-lineage.json": "e6ce1edc5981948f7221066a4d622642268d1b715216421b651cfaa2a7d0a16d",
+    "environment.json": "070d2e6b4757d857509508d33b732f3b245287001f37592ceb9e2d89ea6ed169",
+    "evidence-manifest.json": "bc3bc1af681a29f99fce2b96b6f9f9801ad8fec5c65aeb7fc77ccf8a37137ef0",
+    "label-access-ledger.json": "be8864cd62b2dd83b336ece43c10204e4441c5f9bdd68c0e6e8567af27d74282",
+    "metrics.json": "6258b6380605167b60a3c164a4e15dc30497ea3c6402a303fbf6848ff5bcc0bf",
+    "metrics.jsonl": "def2e2db787d63b2ef005f47de03f593b99139bcc9832127b3c50a8bd7f79991",
+    "model/state.json": "ae81651654f871deedfb82697267c2420be38c631a28ab3e117cd99b26dea280",
+    "predictions/validation.parquet": "ba9b53058f8529ea1ec8c20541b21f2b4617b40260b9a23b076ab9d482d6436c",
+    "reports/summary.md": "8d565825fb1cabbef899d3b0ae4e95608600bfce95b57b20ec78c1cc3b620fe0",
+    "resolved-config.json": "0e809e84a7439184f2a517d6752a436b34f2adf9ec1249a939705d7060a49d41"
+  },
+  "attempt": 1,
+  "code_git": {
+    "dirty": null,
+    "sha": "9fd51deae4a974c02c4af1525758c9ee3a4637c9",
+    "source": "bundle-marker"
+  },
+  "evidence_profile": "matched",
+  "family": "B3",
+  "finished_at": "2026-10-01T06:54:14.819613+00:00",
+  "information_profile": "text_and_structured",
+  "matrix_version": 2,
+  "protocol_version": "v3",
+  "registry_sha256": "37b2591e226cd22ec81a51e6c944e72fa27518ea26f1dd9594433ac7b6ef7021",
+  "run_id": "733fb98bec2f83f4",
+  "scoped_config_sha256": "572e03b202fad704ebbd30ec8b961f6086b3e7b98b567b8b41775d45452f200f",
+  "seed": 43,
+  "source_digest": "edc6192d2db1b7a7ff01bb2518b7a84845caa7393d94080d8229b12da09f4b61",
+  "split_evaluated": "valid",
+  "started_at": "2026-10-01T06:36:00.880303+00:00",
+  "status": "completed",
+  "study_id": "public-comparison-v3",
+  "study_sha256": "25e65fa389f67d131b3bd2ff2bf4837e475953bc738d37357a0d7f57ae3cebc0",
+  "track": "controlled",
+  "validation_ap": 0.6956999038481345,
+  "variant_id": "B3-S"
+}

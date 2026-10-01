@@ -1,0 +1,183 @@
+{
+  "content": {
+    "add_only": 5421,
+    "added_lines_median": 10.0,
+    "delete_only": 483,
+    "deleted_lines_median": 3.0,
+    "empty_message": 16,
+    "no_code_lines": 0
+  },
+  "duplicates": {
+    "code_key": {
+      "cross_split_groups": 48,
+      "cross_split_pairs": {
+        "test-train": 22,
+        "test-valid": 25,
+        "train-valid": 31
+      },
+      "groups": 336,
+      "rows_in_duplicate_groups": 1095
+    },
+    "exact_key": {
+      "cross_split_groups": 17,
+      "cross_split_pairs": {
+        "test-train": 6,
+        "test-valid": 6,
+        "train-valid": 11
+      },
+      "groups": 237,
+      "rows_in_duplicate_groups": 559
+    },
+    "normalized_key": {
+      "cross_split_groups": 17,
+      "cross_split_pairs": {
+        "test-train": 6,
+        "test-valid": 6,
+        "train-valid": 11
+      },
+      "groups": 237,
+      "rows_in_duplicate_groups": 559
+    }
+  },
+  "features": {
+    "age": {
+      "max": 3015.076215277778,
+      "median": 10.091782407407408,
+      "min": -548.6335841049382,
+      "nan": 0,
+      "negative": 74
+    },
+    "entropy": {
+      "max": 6.466650223154965,
+      "median": 0.22209375229168227,
+      "min": 0.0,
+      "nan": 0,
+      "negative": 0
+    },
+    "exp": {
+      "max": 1960.0,
+      "median": 145.0,
+      "min": 0.0,
+      "nan": 0,
+      "negative": 0
+    },
+    "fix": {
+      "max": 1.0,
+      "median": 0.0,
+      "min": 0.0,
+      "nan": 0,
+      "negative": 0
+    },
+    "la": {
+      "max": 8548.0,
+      "median": 22.0,
+      "min": 0.0,
+      "nan": 0,
+      "negative": 0
+    },
+    "ld": {
+      "max": 9650.0,
+      "median": 5.0,
+      "min": 0.0,
+      "nan": 0,
+      "negative": 0
+    },
+    "lt": {
+      "max": 14467.0,
+      "median": 171.0,
+      "min": -1923.0,
+      "nan": 0,
+      "negative": 1580
+    },
+    "nd": {
+      "max": 44.0,
+      "median": 1.0,
+      "min": 1.0,
+      "nan": 0,
+      "negative": 0
+    },
+    "ndev": {
+      "max": 43.0,
+      "median": 5.0,
+      "min": 1.0,
+      "nan": 0,
+      "negative": 0
+    },
+    "nf": {
+      "max": 97.0,
+      "median": 2.0,
+      "min": 1.0,
+      "nan": 0,
+      "negative": 0
+    },
+    "ns": {
+      "max": 13.0,
+      "median": 1.0,
+      "min": 1.0,
+      "nan": 0,
+      "negative": 0
+    },
+    "nuc": {
+      "max": 1828.0,
+      "median": 14.0,
+      "min": 0.0,
+      "nan": 0,
+      "negative": 0
+    },
+    "rexp": {
+      "max": 717.0718221497888,
+      "median": 82.35583838955873,
+      "min": 0.0,
+      "nan": 0,
+      "negative": 0
+    },
+    "sexp": {
+      "max": 1960.0,
+      "median": 123.0,
+      "min": 0.0,
+      "nan": 0,
+      "negative": 0
+    }
+  },
+  "label_conflicts": {
+    "code_key": 10,
+    "exact_key": 5,
+    "normalized_key": 5
+  },
+  "n_changes": 27319,
+  "splits": {
+    "test": {
+      "n": 5480,
+      "positive_rate": 0.0867,
+      "positives": 475,
+      "projects": 21
+    },
+    "train": {
+      "n": 16374,
+      "positive_rate": 0.0849,
+      "positives": 1390,
+      "projects": 21
+    },
+    "valid": {
+      "n": 5465,
+      "positive_rate": 0.0855,
+      "positives": 467,
+      "projects": 21
+    }
+  },
+  "temporal": {
+    "provided_split_time_ordered": false,
+    "test": {
+      "max": "2019-04-06T22:21:26+00:00",
+      "min": "2001-03-27T05:25:57+00:00"
+    },
+    "train": {
+      "max": "2015-09-04T14:38:40+00:00",
+      "min": "2001-09-14T19:22:52+00:00"
+    },
+    "valid": {
+      "max": "2018-01-16T21:10:57+00:00",
+      "min": "2006-10-03T18:25:24+00:00"
+    }
+  }
+}

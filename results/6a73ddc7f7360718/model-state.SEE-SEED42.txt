@@ -1,0 +1,1 @@
+Same content as 8c206ab91ff2b2e9/model-state.json (B1 TF-IDF vocabulary and weights; deterministic). Only fit_seconds differs; the original is in the worktree's codebert-diff-lab/artifacts/runs/6a73ddc7f7360718/model/state.json

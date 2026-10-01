@@ -1,0 +1,28 @@
+{
+  "adaptation_mode": "frozen_encoder_train_head",
+  "cpt_label_count": 0,
+  "cpt_unlabeled_input_count": 0,
+  "demo_unique_label_count": 0,
+  "gradient_label_count": 16184,
+  "index_labeled_count": 0,
+  "rmi_synthetic_target_count": 0,
+  "selection_events": [
+    {
+      "candidates": 24,
+      "chosen_epoch": 19,
+      "kind": "checkpoint_epoch",
+      "metric": "validation_ap",
+      "rule": "max validation AP, ties -> earlier",
+      "split": "valid"
+    },
+    {
+      "chosen": 0.1905248463153839,
+      "kind": "threshold",
+      "metric": "f1",
+      "rule": "validation_max_f1_then_highest_threshold",
+      "split": "valid"
+    }
+  ],
+  "selection_label_count": 5465,
+  "selection_use": "checkpoint epoch / threshold selection and reporting on public validation"
+}

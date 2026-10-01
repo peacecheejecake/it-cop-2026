@@ -1,0 +1,108 @@
+{
+  "dev": [
+    {
+      "dev_mlm_loss": 15.360856343091019,
+      "dev_targets": 31488,
+      "update": 0
+    },
+    {
+      "dev_mlm_loss": 6.889577943135083,
+      "dev_targets": 31488,
+      "update": 25
+    },
+    {
+      "dev_mlm_loss": 4.432852489192311,
+      "dev_targets": 31488,
+      "update": 50
+    },
+    {
+      "dev_mlm_loss": 3.367211023966471,
+      "dev_targets": 31488,
+      "update": 75
+    },
+    {
+      "dev_mlm_loss": 2.701577938669096,
+      "dev_targets": 31488,
+      "update": 100
+    },
+    {
+      "dev_mlm_loss": 2.255874168582079,
+      "dev_targets": 31488,
+      "update": 125
+    },
+    {
+      "dev_mlm_loss": 1.95709796068145,
+      "dev_targets": 31488,
+      "update": 150
+    },
+    {
+      "dev_mlm_loss": 1.7554612508634242,
+      "dev_targets": 31488,
+      "update": 175
+    },
+    {
+      "dev_mlm_loss": 1.6336823052507106,
+      "dev_targets": 31488,
+      "update": 200
+    },
+    {
+      "dev_mlm_loss": 1.5612391495123141,
+      "dev_targets": 31488,
+      "update": 225
+    },
+    {
+      "dev_mlm_loss": 1.5214077011356508,
+      "dev_targets": 31488,
+      "update": 250
+    },
+    {
+      "dev_mlm_loss": 1.5161139402932269,
+      "dev_targets": 31488,
+      "update": 265
+    }
+  ],
+  "dev_ids_sha256": "b3c5602dc9bea051243fd372ac139d34ee49a7245211c6965dc031cc465917a4",
+  "device": "cuda",
+  "encoder_init_state_sha256": "a010cf3a06a3cbae52c3abf1bfc361f85c88a24352704c4f51715499c623dc4d",
+  "exported_encoder_state_sha256": "56069927ea42d0835a13380f660f48f258fd7dd403b3f22019bc5041b4196abf",
+  "lm_head_init_state_sha256": "ed7bfb301cbd329d024f93a383e3e65007c5e1ada3813e1d5c357dfe9012f6a4",
+  "lm_head_newly_initialized": [
+    "lm_head.bias",
+    "lm_head.decoder.bias",
+    "lm_head.dense.bias",
+    "lm_head.dense.weight",
+    "lm_head.layer_norm.bias",
+    "lm_head.layer_norm.weight"
+  ],
+  "peak_cuda_bytes": 5014736384,
+  "plan_sha256": "7da34bcbc9bb4c4a0055ba3677b08e792ffe9cd16cf377f82ccb46d0afb5a63e",
+  "precision": "fp32",
+  "seed": 44,
+  "status": "completed",
+  "task": "mlm",
+  "token_accounting": {
+    "budget": 10000000,
+    "budget_unit": "nonpadding_input_token_exposures",
+    "corpus_changes": 15375,
+    "corpus_tokens_per_pass": 4547062,
+    "cpt_train_rows_with_dev_identical_text": 1,
+    "dev_evals": 12,
+    "dev_forward_tokens_per_eval": 239066,
+    "excluded": {
+      "dev": {},
+      "train": {}
+    },
+    "forced_single_target_samples": 79,
+    "forward_tokens": 10029404,
+    "mlm_input_tokens": 10029404,
+    "mlm_target_tokens": 1319366,
+    "optimizer_updates": 265,
+    "passes": 2.205688860191482,
+    "planned_updates": 265,
+    "rmi_input_tokens": 0,
+    "train_seconds_this_attempt": 329.4624842815101,
+    "unique_changes_seen": 15375,
+    "warmup_updates": 16
+  },
+  "train_ids_sha256": "e73fcabdbc220736a426d1f1f0af5bcd2bd6514e72f8cc41cc911af21240af7c"
+}

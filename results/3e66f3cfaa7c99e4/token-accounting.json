@@ -1,0 +1,11 @@
+{
+  "downstream": {
+    "encoder_forward_train_tokens": 4786128,
+    "epochs": 19,
+    "frozen_embedding_pass_tokens": 4786128,
+    "optimizer_updates": 9614,
+    "train_examples": 16184,
+    "train_tokens_per_epoch": 4786128,
+    "unit": "nonpadding_input_tokens"
+  }
+}

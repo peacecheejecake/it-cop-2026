@@ -1,0 +1,18 @@
+{
+  "booster_sha256": "3b9c8a8874658ca059259db64d5fc8e6fffaa9052205362b790de08d63aa4519",
+  "categorical": [],
+  "early_stopping": null,
+  "lightgbm_version": "4.7.0",
+  "params": {
+    "deterministic": true,
+    "force_row_wise": true,
+    "learning_rate": 0.05,
+    "min_child_samples": 20,
+    "n_estimators": 300,
+    "n_jobs": 4,
+    "num_leaves": 15,
+    "objective": "binary",
+    "random_state": 42,
+    "verbose": -1
+  }
+}

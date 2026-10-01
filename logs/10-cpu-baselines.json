@@ -1,0 +1,65 @@
+[
+  {
+    "run_id": "d03f2f7dc1e6225d",
+    "seed": 42,
+    "status": "completed",
+    "validation_ap": 0.3192886953697644,
+    "variant_id": "B0-LR"
+  },
+  {
+    "run_id": "f77b38ba5211e2ec",
+    "seed": 43,
+    "status": "completed",
+    "validation_ap": 0.3192886953697644,
+    "variant_id": "B0-LR"
+  },
+  {
+    "run_id": "b4e00e44f7d661ec",
+    "seed": 44,
+    "status": "completed",
+    "validation_ap": 0.3192886953697644,
+    "variant_id": "B0-LR"
+  },
+  {
+    "run_id": "cabd1c09e6768333",
+    "seed": 42,
+    "status": "completed",
+    "validation_ap": 0.21057041392777193,
+    "variant_id": "B0-LGBM"
+  },
+  {
+    "run_id": "019dde5b836b1cbe",
+    "seed": 43,
+    "status": "completed",
+    "validation_ap": 0.21057041392777193,
+    "variant_id": "B0-LGBM"
+  },
+  {
+    "run_id": "c548eafa62601cfe",
+    "seed": 44,
+    "status": "completed",
+    "validation_ap": 0.21057041392777193,
+    "variant_id": "B0-LGBM"
+  },
+  {
+    "run_id": "8c206ab91ff2b2e9",
+    "seed": 42,
+    "status": "completed",
+    "validation_ap": 0.5463648613877781,
+    "variant_id": "B1-TFIDF-S"
+  },
+  {
+    "run_id": "6a73ddc7f7360718",
+    "seed": 43,
+    "status": "completed",
+    "validation_ap": 0.5463648613877781,
+    "variant_id": "B1-TFIDF-S"
+  },
+  {
+    "run_id": "a0cd309c4908791d",
+    "seed": 44,
+    "status": "completed",
+    "validation_ap": 0.5463648613877781,
+    "variant_id": "B1-TFIDF-S"
+  }
+]

@@ -1,0 +1,41 @@
+{
+  "adaptation_mode": "supervised_classifier",
+  "artifacts_sha256": {
+    "cost.json": "3745dc19f755e8283fdd162e4a3ce1751c89a69b539120ec1b0881bc61375f2e",
+    "data-lineage.json": "b71a5f32ae152bee9759a0f35c4862db4dc628f6f4c7bf1c5e8a9c4c637bd21b",
+    "environment.json": "be5f0223a916ff632d081db14a890621c66537100599edfead4a364c25f5c144",
+    "evidence-manifest.json": "d75feb53de4bc531a7be4d87432e88c756739c5ee83896d7dfc3e2f2ee0dcadb",
+    "label-access-ledger.json": "4643cca888505d49b3abf1bd99ee430c77778fd780d3b95ffd70eacb62a8d15b",
+    "metrics.json": "9db6a73093b1d690dfd6e2c10fb6fd619b5055fb096f148d9aa84e6ea6f4eafa",
+    "metrics.jsonl": "0464c2f5cf68e4c7412a38d686804f630ec0e0d01827dbd7cb95bf6bc28ae6a4",
+    "model/state.json": "d3dc94f2b810a71d0b2175db29f88783d50f1719a2ca379e9ecdb46ebd6c0860",
+    "predictions/validation.parquet": "0b991d7916d026c19730784ffc02aafed2fff5998d02a92b158a6da61245fed2",
+    "reports/summary.md": "b17bbb61a40b386cd04b10f6771662aa4d6d50e401fdc63e3873d7799bf61fe7",
+    "resolved-config.json": "0e809e84a7439184f2a517d6752a436b34f2adf9ec1249a939705d7060a49d41"
+  },
+  "attempt": 1,
+  "code_git": {
+    "dirty": false,
+    "sha": "9fd51deae4a974c02c4af1525758c9ee3a4637c9",
+    "source": "git"
+  },
+  "evidence_profile": "matched",
+  "family": "B0",
+  "finished_at": "2026-10-01T06:00:49.681485+00:00",
+  "information_profile": "structured_only",
+  "matrix_version": 2,
+  "protocol_version": "v3",
+  "registry_sha256": "37b2591e226cd22ec81a51e6c944e72fa27518ea26f1dd9594433ac7b6ef7021",
+  "run_id": "f77b38ba5211e2ec",
+  "scoped_config_sha256": "68534356f7e95074ab232400d47bce1dd078c23cf1c658bfb9a035847f7447c4",
+  "seed": 43,
+  "source_digest": "edc6192d2db1b7a7ff01bb2518b7a84845caa7393d94080d8229b12da09f4b61",
+  "split_evaluated": "valid",
+  "started_at": "2026-10-01T06:00:49.556340+00:00",
+  "status": "completed",
+  "study_id": "public-comparison-v3",
+  "study_sha256": "25e65fa389f67d131b3bd2ff2bf4837e475953bc738d37357a0d7f57ae3cebc0",
+  "track": "controlled",
+  "validation_ap": 0.3192886953697644,
+  "variant_id": "B0-LR"
+}

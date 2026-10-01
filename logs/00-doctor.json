@@ -1,0 +1,9 @@
+{
+  "cuda": false,
+  "lightgbm": "4.7.0",
+  "mps": true,
+  "network_sandbox": "sandbox-exec",
+  "platform": "macOS-27.0-arm64-arm-64bit",
+  "python": "3.11.16",
+  "torch": "2.14.1"
+}
