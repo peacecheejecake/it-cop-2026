@@ -47,8 +47,7 @@ def test_at01_pin_required_blocks_only_variants_that_read_it():
     require_pinned(raw, "B0-LR")
     require_pinned(raw, "B1-TFIDF-S")
     require_pinned(raw, "B3-S")
-    with pytest.raises(ConfigError, match="cannot run"):
-        require_pinned(raw, "B4-S")
+    require_pinned(raw, "B4-S")
     with pytest.raises(ConfigError, match="cannot run"):
         require_pinned(raw, "L0-S")
 

@@ -78,5 +78,30 @@ finetune:
   device: cuda
   allow_cpu: false
   eval_batch_size: 64
-cpt: PIN_REQUIRED
+cpt:
+  permitted_role: cpt_train
+  corpus: evidence_query_text
+  budget_unit: nonpadding_input_token_exposures
+  budget: 10000000
+  micro_batch_size: 8
+  gradient_accumulation_steps: 16
+  learning_rate: 0.00002
+  weight_decay: 0.01
+  lr_schedule: linear_warmup_linear_decay
+  warmup_fraction: 0.06
+  max_grad_norm: 1.0
+  mlm_probability: 0.15
+  mask_replace_fraction: 0.8
+  random_replace_fraction: 0.1
+  protect_renderer_structure: true
+  zero_selection_rule: force_one_uniform
+  b5_task_schedule: alternating_1_to_1
+  rmi_replacement_probability: 0.5
+  dev_eval_every_updates: 25
+  dev_mask_seed: 20261001
+  checkpoint_every_updates: 50
+  precision: fp32
+  device: cuda
+  allow_cpu: false
+  eval_batch_size: 64
 llm: PIN_REQUIRED

@@ -127,6 +127,42 @@ class FinetuneCfg(Strict):
     eval_batch_size: int = Field(ge=1)
 
 
+class CptCfg(Strict):
+    """Continued pre-training shared by B4-S (MLM) and B5-S (MLM+RMI) (spec protocol §2.1/§6)."""
+    permitted_role: Literal["cpt_train"]
+    corpus: Literal["evidence_query_text"]
+    budget_unit: Literal["nonpadding_input_token_exposures"]
+    budget: int = Field(ge=1)
+    micro_batch_size: int = Field(ge=1)
+    gradient_accumulation_steps: int = Field(ge=1)
+    learning_rate: float = Field(gt=0)
+    weight_decay: float = Field(ge=0)
+    lr_schedule: Literal["linear_warmup_linear_decay"]
+    warmup_fraction: float = Field(gt=0, lt=1)
+    max_grad_norm: float = Field(gt=0)
+    mlm_probability: float = Field(gt=0, lt=1)
+    mask_replace_fraction: float = Field(ge=0, le=1)
+    random_replace_fraction: float = Field(ge=0, le=1)
+    protect_renderer_structure: Literal[True]
+    zero_selection_rule: Literal["force_one_uniform"]
+    b5_task_schedule: Literal["alternating_1_to_1"]
+    rmi_replacement_probability: float = Field(gt=0, lt=1)
+    dev_eval_every_updates: int = Field(ge=1)
+    dev_mask_seed: int
+    checkpoint_every_updates: int = Field(ge=1)
+    precision: Literal["fp32", "bf16_encoder_autocast"]
+    device: Literal["cuda", "mps", "cpu"]
+    allow_cpu: bool = False
+    eval_batch_size: int = Field(ge=1)
+
+    @field_validator("random_replace_fraction")
+    @classmethod
+    def _fractions(cls, v: float, info) -> float:  # noqa: ANN001
+        if info.data.get("mask_replace_fraction", 0) + v > 1:
+            raise ValueError("mask_replace_fraction + random_replace_fraction must be <= 1")
+        return v
+
+
 class StudyConfig(Strict):
     schema_version: Literal[2]
     matrix_version: Literal[2]
@@ -144,7 +180,7 @@ class StudyConfig(Strict):
     evaluation: EvaluationCfg
     policy: PolicyCfg
     llm: dict[str, Any] | Literal["PIN_REQUIRED"] | None = None
-    cpt: dict[str, Any] | Literal["PIN_REQUIRED"] | None = None
+    cpt: CptCfg | Literal["PIN_REQUIRED"] | None = None
     finetune: FinetuneCfg | Literal["PIN_REQUIRED"] | None = None
 
 

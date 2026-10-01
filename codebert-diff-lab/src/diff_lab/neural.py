@@ -1,4 +1,7 @@
-"""B2-S (frozen encoder + fusion head) and B3-S (full fine-tuning) (spec FR-08/11/19, protocol §2.1, AT-09/14/28).
+"""Downstream encoder runs: B2-S (frozen + fusion head), B3-S/B4-S (full fine-tuning) (spec FR-08/09/11/19, AT-09/10/14/28).
+
+B4-S is B3-S started from a diff-MLM CPT encoder export (`init_encoder`); only the encoder
+transfers, the head is initialised by the same seeded rule and the optimizer is fresh.
 
 Both start from the same pinned CodeBERT snapshot and the same seeded head init and share
 batch/epoch/loss/optimizer; B2 only freezes the encoder (eval mode, no grads, excluded from
@@ -40,14 +43,14 @@ def _torch():  # noqa: ANN202
     return torch
 
 
-def pick_device(ft: FinetuneCfg):  # noqa: ANN201
+def pick_device(ft):  # noqa: ANN001, ANN201 - FinetuneCfg or CptCfg
     torch = _torch()
     if ft.device == "cuda" and not torch.cuda.is_available():
         raise ExecutionError("CUDA requested but unavailable (no silent CPU fallback)")
     if ft.device == "mps" and not torch.backends.mps.is_available():
         raise ExecutionError("MPS requested but unavailable")
     if ft.device == "cpu" and not ft.allow_cpu:
-        raise ExecutionError("CPU encoder training requires finetune.allow_cpu: true")
+        raise ExecutionError("CPU encoder training requires allow_cpu: true in the finetune/cpt section")
     return torch.device(ft.device)
 
 
@@ -143,9 +146,13 @@ def _collate(enc: Encoded, idx: np.ndarray, pad_id: int, device):  # noqa: ANN00
 class NeuralRun:
     """One B2-S or B3-S training run inside a run directory."""
 
-    def __init__(self, cfg: StudyConfig, variant: str, seed: int, encoder_path: Path, run_dir: Path, tokenizer):  # noqa: ANN001
-        if variant not in ("B2-S", "B3-S"):
+    def __init__(self, cfg: StudyConfig, variant: str, seed: int, encoder_path: Path, run_dir: Path, tokenizer,  # noqa: ANN001
+                 init_encoder: Path | None = None):
+        if variant not in ("B2-S", "B3-S", "B4-S"):
             raise ExecutionError(f"NeuralRun does not implement {variant}")
+        if (variant == "B4-S") != (init_encoder is not None):
+            raise ExecutionError("B4-S (and only B4-S) fine-tunes from a CPT encoder export")
+        self.init_encoder = init_encoder
         if not isinstance(cfg.finetune, FinetuneCfg):
             raise ExecutionError("finetune section is not pinned")
         self.cfg, self.ft, self.variant, self.seed = cfg, cfg.finetune, variant, seed
@@ -160,6 +167,12 @@ class NeuralRun:
         import contextlib
         return contextlib.nullcontext()
 
+    def _load_encoder(self):  # noqa: ANN202
+        if self.init_encoder is None:
+            return load_encoder(self.encoder_path, self.cfg.model.revision)
+        from .cpt import load_cpt_encoder
+        return load_cpt_encoder(self.init_encoder, self.encoder_path, self.cfg.model.revision)
+
     def _cls(self, encoder, ids, mask, device):  # noqa: ANN001, ANN202
         with self._autocast(device):
             h = encoder(input_ids=ids, attention_mask=mask).last_hidden_state[:, 0]
@@ -170,7 +183,7 @@ class NeuralRun:
         require_training_view(train)
         device = pick_device(self.ft)
         seed_everything(self.seed)
-        encoder, enc_info = load_encoder(self.encoder_path, self.cfg.model.revision)
+        encoder, enc_info = self._load_encoder()
         encoder.to(device)
         x_tr = self.pipe.fit(train).transform(train.frame).astype(np.float32)
         x_va = self.pipe.transform(valid.frame).astype(np.float32)

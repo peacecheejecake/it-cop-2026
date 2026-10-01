@@ -11,7 +11,8 @@ Public-only training, public-validation selection, sealed public test until stud
 | M1 | uv/CLI/strict config/registry v2/policy/tests | done (CPU, network-free tests) |
 | M2 | import → audit → split → EvidenceView → B0-LR / B0-LGBM / B1-TFIDF-S on public validation | done (exp 006); B0-LGBM needs `libomp` on macOS |
 | M3 | B2-S (frozen CodeBERT + fusion head) / B3-S (full FT), resume, T14 profile | implemented, CPU/MPS-verified on tiny + real CodeBERT; CUDA run pending |
-| M4–M6 | MLM/RMI CPT, local LLM L0/L1, freeze/test/report/export | not implemented yet |
+| M4 | B4-S diff-MLM CPT (10M-token plan, structure-protected masking, resume, encoder-only export) → B3-S fine-tuning | implemented, CPU-tested; real CodeBERT 1-update check on MPS; CUDA run pending |
+| M5–M6 | MLM+RMI CPT, local LLM L0/L1, freeze/test/report/export | not implemented yet |
 
 ## Commands (run from this directory)
 
@@ -43,7 +44,8 @@ src/diff_lab/
   data/audit.py, data/splits.py   label-free duplicate/temporal/feature audit; upstream-clean1 split
   evidence.py                     matched EvidenceView, renderer message-add-del-text-v2
   features.py, models.py          train-only structured pipeline; B0-LR, B0-LGBM, B1-TFIDF-S
-  neural.py                        B2-S/B3-S fusion head, frozen-encoder cache, training loop, resume, T14 profile
+  neural.py                        B2-S/B3-S/B4-S fusion head, frozen-encoder cache, training loop, resume, T14 profile
+  cpt.py                           diff-MLM CPT corpus/masking/plan/resume and encoder export (B4-S)
   metrics.py                      AP / ROC-AUC / Recall@q (ceil, hash ties) / validation max-F1 threshold
   policy.py, config.py, registry.py
   runner.py, cli/main.py          run-folder contract, label-access ledger, public-test gate

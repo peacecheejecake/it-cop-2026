@@ -18,7 +18,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from .config import StudyConfig, require_pinned, resolve_local_path
+from .config import SECTIONS_READ, StudyConfig, require_pinned, resolve_local_path
 from .metrics import best_threshold, evaluate
 from .models import MODELS, SCORE_SEMANTICS
 from .policy import QueryView, TrainingDatasetView
@@ -26,8 +26,8 @@ from .registry import MATRIX_VERSION, Registry
 from .util import ExecutionError, IntegrityError, atomic_write_json, read_json, sha256_file, sha256_json
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-NEEDS_EVIDENCE = {"B1-TFIDF-S", "B2-S", "B3-S"}
-NEURAL = {"B2-S", "B3-S"}
+NEEDS_EVIDENCE = {"B1-TFIDF-S", "B2-S", "B3-S", "B4-S"}
+NEURAL = {"B2-S", "B3-S", "B4-S"}
 
 
 def paths(cfg: StudyConfig, data_dir: Path) -> dict[str, Path]:
@@ -118,6 +118,27 @@ def load_frames(cfg: StudyConfig, data_dir: Path, variant: str) -> tuple[pd.Data
     return frame, y.astype(int), lineage
 
 
+IDENTITY_KEYS = ("schema_version", "matrix_version", "study_id", "track", "protocol_version", "evidence_profile",
+                 "information_profile", "evaluation", "policy")
+
+
+def scoped_config_hash(raw: dict, variant: str) -> str:
+    """Hash of the study identity plus only the sections this variant reads, so pinning a later section keeps earlier run ids."""
+    return sha256_json({k: raw.get(k) for k in (*IDENTITY_KEYS, *SECTIONS_READ[variant])})
+
+
+def _run_cpt(cfg: StudyConfig, seed: int, frame: pd.DataFrame, lineage: dict, git: dict, local: Path, tok,  # noqa: ANN001
+             artifacts_dir: Path) -> dict:
+    from .cpt import CptCorpusView, MlmCpt, cpt_id_for
+    cols = ["change_id", "split", "cpt_role", "query_text", "message_text", "code_text"]
+    tr = frame[frame["cpt_role"] == "cpt_train"][cols].reset_index(drop=True)
+    dv = frame[frame["cpt_role"] == "cpt_dev"][cols].reset_index(drop=True)
+    cid = cpt_id_for(cfg, seed, lineage, git, "mlm")
+    out = artifacts_dir / "cpt" / cid
+    res = MlmCpt(cfg, seed, local, out, tok).run(CptCorpusView("cpt_train", tr, lineage), CptCorpusView("cpt_dev", dv, lineage))
+    return {"cpt_id": cid, **res}
+
+
 def run_variant(cfg: StudyConfig, raw: dict, study_hash: str, variant: str, seed: int,
                 data_dir: Path, artifacts_dir: Path) -> dict:
     registry = Registry()
@@ -127,7 +148,7 @@ def run_variant(cfg: StudyConfig, raw: dict, study_hash: str, variant: str, seed
         raise ExecutionError(f"{variant} is not implemented in this milestone")
     frame, y, lineage = load_frames(cfg, data_dir, variant)
     git = git_state()
-    run_id = sha256_json({"study": study_hash, "variant": variant, "seed": seed, "lineage": lineage,
+    run_id = sha256_json({"study": scoped_config_hash(raw, variant), "variant": variant, "seed": seed, "lineage": lineage,
                           "code": git["sha"], "dirty": git["dirty"]})[:16]
     run_dir = artifacts_dir / "runs" / run_id
     if (run_dir / "run.json").exists() and read_json(run_dir / "run.json")["status"] == "completed":
@@ -137,7 +158,8 @@ def run_variant(cfg: StudyConfig, raw: dict, study_hash: str, variant: str, seed
             "variant_id": variant, "family": v.family, "adaptation_mode": v.adaptation_mode, "track": cfg.track,
             "protocol_version": cfg.protocol_version, "evidence_profile": cfg.evidence_profile,
             "information_profile": v.input_profile, "seed": seed, "split_evaluated": "valid",
-            "registry_sha256": registry.digest, "started_at": datetime.now(UTC).isoformat()}
+            "registry_sha256": registry.digest, "study_sha256": study_hash,
+            "scoped_config_sha256": scoped_config_hash(raw, variant), "started_at": datetime.now(UTC).isoformat()}
     atomic_write_json(run_dir / "run.json", {**base, "status": "running"})
     atomic_write_json(run_dir / "resolved-config.json", raw)
     atomic_write_json(run_dir / "environment.json", environment())
@@ -148,14 +170,23 @@ def run_variant(cfg: StudyConfig, raw: dict, study_hash: str, variant: str, seed
                                          labels=y[tr].reset_index(drop=True))
         query = QueryView(split="valid", frame=frame[va].reset_index(drop=True), lineage=lineage)
         device = "cpu"
+        cpt = None
         if variant in NEURAL:
             from .evidence import load_tokenizer
             from .neural import NeuralRun
             local = resolve_local_path(cfg.model.local_path, PROJECT_ROOT)
             tok, _ = load_tokenizer(local, cfg.model.revision)
             t0 = time.perf_counter()
-            state = NeuralRun(cfg, variant, seed, local, run_dir, tok).fit_predict(
+            init = None
+            if variant == "B4-S":
+                cpt = _run_cpt(cfg, seed, frame, lineage, git, local, tok, artifacts_dir)
+                init = artifacts_dir / "cpt" / cpt["cpt_id"] / "encoder"
+                atomic_write_json(run_dir / "token-accounting.json", {"cpt_id": cpt["cpt_id"], **cpt["token_accounting"]})
+            state = NeuralRun(cfg, variant, seed, local, run_dir, tok, init_encoder=init).fit_predict(
                 train_view, query, y[va].to_numpy(), cfg.evaluation.tie_salt)
+            if cpt is not None:
+                state["cpt"] = {k: cpt[k] for k in ("cpt_id", "plan_sha256", "lm_head_newly_initialized", "encoder_init_state_sha256",
+                                                    "exported_encoder_state_sha256", "dev", "precision")}
             scores = state.pop("scores")
             fit_s, pred_s, device = time.perf_counter() - t0, 0.0, state["device"]
         else:
@@ -187,6 +218,7 @@ def run_variant(cfg: StudyConfig, raw: dict, study_hash: str, variant: str, seed
         atomic_write_json(run_dir / "label-access-ledger.json", {
             "gradient_label_count": int(tr.sum()), "demo_unique_label_count": 0, "index_labeled_count": 0,
             "selection_label_count": int(va.sum()), "rmi_synthetic_target_count": 0, "adaptation_mode": v.adaptation_mode,
+            "cpt_label_count": 0, "cpt_unlabeled_input_count": cpt["token_accounting"]["corpus_changes"] if cpt else 0,
             "selection_use": "threshold (max F1) and reporting on public validation"})
         atomic_write_json(run_dir / "evidence-manifest.json", {
             "evidence_profile": cfg.evidence_profile, "structured_feature_profile": cfg.dataset.feature_profile,
@@ -198,7 +230,7 @@ def run_variant(cfg: StudyConfig, raw: dict, study_hash: str, variant: str, seed
                                                   "peak_cuda_bytes": state.get("peak_cuda_bytes"),
                                                   "note": "neural fit_seconds include per-epoch validation scoring"})
         done = {**base, "status": "completed", "finished_at": datetime.now(UTC).isoformat(),
-                "validation_ap": metrics["ap"]}
+                "validation_ap": metrics["ap"], **({"cpt_id": cpt["cpt_id"]} if cpt else {})}
         atomic_write_json(run_dir / "run.json", done)
         return done
     except Exception as e:
