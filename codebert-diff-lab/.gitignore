@@ -1,6 +1,6 @@
 .venv/
-data/
-artifacts/
+/data/
+/artifacts/
 __pycache__/
 .pytest_cache/
 .ruff_cache/

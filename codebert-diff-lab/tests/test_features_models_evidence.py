@@ -69,9 +69,13 @@ def test_at07_render_preserves_direction():
     assert render("msg", [], [])[0] == "msg"
 
 
-@pytest.mark.skipif(not (ROOT.parent / "experiments" / ".cache" / "models" / "codebert-base").exists(),
-                    reason="pinned CodeBERT tokenizer snapshot not available (network-free CI)")
 def test_pinned_tokenizer_is_native():
     cfg, _, _ = load_study(STUDY)
-    tok, info = load_tokenizer(resolve_local_path(cfg.model.local_path, ROOT), cfg.model.revision)
+    try:
+        path = resolve_local_path(cfg.model.local_path, ROOT)
+    except Exception:  # noqa: BLE001
+        pytest.skip("shared cache not found (network-free CI)")
+    if not path.exists():
+        pytest.skip("pinned CodeBERT tokenizer snapshot not available (network-free CI)")
+    tok, info = load_tokenizer(path, cfg.model.revision)
     assert set(info["added_tokens"]) <= set(tok.all_special_tokens)
