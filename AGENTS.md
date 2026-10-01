@@ -6,6 +6,16 @@
 `baseline/`은 고정된 출발점이다. 실험을 위해 `baseline/` 자체를 직접 수정하지 않는다.
 baseline 코드의 실제 버그를 고치는 경우가 아니면, 실험용 변경은 항상 해당 실험의 worktree 안에서만 한다.
 
+## 0. 현재 연구 방향 (2026-10-01 전환)
+
+- **주 트랙은 `codebert-diff-lab/`**(패키지 `diff_lab`)이다. 사양은 `codebert-diff-lab/docs/spec-v0.2/`(원본 그대로, `SHA256SUMS` 검증)이며, 비교군·데이터 경계·평가 정의의 단일 기준이다. 사양과 이 문서가 충돌하면 사양을 따르고 이 문서를 고친다.
+- `baseline/`(riskbench)과 실험 001~005는 **이전 방향의 기록**이다. 결과를 새 study에 섞지 않는다(사양 v0.2는 matrix_version·renderer가 다르다).
+- 코드는 `main`의 `codebert-diff-lab/`에서 개발하고, **각 단계의 실제 실행은 `experiments/<NNN>-dl-<slug>/` worktree**에서 그 커밋의 코드로 돌려 RUNLOG/RESULTS를 남긴다. 데이터 snapshot·split·evidence·run은 worktree 안 `codebert-diff-lab/{data,artifacts}`(git-ignored)에 생기며 내용 hash로 고정된다.
+- 실행 순서는 사양 implementation-plan §7/§12를 따른다: M0 감사 → M1 골격 → M2(B0-LR/B0-LGBM/B1-TFIDF-S, public validation) → M3(B2-S/B3-S) → M4(B4-S) → M5(B5-S) → M6L(L0-S/L1-S) → M6(freeze → public test → report).
+- **public test는 study freeze 전에는 열지 않는다**(코드가 거부한다). validation으로 고른 뒤 9개 primary variant를 모두 freeze하고 한 번에 평가한다.
+- uv 명령은 사내 TLS 프록시 때문에 `--system-certs`를 붙인다. Python은 3.11(`uv python install 3.11 --system-certs`).
+- GPU(B2~B5)와 로컬 LLM(L0/L1)은 비용·모델 선택이 필요하므로 해당 단계 전에 사용자에게 GPU 종류·예상 비용·LLM 후보(revision·license·메모리)를 확인받는다.
+
 ## 1. 실험 기본 규칙
 
 ### 1.1 명명 규칙

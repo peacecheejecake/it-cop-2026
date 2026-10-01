@@ -1,0 +1,204 @@
+"""Strict study configuration (spec implementation-plan §6, FR-01).
+
+Unknown fields, duplicate YAML keys and type coercion fail before any data or model
+is touched. Forbidden policies are typed Literal[False]: setting them to true is a
+schema error, not an override. PIN_REQUIRED placeholders may remain for families that
+are not being run; running a variant requires every section it reads to be pinned.
+"""
+from __future__ import annotations
+
+from pathlib import Path
+from typing import Any, Literal
+
+import yaml
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
+
+from .registry import Registry
+from .util import ConfigError, sha256_json
+
+PIN = "PIN_REQUIRED"
+FEATURE_PROFILE_JIT14 = ["ns", "nd", "nf", "entropy", "la", "ld", "lt", "fix", "ndev", "age", "nuc", "exp", "rexp", "sexp"]
+
+
+class Strict(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True, frozen=True)
+
+
+class DatasetCfg(Strict):
+    snapshot_id: str
+    split_id: str
+    train_visibility: Literal["public"]
+    feature_profile: Literal["jit14-audited-v1"]
+
+
+class ModelCfg(Strict):
+    base: Literal["microsoft/codebert-base"]
+    revision: str
+    local_path: str
+    renderer: Literal["message-add-del-text-v2"]
+    max_length: int = Field(512, ge=16, le=512)
+    max_message_tokens: int = Field(64, ge=0, le=512)
+    fusion_head: Literal["cls-feature-tanh-v1"]
+
+
+class LRCfg(Strict):
+    C: float = Field(gt=0)
+    max_iter: int = Field(ge=100)
+    class_weight: None = None
+
+
+class LGBMCfg(Strict):
+    num_leaves: int
+    learning_rate: float
+    n_estimators: int
+    min_child_samples: int
+    num_threads: int = Field(ge=1)
+    deterministic: Literal[True] = True
+
+
+class StructuredCfg(Strict):
+    features: list[str]
+    lr_transform: Literal["signed_log1p_median_impute_standardize"]
+    lr: LRCfg
+    lgbm: LGBMCfg
+
+    @field_validator("features")
+    @classmethod
+    def _allowlist(cls, v: list[str]) -> list[str]:
+        if v != FEATURE_PROFILE_JIT14:
+            raise ValueError(f"features must equal the audited jit14 allowlist in order: {FEATURE_PROFILE_JIT14}")
+        return v
+
+
+class TextBaselineCfg(Strict):
+    classifier: Literal["logistic_regression"]
+    analyzer: Literal["char"]
+    ngram_range: list[int]
+    lowercase: bool
+    min_df: int = Field(ge=1)
+    max_features_per_field: int = Field(ge=1)
+    fit_role: Literal["supervised_train"]
+    lr: LRCfg
+
+    @field_validator("ngram_range")
+    @classmethod
+    def _ngram(cls, v: list[int]) -> list[int]:
+        if len(v) != 2 or not 1 <= v[0] <= v[1]:
+            raise ValueError("ngram_range must be [min, max] with 1 <= min <= max")
+        return v
+
+
+class EvaluationCfg(Strict):
+    primary_metrics: list[Literal["ap", "recall_at_5pct", "recall_at_10pct"]]
+    budget_unit: Literal["change_count"]
+    topk_rounding: Literal["ceil"]
+    tie_salt: str
+    threshold_policy: Literal["validation_max_f1_then_highest_threshold"]
+    calibration: Literal["none"]
+    require_freeze_for_test: Literal[True]
+
+
+class PolicyCfg(Strict):
+    allow_internal_training: Literal[False]
+    allow_internal_demonstrations: Literal[False]
+    allow_internal_index_members: Literal[False]
+    allow_remote_llm: Literal[False]
+    allow_test_selection: Literal[False]
+    automatic_remote_logging: Literal[False]
+
+
+class StudyConfig(Strict):
+    schema_version: Literal[2]
+    matrix_version: Literal[2]
+    study_id: str
+    track: Literal["controlled", "reference"]
+    protocol_version: str
+    dataset: DatasetCfg
+    model: ModelCfg
+    experiments: list[str]
+    evidence_profile: Literal["matched", "native"]
+    information_profile: Literal["structured_fused"]
+    structured: StructuredCfg
+    text_baseline: TextBaselineCfg
+    seeds: list[int]
+    evaluation: EvaluationCfg
+    policy: PolicyCfg
+    llm: dict[str, Any] | Literal["PIN_REQUIRED"] | None = None
+    cpt: dict[str, Any] | Literal["PIN_REQUIRED"] | None = None
+    finetune: dict[str, Any] | Literal["PIN_REQUIRED"] | None = None
+
+
+SECTIONS_READ = {
+    "B0-LR": ["dataset", "structured"], "B0-LGBM": ["dataset", "structured"],
+    "B1-TFIDF-S": ["dataset", "model", "structured", "text_baseline"],
+    "B2-S": ["dataset", "model", "structured", "finetune"], "B3-S": ["dataset", "model", "structured", "finetune"],
+    "B4-S": ["dataset", "model", "structured", "finetune", "cpt"], "B5-S": ["dataset", "model", "structured", "finetune", "cpt"],
+    "L0-S": ["dataset", "model", "structured", "llm"], "L1-S": ["dataset", "model", "structured", "llm"],
+}
+
+
+class _NoDupLoader(yaml.SafeLoader):
+    pass
+
+
+def _construct_mapping(loader: _NoDupLoader, node: yaml.MappingNode, deep: bool = False) -> dict:
+    seen = set()
+    for key_node, _ in node.value:
+        key = loader.construct_object(key_node, deep=deep)
+        if key in seen:
+            raise ConfigError(f"duplicate YAML key '{key}' at line {key_node.start_mark.line + 1}")
+        seen.add(key)
+    return loader.construct_mapping(node, deep=deep)
+
+
+_NoDupLoader.add_constructor(yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, _construct_mapping)
+
+
+def _find_pins(obj: Any, path: str = "") -> list[str]:
+    if obj == PIN:
+        return [path or "<root>"]
+    if isinstance(obj, dict):
+        return [p for k, v in obj.items() for p in _find_pins(v, f"{path}.{k}" if path else k)]
+    if isinstance(obj, list):
+        return [p for i, v in enumerate(obj) for p in _find_pins(v, f"{path}[{i}]")]
+    return []
+
+
+def load_study(path: str | Path, registry: Registry | None = None) -> tuple[StudyConfig, dict, str]:
+    with open(path, encoding="utf-8") as f:
+        raw = yaml.load(f, Loader=_NoDupLoader)  # noqa: S506 - SafeLoader subclass
+    if not isinstance(raw, dict):
+        raise ConfigError("study config must be a mapping")
+    try:
+        cfg = StudyConfig.model_validate(raw)
+    except ValidationError as e:
+        raise ConfigError(f"invalid study config {path}:\n{e}") from e
+    registry = registry or Registry()
+    for vid in cfg.experiments:
+        registry.resolve(vid)
+    if len(set(cfg.experiments)) != len(cfg.experiments):
+        raise ConfigError("duplicate experiment ids")
+    return cfg, raw, sha256_json(raw)
+
+
+def resolve_local_path(value: str, project_root: Path) -> Path:
+    """'cache:<rel>' resolves against the nearest ancestor holding experiments/.cache (works in worktrees)."""
+    if not value.startswith("cache:"):
+        p = Path(value)
+        return p if p.is_absolute() else (project_root / p).resolve()
+    rel = value.removeprefix("cache:")
+    for parent in [project_root, *project_root.parents]:
+        cache = parent / "experiments" / ".cache"
+        if cache.is_dir():
+            return cache / rel
+    raise ConfigError(f"shared cache not found above {project_root} for {value}")
+
+
+def require_pinned(raw: dict, variant_id: str) -> None:
+    sections = SECTIONS_READ.get(variant_id)
+    if sections is None:
+        raise ConfigError(f"no section map for variant {variant_id}; not implemented in this milestone")
+    missing = [p for s in sections for p in _find_pins(raw.get(s), s)]
+    absent = [s for s in sections if raw.get(s) is None]
+    if missing or absent:
+        raise ConfigError(f"{variant_id} cannot run: unpinned {missing} / missing sections {absent}")

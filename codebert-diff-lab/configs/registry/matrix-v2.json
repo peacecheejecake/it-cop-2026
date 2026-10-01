@@ -1,0 +1,322 @@
+{
+  "artifact_kind": "implementation_specification",
+  "spec_version": "0.2",
+  "matrix_version": 2,
+  "status": "planned_not_implemented",
+  "primary_variant_ids": [
+    "B0-LR",
+    "B0-LGBM",
+    "B1-TFIDF-S",
+    "B2-S",
+    "B3-S",
+    "B4-S",
+    "B5-S",
+    "L0-S",
+    "L1-S"
+  ],
+  "core_variant_ids": [
+    "B0-LR",
+    "B0-LGBM",
+    "B1-TFIDF-S",
+    "B2-S",
+    "B3-S",
+    "B4-S",
+    "B5-S"
+  ],
+  "variants": [
+    {
+      "id": "B0-LR",
+      "family": "B0",
+      "status": "planned",
+      "priority": "P0",
+      "primary": true,
+      "input_profile": "structured_only",
+      "adaptation_mode": "supervised_classifier",
+      "task_label_gradient": true,
+      "encoder_updates": false,
+      "task_label_demonstrations": false,
+      "task_label_retrieval_index": false,
+      "selection_source": "public_validation",
+      "internal_training_allowed": false,
+      "remote_llm_allowed": false
+    },
+    {
+      "id": "B0-LGBM",
+      "family": "B0",
+      "status": "planned",
+      "priority": "P0",
+      "primary": true,
+      "input_profile": "structured_only",
+      "adaptation_mode": "supervised_classifier",
+      "task_label_gradient": true,
+      "encoder_updates": false,
+      "task_label_demonstrations": false,
+      "task_label_retrieval_index": false,
+      "selection_source": "public_validation",
+      "internal_training_allowed": false,
+      "remote_llm_allowed": false
+    },
+    {
+      "id": "B1-TFIDF-S",
+      "family": "B1",
+      "status": "planned",
+      "priority": "P0",
+      "primary": true,
+      "input_profile": "text_and_structured",
+      "adaptation_mode": "supervised_classifier",
+      "task_label_gradient": true,
+      "encoder_updates": false,
+      "task_label_demonstrations": false,
+      "task_label_retrieval_index": false,
+      "selection_source": "public_validation",
+      "internal_training_allowed": false,
+      "remote_llm_allowed": false
+    },
+    {
+      "id": "B2-S",
+      "family": "B2",
+      "status": "planned",
+      "priority": "P1",
+      "primary": true,
+      "input_profile": "text_and_structured",
+      "adaptation_mode": "frozen_encoder_train_head",
+      "task_label_gradient": true,
+      "encoder_updates": false,
+      "task_label_demonstrations": false,
+      "task_label_retrieval_index": false,
+      "selection_source": "public_validation",
+      "internal_training_allowed": false,
+      "remote_llm_allowed": false
+    },
+    {
+      "id": "B3-S",
+      "family": "B3",
+      "status": "planned",
+      "priority": "P1",
+      "primary": true,
+      "input_profile": "text_and_structured",
+      "adaptation_mode": "supervised_encoder_head",
+      "task_label_gradient": true,
+      "encoder_updates": true,
+      "task_label_demonstrations": false,
+      "task_label_retrieval_index": false,
+      "selection_source": "public_validation",
+      "internal_training_allowed": false,
+      "remote_llm_allowed": false
+    },
+    {
+      "id": "B4-S",
+      "family": "B4",
+      "status": "planned",
+      "priority": "P1",
+      "primary": true,
+      "input_profile": "text_and_structured",
+      "adaptation_mode": "mlm_cpt_then_supervised",
+      "task_label_gradient": true,
+      "encoder_updates": true,
+      "task_label_demonstrations": false,
+      "task_label_retrieval_index": false,
+      "selection_source": "public_validation",
+      "internal_training_allowed": false,
+      "remote_llm_allowed": false
+    },
+    {
+      "id": "B5-S",
+      "family": "B5",
+      "status": "planned",
+      "priority": "P1",
+      "primary": true,
+      "input_profile": "text_and_structured",
+      "adaptation_mode": "mlm_rmi_cpt_then_supervised",
+      "task_label_gradient": true,
+      "encoder_updates": true,
+      "task_label_demonstrations": false,
+      "task_label_retrieval_index": false,
+      "selection_source": "public_validation",
+      "internal_training_allowed": false,
+      "remote_llm_allowed": false
+    },
+    {
+      "id": "L0-S",
+      "family": "L0",
+      "status": "planned",
+      "priority": "P2",
+      "primary": true,
+      "input_profile": "text_and_structured",
+      "adaptation_mode": "zero_shot",
+      "task_label_gradient": false,
+      "encoder_updates": false,
+      "task_label_demonstrations": false,
+      "task_label_retrieval_index": false,
+      "selection_source": "public_validation",
+      "internal_training_allowed": false,
+      "remote_llm_allowed": false
+    },
+    {
+      "id": "L1-S",
+      "family": "L1",
+      "status": "planned",
+      "priority": "P2",
+      "primary": true,
+      "input_profile": "text_and_structured",
+      "adaptation_mode": "static_few_shot",
+      "task_label_gradient": false,
+      "encoder_updates": false,
+      "task_label_demonstrations": true,
+      "task_label_retrieval_index": false,
+      "selection_source": "public_validation",
+      "internal_training_allowed": false,
+      "remote_llm_allowed": false
+    },
+    {
+      "id": "B2-T",
+      "family": "B2",
+      "status": "planned",
+      "priority": "P3",
+      "primary": false,
+      "input_profile": "text_only",
+      "adaptation_mode": "frozen_encoder_train_head",
+      "task_label_gradient": true,
+      "encoder_updates": false,
+      "task_label_demonstrations": false,
+      "task_label_retrieval_index": false,
+      "selection_source": "public_validation",
+      "internal_training_allowed": false,
+      "remote_llm_allowed": false
+    },
+    {
+      "id": "B3-T",
+      "family": "B3",
+      "status": "planned",
+      "priority": "P3",
+      "primary": false,
+      "input_profile": "text_only",
+      "adaptation_mode": "supervised_encoder_head",
+      "task_label_gradient": true,
+      "encoder_updates": true,
+      "task_label_demonstrations": false,
+      "task_label_retrieval_index": false,
+      "selection_source": "public_validation",
+      "internal_training_allowed": false,
+      "remote_llm_allowed": false
+    },
+    {
+      "id": "L2-S",
+      "family": "L2",
+      "status": "planned",
+      "priority": "P3",
+      "primary": false,
+      "input_profile": "text_and_structured",
+      "adaptation_mode": "retrieved_few_shot",
+      "task_label_gradient": false,
+      "encoder_updates": false,
+      "task_label_demonstrations": true,
+      "task_label_retrieval_index": true,
+      "selection_source": "public_validation",
+      "internal_training_allowed": false,
+      "remote_llm_allowed": false
+    },
+    {
+      "id": "L0-T",
+      "family": "L0",
+      "status": "planned",
+      "priority": "P3",
+      "primary": false,
+      "input_profile": "text_only",
+      "adaptation_mode": "zero_shot",
+      "task_label_gradient": false,
+      "encoder_updates": false,
+      "task_label_demonstrations": false,
+      "task_label_retrieval_index": false,
+      "selection_source": "public_validation",
+      "internal_training_allowed": false,
+      "remote_llm_allowed": false
+    },
+    {
+      "id": "L1-T",
+      "family": "L1",
+      "status": "planned",
+      "priority": "P3",
+      "primary": false,
+      "input_profile": "text_only",
+      "adaptation_mode": "static_few_shot",
+      "task_label_gradient": false,
+      "encoder_updates": false,
+      "task_label_demonstrations": true,
+      "task_label_retrieval_index": false,
+      "selection_source": "public_validation",
+      "internal_training_allowed": false,
+      "remote_llm_allowed": false
+    },
+    {
+      "id": "L2-T",
+      "family": "L2",
+      "status": "planned",
+      "priority": "P3",
+      "primary": false,
+      "input_profile": "text_only",
+      "adaptation_mode": "retrieved_few_shot",
+      "task_label_gradient": false,
+      "encoder_updates": false,
+      "task_label_demonstrations": true,
+      "task_label_retrieval_index": true,
+      "selection_source": "public_validation",
+      "internal_training_allowed": false,
+      "remote_llm_allowed": false
+    }
+  ],
+  "legacy_v1_mapping": {
+    "B0": "B0-LR",
+    "B1": "B2-T",
+    "B2": "B3-T",
+    "B3": "B3-S",
+    "B4": "B4-S",
+    "B5": "B5-S"
+  },
+  "primary_comparisons": [
+    [
+      "B0-LR",
+      "B0-LGBM"
+    ],
+    [
+      "B0-LR",
+      "B1-TFIDF-S"
+    ],
+    [
+      "B2-S",
+      "B3-S"
+    ],
+    [
+      "B3-S",
+      "B4-S"
+    ],
+    [
+      "B4-S",
+      "B5-S"
+    ],
+    [
+      "L0-S",
+      "L1-S"
+    ]
+  ],
+  "extension_comparisons": [
+    [
+      "L1-S",
+      "L2-S"
+    ],
+    [
+      "B2-T",
+      "B3-T"
+    ]
+  ],
+  "constraints": {
+    "training_data": "approved_public_train_only",
+    "demo_and_index_data": "approved_public_train_only",
+    "internal_data": "evaluation_only",
+    "allow_public_frozen_demos_for_internal_inference": true,
+    "allow_internal_index_append": false,
+    "evidence_profile": "matched_default",
+    "llm_score": "conditional_label_loglikelihood_preference_not_calibrated_probability",
+    "llm_model_revision": "PIN_REQUIRED_BEFORE_RUN"
+  }
+}

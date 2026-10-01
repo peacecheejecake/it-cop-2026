@@ -1,0 +1,25 @@
+{
+  "scope": "document_static_validation_only",
+  "software_execution_tests": "not_run",
+  "model_training": "not_run",
+  "checks": [
+    "Registry: 15 unique variants; 9 primary, 7 core; legacy mapping and primary pairs valid.",
+    "requirements.md: 24 unique FR identifiers checked.",
+    "implementation-plan.md: 41 unique task identifiers checked.",
+    "implementation-plan.md: 41 unique acceptance-test identifiers checked.",
+    "Markdown fenced blocks are balanced in the four specification documents.",
+    "Proposed YAML parses and its experiment list matches the registry. Runtime schema not implemented.",
+    "HTML: unique anchors; all local in-page links resolve; no external scripts/styles/fonts.",
+    "All Markdown local file links resolve in the bundle."
+  ],
+  "html_visual_inspection": "inspected_desktop_1440x1100_and_mobile_390x844",
+  "browser_rendering": {
+    "method": "Chromium via Playwright set_content",
+    "desktop_document_overflow": false,
+    "mobile_document_overflow": false,
+    "article_count": 8,
+    "table_count": 29,
+    "responsive_tables": "horizontal_scroll_on_mobile"
+  },
+  "original_v01_unchanged_files_compared_to_zip": 5
+}

@@ -1,0 +1,65 @@
+# Study registration (spec implementation-plan §6, protocol §2.1). All 9 primary variants are
+# registered before any test access; sections still PIN_REQUIRED block only the variants that read them.
+schema_version: 2
+matrix_version: 2
+study_id: public-comparison-v2
+track: controlled
+protocol_version: v2
+
+dataset:
+  snapshot_id: jitd4j-audit1
+  split_id: upstream-clean1
+  train_visibility: public
+  feature_profile: jit14-audited-v1
+
+model:
+  base: microsoft/codebert-base
+  revision: 3b0952feddeffad0063f274080e3c23d75e7eb39
+  local_path: cache:models/codebert-base
+  renderer: message-add-del-text-v2
+  max_length: 512
+  max_message_tokens: 64
+  fusion_head: cls-feature-tanh-v1
+
+experiments: [B0-LR, B0-LGBM, B1-TFIDF-S, B2-S, B3-S, B4-S, B5-S, L0-S, L1-S]
+evidence_profile: matched
+information_profile: structured_fused
+
+structured:
+  features: [ns, nd, nf, entropy, la, ld, lt, fix, ndev, age, nuc, exp, rexp, sexp]
+  lr_transform: signed_log1p_median_impute_standardize
+  lr: {C: 1.0, max_iter: 1000}
+  lgbm: {num_leaves: 15, learning_rate: 0.05, n_estimators: 300, min_child_samples: 20, num_threads: 4}
+
+text_baseline:
+  classifier: logistic_regression
+  analyzer: char
+  ngram_range: [3, 5]
+  lowercase: false
+  min_df: 2
+  max_features_per_field: 50000
+  fit_role: supervised_train
+  lr: {C: 1.0, max_iter: 1000}
+
+seeds: [42, 43, 44]
+
+evaluation:
+  primary_metrics: [ap, recall_at_5pct, recall_at_10pct]
+  budget_unit: change_count
+  topk_rounding: ceil
+  tie_salt: topk-tie-v1
+  threshold_policy: validation_max_f1_then_highest_threshold
+  calibration: none
+  require_freeze_for_test: true
+
+policy:
+  allow_internal_training: false
+  allow_internal_demonstrations: false
+  allow_internal_index_members: false
+  allow_remote_llm: false
+  allow_test_selection: false
+  automatic_remote_logging: false
+
+finetune: PIN_REQUIRED
+cpt: PIN_REQUIRED
+llm: PIN_REQUIRED

@@ -1,0 +1,156 @@
+"""diff-lab CLI (spec implementation-plan §5). Exit codes: 0 ok, 2 config, 3 policy, 4 integrity, 5 execution."""
+# No `from __future__ import annotations`: Typer must see real types on the command signatures.
+import functools
+import json
+import platform
+import shutil
+from pathlib import Path
+
+import typer
+
+from ..config import load_study, resolve_local_path
+from ..policy import require_test_unlocked
+from ..util import DiffLabError, read_json
+
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
+app = typer.Typer(no_args_is_help=True, add_completion=False)
+data_app = typer.Typer(no_args_is_help=True)
+evidence_app = typer.Typer(no_args_is_help=True)
+experiment_app = typer.Typer(no_args_is_help=True)
+study_app = typer.Typer(no_args_is_help=True)
+app.add_typer(data_app, name="data")
+app.add_typer(evidence_app, name="evidence")
+app.add_typer(experiment_app, name="experiment")
+app.add_typer(study_app, name="study")
+
+DATA = typer.Option(PROJECT_ROOT / "data", "--data-dir")
+ARTIFACTS = typer.Option(PROJECT_ROOT / "artifacts", "--artifacts-dir")
+
+
+def _emit(obj: object) -> None:
+    typer.echo(json.dumps(obj, indent=2, ensure_ascii=False, sort_keys=True, default=str))
+
+
+def _guard(fn):  # noqa: ANN001, ANN202
+    @functools.wraps(fn)
+    def wrapper(*a, **k):  # noqa: ANN002, ANN003, ANN202
+        try:
+            return fn(*a, **k)
+        except DiffLabError as e:
+            typer.echo(f"error[{type(e).__name__}]: {e}", err=True)
+            raise typer.Exit(e.exit_code) from e
+    return wrapper
+
+
+@app.command()
+@_guard
+def doctor() -> None:
+    """Environment, sandbox and optional-dependency check (no network, no downloads)."""
+    from importlib import metadata
+    out = {"python": platform.python_version(), "platform": platform.platform(),
+           "network_sandbox": "sandbox-exec" if shutil.which("sandbox-exec") else ("unshare" if shutil.which("unshare") else None)}
+    try:
+        import lightgbm  # noqa: F401
+        out["lightgbm"] = metadata.version("lightgbm")
+    except Exception as e:  # noqa: BLE001 - report any import failure verbatim
+        out["lightgbm"] = f"unavailable: {type(e).__name__}: {str(e)[:120]}"
+    try:
+        import torch
+        out["torch"] = torch.__version__
+        out["cuda"] = torch.cuda.is_available()
+        out["mps"] = torch.backends.mps.is_available()
+    except ImportError:
+        out["torch"] = "not installed (extra 'neural')"
+    _emit(out)
+
+
+@data_app.command("import")
+@_guard
+def data_import(source: str = typer.Option(...), archive: Path = typer.Option(...), approval: Path = typer.Option(...),
+                snapshot_id: str = typer.Option(...), data_dir: Path = DATA) -> None:
+    """Import an approved archive into an immutable snapshot (legacy pickles via isolated worker)."""
+    if source != "jit-defects4j":
+        typer.echo(f"unknown source {source}", err=True)
+        raise typer.Exit(2)
+    from ..adapters.jit_defects4j import import_archive
+    m = import_archive(archive, approval, data_dir / "snapshots" / snapshot_id)
+    _emit({"snapshot": snapshot_id, "split_stats": m["split_stats"], "isolation": m["import_isolation"]})
+
+
+@data_app.command("audit")
+@_guard
+def data_audit(snapshot_id: str = typer.Option(...), data_dir: Path = DATA) -> None:
+    """Label-free duplicate / label / temporal / feature audit."""
+    from ..data.audit import audit
+    _emit(audit(data_dir / "snapshots" / snapshot_id, data_dir / "audit" / snapshot_id))
+
+
+@data_app.command("split")
+@_guard
+def data_split(snapshot_id: str = typer.Option(...), split_id: str = typer.Option("upstream-clean1"), data_dir: Path = DATA) -> None:
+    """Build the controlled split (eval membership kept, contaminated train removed, CPT-dev by ID hash)."""
+    from ..data.splits import SPLIT_ID, make_controlled_split
+    if split_id != SPLIT_ID:
+        typer.echo(f"only {SPLIT_ID} is implemented", err=True)
+        raise typer.Exit(2)
+    _emit(make_controlled_split(data_dir / "snapshots" / snapshot_id, data_dir / "splits" / snapshot_id / split_id))
+
+
+@evidence_app.command("build")
+@_guard
+def evidence_build(study: Path = typer.Option(...), data_dir: Path = DATA) -> None:
+    """Build the matched EvidenceView with the pinned local tokenizer (CPU)."""
+    from ..evidence import build_evidence
+    from ..runner import paths
+    cfg, _, _ = load_study(study)
+    p = paths(cfg, data_dir)
+    m = cfg.model
+    local = resolve_local_path(m.local_path, PROJECT_ROOT)
+    out = build_evidence(p["snapshot"], p["split"], str(local), m.revision, m.max_length, m.max_message_tokens, p["evidence"])
+    _emit({"evidence_dir": str(p["evidence"]), "coverage": out["coverage"], "cache_key": out["cache_key"]})
+
+
+@experiment_app.command("run")
+@_guard
+def experiment_run(study: Path = typer.Option(...), models: str = typer.Option(...), seeds: str = typer.Option("42"),
+                   split: str = typer.Option("valid"), data_dir: Path = DATA, artifacts_dir: Path = ARTIFACTS) -> None:
+    """Train on public train and evaluate on public validation. Public test is sealed until freeze."""
+    from ..runner import run_variant
+    require_test_unlocked(split, None)
+    if split != "valid":
+        typer.echo("experiment run evaluates public validation only", err=True)
+        raise typer.Exit(2)
+    cfg, raw, h = load_study(study)
+    results = []
+    for vid in [m.strip() for m in models.split(",") if m.strip()]:
+        if vid not in cfg.experiments:
+            typer.echo(f"{vid} is not registered in study {cfg.study_id}", err=True)
+            raise typer.Exit(2)
+        for seed in [int(s) for s in seeds.split(",")]:
+            r = run_variant(cfg, raw, h, vid, seed, data_dir, artifacts_dir)
+            results.append({k: r.get(k) for k in ("run_id", "variant_id", "seed", "status", "validation_ap")})
+    _emit(results)
+
+
+@study_app.command("summary")
+@_guard
+def study_summary(study: Path = typer.Option(...), artifacts_dir: Path = ARTIFACTS) -> None:
+    """Validation summary of completed runs for this study."""
+    cfg, _, _ = load_study(study)
+    rows = []
+    for rj in sorted((artifacts_dir / "runs").glob("*/run.json")):
+        r = read_json(rj)
+        if r.get("study_id") != cfg.study_id:
+            continue
+        row = {k: r.get(k) for k in ("run_id", "variant_id", "seed", "status")}
+        mpath = rj.parent / "metrics.json"
+        if r["status"] == "completed" and mpath.exists():
+            m = read_json(mpath)
+            row.update({"ap": m["ap"], "roc_auc": m["roc_auc"], "recall@5%": m["recall_at_5pct"]["recall"],
+                        "recall@10%": m["recall_at_10pct"]["recall"], "f1@thr": m["at_threshold"]["f1"]})
+        rows.append(row)
+    _emit(rows)
+
+
+if __name__ == "__main__":
+    app()

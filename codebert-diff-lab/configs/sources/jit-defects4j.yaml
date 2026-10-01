@@ -1,0 +1,10 @@
+# Approved public source (spec requirements §4.3, FR-02). Approval covers research use only.
+source_id: jit-defects4j
+archive_sha256: 9e5ca1a393b70ee7e87c410b162005958775f3f3732f9f83da9dd24a7dfe2b47
+origin_uri: https://raw.githubusercontent.com/jacknichao/JIT-Fine/master/data.zip
+upstream_revision: 584799fdec6095ab75a45fd2a5f8db5b12163aa5
+visibility: public
+license_status: "unverified: upstream repository declares no license; research analysis only, internal import requires separate policy check"
+approved_roles: [supervised_train, cpt_train, selection, evaluation_only]
+approved_by: "repository owner (chat instruction 2026-09-29: acquire JIT-Defects4J for training data)"
+approved_at: "2026-09-29"
