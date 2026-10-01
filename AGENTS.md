@@ -123,6 +123,7 @@ python scripts/smoke.py --out runs/smoke-core   # neural이면 --neural 추가
 | `002-no-hadoop` | 001과 동일 프로토콜, Hadoop 계열 3개 저장소만 제외 |
 | `003-seeds-cuda` | 002 데이터, Runpod CUDA에서 seed 42/43/44, 수렴까지(epoch 상한 100, patience 2). 정형 LR > B(−0.037±0.004), B 우위는 시간이 갈수록 소멸 |
 | `006-dl-m2-cpu-baselines` | **[diff-lab]** M0 감사 + M2 CPU 기준선(public validation): B1-TFIDF-S AP 0.546 > B0-LR 0.319 > B0-LGBM 0.211(시작 설정 과적합) |
+| `009-dl-v3-rerun` | **[diff-lab] 현재 기준 결과.** v3(encoder/head lr 분리, upstream-clean2)로 B0~B4 재실행. selection-validation AP: B3-S 0.687±0.008 > B4-S 0.674±0.014 > B2-S 0.616±0.011 > B1-TFIDF 0.546 > B0-LR 0.319 > B0-LGBM 0.211. v2의 B4>B3 역전 → MLM CPT 추가가치 없음(validation). best 가중치는 worktree `artifacts/` |
 | `008-dl-m4-mlm-cpt` | **[diff-lab]** M4(v2): B4-S AP 0.551±0.008(seed 43/44는 로그 수치만 남음, Pod 강제 종료). 보조 B2 민감도(head lr 1e-3) AP 0.616 → v3 전환 근거. Codex 리뷰 `reviews/2026-10-01-codex-review.md` |
 | `007-dl-m3-encoder` | **[diff-lab]** M3(H100, fp32, seed 42/43/44, public validation): B3-S full FT AP 0.527±0.024 < B1-TFIDF-S 0.546, B2-S frozen 0.377±0.005(20 epoch 상한에서 미수렴). B3 best 가중치는 worktree `artifacts/`(로컬)에 있다 |
 | `005-cross-project-jd4j` | 003 프로토콜을 새 Pod에서 재현(3 seed)한 뒤 JIT-Defects4J(처음 보는 21개 프로젝트)에 재학습 없이 적용. 처음 보는 프로젝트에서 B의 향상 배수(2.31)는 rule(2.39)보다 낮아지고 정형 LR(2.78)은 오른다. 가중치는 network volume `c8wdh0j8ek`(CA-MTL-3)에 보관 |
