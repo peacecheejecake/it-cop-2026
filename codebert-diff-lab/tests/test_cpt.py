@@ -1,17 +1,13 @@
 """MLM CPT contract tests (T16/T17, AT-03/09/10/11) on a tiny random RoBERTa with the real CodeBERT tokenizer."""
-import json
-from pathlib import Path
-
 import numpy as np
 import pandas as pd
 import pytest
-import yaml
 
 torch = pytest.importorskip("torch")
-from transformers import RobertaConfig, RobertaModel  # noqa: E402
+from conftest import REV, study_cfg  # noqa: E402
 
 import diff_lab.cpt as cpt_mod  # noqa: E402
-from diff_lab.config import FEATURE_PROFILE_JIT14, load_study, resolve_local_path  # noqa: E402
+from diff_lab.config import FEATURE_PROFILE_JIT14  # noqa: E402
 from diff_lab.cpt import (  # noqa: E402
     CptCorpusView,
     MlmCpt,
@@ -23,14 +19,10 @@ from diff_lab.cpt import (  # noqa: E402
     structure_chars,
     tokenize_corpus,
 )
-from diff_lab.evidence import load_tokenizer  # noqa: E402
 from diff_lab.neural import NeuralRun, load_encoder, state_hash  # noqa: E402
 from diff_lab.policy import QueryView, TrainingDatasetView  # noqa: E402
 from diff_lab.util import PolicyError  # noqa: E402
 
-ROOT = Path(__file__).resolve().parents[1]
-STUDY = ROOT / "configs" / "studies" / "public-comparison-v2.yaml"
-REV = "3b0952feddeffad0063f274080e3c23d75e7eb39"
 FT = {"max_epochs": 1, "micro_batch_size": 4, "gradient_accumulation_steps": 2, "learning_rate": 1e-3, "weight_decay": 0.01,
       "lr_schedule": "constant", "max_grad_norm": 1.0, "head_dropout": 0.1, "selection_metric": "validation_ap",
       "patience_epochs": 5, "tie_rule": "earlier_checkpoint", "precision": "fp32", "device": "cpu", "allow_cpu": True,
@@ -45,34 +37,8 @@ CPT = {"permitted_role": "cpt_train", "corpus": "evidence_query_text", "budget_u
 PUBLIC = {"visibility": "public"}
 
 
-@pytest.fixture(scope="module")
-def tok():
-    try:
-        path = resolve_local_path("cache:models/codebert-base", ROOT)
-    except Exception:  # noqa: BLE001
-        pytest.skip("shared cache not found")
-    if not path.exists():
-        pytest.skip("CodeBERT tokenizer snapshot not available")
-    return load_tokenizer(path, REV)[0]
-
-
-@pytest.fixture()
-def tiny_encoder(tmp_path):
-    torch.manual_seed(0)
-    cfg = RobertaConfig(vocab_size=50265, hidden_size=16, num_hidden_layers=1, num_attention_heads=2, intermediate_size=32,
-                        max_position_embeddings=514, type_vocab_size=1, pad_token_id=1)
-    d = tmp_path / "tiny-encoder"
-    RobertaModel(cfg, add_pooling_layer=False).save_pretrained(d)
-    (d / "SOURCE.json").write_text(json.dumps({"resolved_revision": REV, "note": "random tiny test encoder"}))
-    return d
-
-
-def _cfg(tmp_path, cpt=CPT, ft=FT):  # noqa: ANN001
-    raw = yaml.safe_load(STUDY.read_text())
-    raw["cpt"], raw["finetune"] = cpt, ft
-    p = tmp_path / "study.yaml"
-    p.write_text(yaml.safe_dump(raw, sort_keys=False))
-    return load_study(p)[0]
+def _cfg(tmp_path, encoder, cpt=CPT, ft=FT):  # noqa: ANN001
+    return study_cfg(tmp_path, encoder, cpt=cpt, finetune=ft)
 
 
 def _row(cid: str, msg: str, adds: list[str], dels: list[str], split="train", role="cpt_train") -> dict:  # noqa: ANN001
@@ -161,7 +127,7 @@ def test_lr_schedule_warmup_then_decay_stays_positive():
 
 
 def test_at10_cpt_exports_encoder_only_and_b4_starts_from_it(tmp_path, tok, tiny_encoder):
-    cfg = _cfg(tmp_path)
+    cfg = _cfg(tmp_path, tiny_encoder)
     res = MlmCpt(cfg, 42, tiny_encoder, tmp_path / "cpt", tok).run(_corpus(24), _corpus(6, "cpt_dev"))
     acc = res["token_accounting"]
     assert acc["mlm_input_tokens"] >= CPT["budget"] and acc["optimizer_updates"] == acc["planned_updates"]
@@ -188,8 +154,12 @@ class _Stop(Exception):
     pass
 
 
-def test_cpt_resume_matches_uninterrupted(tmp_path, tok, tiny_encoder, monkeypatch):
-    cfg = _cfg(tmp_path)
+DEVICES = ["cpu"] + (["cuda"] if torch.cuda.is_available() else [])
+
+
+@pytest.mark.parametrize("device", DEVICES)
+def test_cpt_resume_matches_uninterrupted(tmp_path, tok, tiny_encoder, monkeypatch, device):
+    cfg = _cfg(tmp_path, tiny_encoder, {**CPT, "device": device})
     full = MlmCpt(cfg, 5, tiny_encoder, tmp_path / "full", tok).run(_corpus(24), _corpus(6, "cpt_dev"))
     orig = cpt_mod.MlmCpt._checkpoint
 
@@ -203,8 +173,36 @@ def test_cpt_resume_matches_uninterrupted(tmp_path, tok, tiny_encoder, monkeypat
     monkeypatch.setattr(cpt_mod.MlmCpt, "_checkpoint", orig)
     resumed = MlmCpt(cfg, 5, tiny_encoder, tmp_path / "resumed", tok).run(_corpus(24), _corpus(6, "cpt_dev"))
     assert resumed["token_accounting"]["mlm_input_tokens"] == full["token_accounting"]["mlm_input_tokens"]
-    assert resumed["exported_encoder_state_sha256"] == full["exported_encoder_state_sha256"]
-    assert [d["dev_mlm_loss"] for d in resumed["dev"]] == pytest.approx([d["dev_mlm_loss"] for d in full["dev"]], rel=1e-6)
+    if device == "cpu":
+        assert resumed["exported_encoder_state_sha256"] == full["exported_encoder_state_sha256"]
+    tol = 1e-6 if device == "cpu" else 1e-3
+    assert [d["dev_mlm_loss"] for d in resumed["dev"]] == pytest.approx([d["dev_mlm_loss"] for d in full["dev"]], rel=tol)
+
+
+def test_short_window_accumulation_matches_full_batch_gradient(tmp_path, tok, tiny_encoder):
+    from transformers import AutoModelForMaskedLM
+    cfg = _cfg(tmp_path, tiny_encoder)
+    run = MlmCpt(cfg, 1, tiny_encoder, tmp_path / "g", tok)
+    model = AutoModelForMaskedLM.from_pretrained(str(tiny_encoder)).eval()
+    t = tokenize_corpus(tok, _corpus(5), 512)
+    rng = np.random.default_rng(0)
+    cand = replacement_candidates(tok)
+    masked = [mask_sample(x, e, rng, 0.3, 0.8, 0.1, tok.mask_token_id, cand) for x, e in zip(t.ids, t.eligible, strict=True)]
+    n_t = sum(int((m[1] != -100).sum()) for m in masked)
+    dev = torch.device("cpu")
+
+    def grads(chunks):  # noqa: ANN001, ANN202
+        model.zero_grad()
+        for part in chunks:
+            ids = cpt_mod._pad([m[0] for m in part], tok.pad_token_id)
+            lab = cpt_mod._pad([m[1] for m in part], -100)
+            s, _, _ = run._loss_sum(model, ids, lab, dev)
+            (s / n_t).backward()
+        return [p.grad.clone() for p in model.parameters() if p.grad is not None]
+
+    whole = grads([masked])
+    micro = grads([masked[0:2], masked[2:4], masked[4:5]])
+    assert all(torch.allclose(a, b, atol=1e-6) for a, b in zip(whole, micro, strict=True))
 
 
 def _views(n=16):  # noqa: ANN001

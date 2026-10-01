@@ -1,17 +1,24 @@
 # Study registration (spec implementation-plan §6, protocol §2.1). All 9 primary variants are
 # registered before any test access; sections still PIN_REQUIRED block only the variants that read them.
-# 2026-10-01: superseded by public-comparison-v3 before any test access. Pins for source_approval and
-# weights_sha256 were added afterwards (metadata only, schema requirement); results from 006-008 keep
-# their own resolved-config.json.
+#
+# v3 (2026-10-01, registered before any public-test access; supersedes v2):
+# - finetune: encoder and head learning rates are separate (encoder 1e-5, head 1e-3) for B2-S..B5-S
+#   alike; max_epochs 100, patience 5. In v2 the shared lr 1e-5 left the randomly initialised head
+#   under-trained (B2-S still improving at the 20-epoch cap). Disclosure: head lr 1e-3 was informed by
+#   the supplementary B2 sensitivity on public validation (exp 008); configurations seen on validation:
+#   v2 (lr 1e-5 shared) and this one. No other candidates were tried for any variant.
+# - split upstream-clean2: same train/valid/test membership as upstream-clean1, CPT-dev drawn by
+#   exact/code duplicate group so CPT-dev text never also appears in CPT-train.
+# - All primary variants are re-run under v3; v2 results remain as the record of the initial protocol.
 schema_version: 2
 matrix_version: 2
-study_id: public-comparison-v2
+study_id: public-comparison-v3
 track: controlled
-protocol_version: v2
+protocol_version: v3
 
 dataset:
   snapshot_id: jitd4j-audit1
-  split_id: upstream-clean1
+  split_id: upstream-clean2
   source_approval: configs/sources/jit-defects4j.yaml
   train_visibility: public
   feature_profile: jit14-audited-v1
@@ -69,10 +76,11 @@ policy:
 # Shared downstream protocol for B2-S/B3-S/B4-S/B5-S (spec protocol §2.1); B2-S only freezes the encoder.
 # precision: fp32 until the CUDA 100-step profile (spec T14) shows bf16_encoder_autocast is equivalent; then re-pinned before formal runs.
 finetune:
-  max_epochs: 20
+  max_epochs: 100
   micro_batch_size: 8
   gradient_accumulation_steps: 4
-  learning_rate: 0.00001
+  encoder_learning_rate: 0.00001
+  head_learning_rate: 0.001
   weight_decay: 0.01
   lr_schedule: constant
   max_grad_norm: 1.0

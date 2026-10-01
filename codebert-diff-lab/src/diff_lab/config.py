@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Any, Literal
 
 import yaml
-from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator, model_validator
 
 from .registry import Registry
 from .util import ConfigError, sha256_json
@@ -26,7 +26,8 @@ class Strict(BaseModel):
 
 class DatasetCfg(Strict):
     snapshot_id: str
-    split_id: str
+    split_id: Literal["upstream-clean1", "upstream-clean2"]
+    source_approval: str
     train_visibility: Literal["public"]
     feature_profile: Literal["jit14-audited-v1"]
 
@@ -35,6 +36,8 @@ class ModelCfg(Strict):
     base: Literal["microsoft/codebert-base"]
     revision: str
     local_path: str
+    weights_file: str
+    weights_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
     renderer: Literal["message-add-del-text-v2"]
     max_length: int = Field(512, ge=16, le=512)
     max_message_tokens: int = Field(64, ge=0, le=512)
@@ -108,11 +111,17 @@ class PolicyCfg(Strict):
 
 
 class FinetuneCfg(Strict):
-    """Shared downstream protocol for B2-S/B3-S/B4-S/B5-S (spec protocol §2.1). B2 differs only by a frozen encoder."""
+    """Shared downstream protocol for B2-S/B3-S/B4-S/B5-S (spec protocol §2.1). B2 differs only by a frozen encoder.
+
+    v2 used one `learning_rate` for encoder and head; v3 sets `encoder_learning_rate` and
+    `head_learning_rate` separately (exactly one of the two forms must be given).
+    """
     max_epochs: int = Field(ge=1)
     micro_batch_size: int = Field(ge=1)
     gradient_accumulation_steps: int = Field(ge=1)
-    learning_rate: float = Field(gt=0)
+    learning_rate: float | None = Field(default=None, gt=0)
+    encoder_learning_rate: float | None = Field(default=None, gt=0)
+    head_learning_rate: float | None = Field(default=None, gt=0)
     weight_decay: float = Field(ge=0)
     lr_schedule: Literal["constant"]
     max_grad_norm: float = Field(gt=0)
@@ -125,6 +134,23 @@ class FinetuneCfg(Strict):
     device: Literal["cuda", "mps", "cpu"]
     allow_cpu: bool = False
     eval_batch_size: int = Field(ge=1)
+
+    @model_validator(mode="after")
+    def _lr_form(self) -> FinetuneCfg:
+        shared = self.learning_rate is not None
+        split = self.encoder_learning_rate is not None and self.head_learning_rate is not None
+        partial = (self.encoder_learning_rate is None) != (self.head_learning_rate is None)
+        if partial or shared == split:
+            raise ValueError("set either learning_rate (shared) or both encoder_learning_rate and head_learning_rate")
+        return self
+
+    @property
+    def encoder_lr(self) -> float:
+        return self.learning_rate if self.learning_rate is not None else self.encoder_learning_rate  # type: ignore[return-value]
+
+    @property
+    def head_lr(self) -> float:
+        return self.learning_rate if self.learning_rate is not None else self.head_learning_rate  # type: ignore[return-value]
 
 
 class CptCfg(Strict):

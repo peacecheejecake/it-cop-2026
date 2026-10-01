@@ -10,13 +10,15 @@ logit = Linear(dropout(concat(CLS, tanh(Linear(features))))). Loss BCEWithLogits
 
 Precision `bf16_encoder_autocast` autocasts only the encoder forward; the head and loss run
 in fp32 (a whole-epoch autocast including the head diverged in experiment 003).
-Checkpoints are written atomically at epoch boundaries; resume restores model, optimizer,
-RNG, epoch and early-stopping state. Requests for an unavailable device fail (no fallback).
+Encoder and head may use different learning rates (v3); B2 has no encoder parameter group.
+Checkpoints are immutable generations behind an atomically replaced pointer (`last.json`,
+`best.json`); the best generation holds weights and its validation scores together. Resume
+loads on CPU (RNG states must stay CPU tensors) and restores model, optimizer, RNG, epoch
+and early-stopping state. Requests for an unavailable device fail (no fallback).
 """
 from __future__ import annotations
 
 import hashlib
-import os
 import random
 import shutil
 import time
@@ -30,7 +32,16 @@ from .config import FinetuneCfg, StudyConfig
 from .features import StructuredPipeline
 from .metrics import evaluate
 from .policy import QueryView, TrainingDatasetView, require_training_view
-from .util import ExecutionError, IntegrityError, atomic_write_json, read_json, sha256_json
+from .util import (
+    ExecutionError,
+    IntegrityError,
+    atomic_write_json,
+    commit_generation,
+    read_json,
+    resolve_generation,
+    sha256_file,
+    sha256_json,
+)
 
 SCORE_SEMANTICS = "supervised_sigmoid_uncalibrated_public_defect_score"
 
@@ -71,12 +82,15 @@ def state_hash(module) -> str:  # noqa: ANN001
     return h.hexdigest()
 
 
-def load_encoder(local_path: Path, revision: str):  # noqa: ANN201
+def load_encoder(local_path: Path, revision: str, weights: tuple[str, str] | None = None):  # noqa: ANN201
+    """`weights` = (file name, sha256) pins the actual checkpoint bytes, not just the revision string."""
     from transformers import AutoConfig, AutoModel
 
     src = read_json(local_path / "SOURCE.json")
     if src.get("resolved_revision") != revision:
         raise IntegrityError(f"encoder snapshot revision {src.get('resolved_revision')} != pinned {revision}")
+    if weights is not None and sha256_file(local_path / weights[0]) != weights[1]:
+        raise IntegrityError(f"{local_path / weights[0]} sha256 does not match the pinned weights_sha256")
     config = AutoConfig.from_pretrained(str(local_path), local_files_only=True)
     model, info = AutoModel.from_pretrained(str(local_path), config=config, local_files_only=True, add_pooling_layer=False,
                                             output_loading_info=True)
@@ -168,10 +182,18 @@ class NeuralRun:
         return contextlib.nullcontext()
 
     def _load_encoder(self):  # noqa: ANN202
+        pin = (self.cfg.model.weights_file, self.cfg.model.weights_sha256)
         if self.init_encoder is None:
-            return load_encoder(self.encoder_path, self.cfg.model.revision)
+            return load_encoder(self.encoder_path, self.cfg.model.revision, pin)
         from .cpt import load_cpt_encoder
-        return load_cpt_encoder(self.init_encoder, self.encoder_path, self.cfg.model.revision)
+        return load_cpt_encoder(self.init_encoder, self.encoder_path, self.cfg.model.revision, pin)
+
+    def _optimizer(self, encoder, head):  # noqa: ANN001, ANN202
+        torch = _torch()
+        groups = [{"params": list(head.parameters()), "lr": self.ft.head_lr, "name": "head"}]
+        if not self.frozen:
+            groups.insert(0, {"params": list(encoder.parameters()), "lr": self.ft.encoder_lr, "name": "encoder"})
+        return torch.optim.AdamW(groups, weight_decay=self.ft.weight_decay), [p for g in groups for p in g["params"]]
 
     def _cls(self, encoder, ids, mask, device):  # noqa: ANN001, ANN202
         with self._autocast(device):
@@ -207,15 +229,13 @@ class NeuralRun:
                           "key": sha256_json([enc_hash0, "cls", "eval", self.ft.precision,
                                               sha256_json(train.frame["query_text"].tolist()),
                                               sha256_json(valid.frame["query_text"].tolist())])}
-            params = list(head.parameters())
-        else:
-            params = list(encoder.parameters()) + list(head.parameters())
-        opt = torch.optim.AdamW(params, lr=self.ft.learning_rate, weight_decay=self.ft.weight_decay)
+        opt, params = self._optimizer(encoder, head)
         loss_fn = torch.nn.BCEWithLogitsLoss(reduction="sum")
         ck = self.run_dir / "checkpoints"
-        state = {"epoch": 0, "best_ap": -1.0, "best_epoch": 0, "stale": 0, "history": []}
-        if (ck / "last" / "trainer.json").exists():
-            state = self._resume(ck / "last", encoder, head, opt, device)
+        state = {"epoch": 0, "best_ap": -1.0, "best_epoch": 0, "stale": 0, "history": [], "input_tokens": 0, "updates": 0}
+        last = resolve_generation(ck, "last")
+        if last is not None:
+            state = self._resume(last, encoder, head, opt)
         gen = np.random.default_rng(self.seed)
         for _ in range(state["epoch"]):
             gen.permutation(len(y_tr))  # replay the shuffle stream so resumed epochs see the same order
@@ -230,7 +250,7 @@ class NeuralRun:
                 encoder.train()
             mb, acc = self.ft.micro_batch_size, self.ft.gradient_accumulation_steps
             window = mb * acc
-            loss_sum, n_seen, updates = 0.0, 0, 0
+            loss_sum, n_seen, updates, tok_in = 0.0, 0, 0, 0
             for w in range(0, len(order), window):
                 widx = order[w:w + window]
                 opt.zero_grad(set_to_none=True)
@@ -242,6 +262,7 @@ class NeuralRun:
                     else:
                         ids, mask, feats = _collate(tr, idx, pad, device)
                         cls = self._cls(encoder, ids, mask, device)
+                        tok_in += int(mask.sum())
                     loss = loss_fn(head(cls, feats), yb)
                     (loss / len(widx)).backward()  # exact mean over the (possibly short) accumulation window
                     loss_sum += float(loss.detach())
@@ -254,29 +275,38 @@ class NeuralRun:
             state["history"].append({"epoch": epoch, "train_loss": loss_sum / max(n_seen, 1), "optimizer_updates": updates,
                                      "validation_ap": m["ap"], "validation_roc_auc": m["roc_auc"]})
             state["epoch"] = epoch
+            state["updates"] += updates
+            state["input_tokens"] += tok_in
             if m["ap"] is not None and m["ap"] > state["best_ap"]:  # strict: ties keep the earlier checkpoint
                 state.update(best_ap=m["ap"], best_epoch=epoch, stale=0)
-                self._save_weights(ck / "best", encoder, head)
-                pd.DataFrame({"change_id": valid.ids, "score": scores}).to_parquet(self.run_dir / "best-validation-scores.parquet")
+                self._save_best(ck, encoder, head, valid.ids, scores, epoch)
             else:
                 state["stale"] += 1
-            self._checkpoint(ck / "last", encoder, head, opt, state)
+            self._checkpoint(ck, encoder, head, opt, state)
             print(f"{self.variant} seed={self.seed} epoch={epoch} loss={state['history'][-1]['train_loss']:.4f} "
                   f"val_ap={m['ap']:.4f} best={state['best_ap']:.4f}@{state['best_epoch']}", flush=True)
         train_s = time.perf_counter() - t_train
         if self.frozen and state_hash(encoder) != enc_hash0:
             raise IntegrityError("frozen encoder state changed during B2 training (AT-28)")
-        best_scores = pd.read_parquet(self.run_dir / "best-validation-scores.parquet")
-        if best_scores["change_id"].tolist() != valid.ids:
-            raise IntegrityError("best validation scores misaligned")
+        best_dir = resolve_generation(ck, "best")
+        best_scores = pd.read_parquet(best_dir / "validation-scores.parquet")
+        if best_scores["change_id"].tolist() != valid.ids or read_json(best_dir / "epoch.json")["epoch"] != state["best_epoch"]:
+            raise IntegrityError("best validation scores misaligned with the best checkpoint")
         peak = torch.cuda.max_memory_allocated() if device.type == "cuda" else None
+        peak_reserved = torch.cuda.max_memory_reserved() if device.type == "cuda" else None
+        frozen_tokens = int(sum(len(x) for x in tr.ids)) if self.frozen else 0
         return {"scores": best_scores["score"].to_numpy(), "history": state["history"], "best_epoch": state["best_epoch"],
                 "best_validation_ap": state["best_ap"], "stopped_epoch": state["epoch"],
                 "early_stopped": state["stale"] >= self.ft.patience_epochs, "encoder": enc_info,
                 "encoder_init_state_sha256": enc_hash0, "head_init_state_sha256": head_init_hash,
                 "frozen_encoder": self.frozen, "embedding_cache": cache_info, "pipeline": self.pipe.state(),
-                "device": str(device), "train_seconds": train_s, "peak_cuda_bytes": peak,
-                "train_tokens_per_epoch": int(sum(len(x) for x in tr.ids))}
+                "device": str(device), "train_seconds": train_s, "peak_cuda_bytes": peak, "peak_cuda_reserved_bytes": peak_reserved,
+                "best_checkpoint_generation": best_dir.name,
+                "learning_rates": {"encoder": None if self.frozen else self.ft.encoder_lr, "head": self.ft.head_lr},
+                "token_accounting": {"unit": "nonpadding_input_tokens", "train_tokens_per_epoch": int(sum(len(x) for x in tr.ids)),
+                                     "encoder_forward_train_tokens": state["input_tokens"] if not self.frozen else frozen_tokens,
+                                     "frozen_embedding_pass_tokens": frozen_tokens, "optimizer_updates": state["updates"],
+                                     "epochs": state["epoch"], "train_examples": len(tr.ids)}}
 
     def profile(self, train: TrainingDatasetView, updates: int) -> dict:
         """Spec T14: `updates` optimizer updates of B3-style full FT from the pinned init on a fixed batch order."""
@@ -284,14 +314,13 @@ class NeuralRun:
         require_training_view(train)
         device = pick_device(self.ft)
         seed_everything(self.seed)
-        encoder, enc_info = load_encoder(self.encoder_path, self.cfg.model.revision)
+        encoder, enc_info = self._load_encoder()
         encoder.to(device).train()
         x = self.pipe.fit(train).transform(train.frame).astype(np.float32)
         enc = Encoded(encode_inputs(self.tok, train.frame["query_text"].tolist(), self.cfg.model.max_length), x)
         y = train.labels.to_numpy().astype(np.float32)
         head = build_head(enc_info["hidden_size"], x.shape[1], self.ft.head_dropout, self.seed).to(device).train()
-        params = list(encoder.parameters()) + list(head.parameters())
-        opt = torch.optim.AdamW(params, lr=self.ft.learning_rate, weight_decay=self.ft.weight_decay)
+        opt, params = self._optimizer(encoder, head)
         loss_fn = torch.nn.BCEWithLogitsLoss(reduction="sum")
         order = np.random.default_rng(self.seed).permutation(len(y))
         mb, acc = self.ft.micro_batch_size, self.ft.gradient_accumulation_steps
@@ -350,20 +379,21 @@ class NeuralRun:
             raise IntegrityError("non-finite validation scores")
         return s
 
-    def _save_weights(self, path: Path, encoder, head) -> None:  # noqa: ANN001
+    def _save_best(self, ck: Path, encoder, head, ids: list[str], scores: np.ndarray, epoch: int) -> None:  # noqa: ANN001
         from safetensors.torch import save_file
-        tmp = path.with_name(path.name + ".tmp")
+        tmp = ck / "best.tmp"
         shutil.rmtree(tmp, ignore_errors=True)
         tmp.mkdir(parents=True)
         save_file({k: v.detach().cpu().contiguous() for k, v in head.state_dict().items()}, str(tmp / "head.safetensors"))
         if not self.frozen:
             save_file({k: v.detach().cpu().contiguous() for k, v in encoder.state_dict().items()}, str(tmp / "encoder.safetensors"))
-        shutil.rmtree(path, ignore_errors=True)
-        os.replace(tmp, path)
+        pd.DataFrame({"change_id": ids, "score": scores}).to_parquet(tmp / "validation-scores.parquet")
+        atomic_write_json(tmp / "epoch.json", {"epoch": epoch})
+        commit_generation(ck, "best", tmp)
 
-    def _checkpoint(self, path: Path, encoder, head, opt, state: dict) -> None:  # noqa: ANN001
+    def _checkpoint(self, ck: Path, encoder, head, opt, state: dict) -> None:  # noqa: ANN001
         torch = _torch()
-        tmp = path.with_name(path.name + ".tmp")
+        tmp = ck / "last.tmp"
         shutil.rmtree(tmp, ignore_errors=True)
         tmp.mkdir(parents=True)
         torch.save({"head": head.state_dict(), "encoder": None if self.frozen else encoder.state_dict(),
@@ -371,12 +401,12 @@ class NeuralRun:
                     "cuda_rng": torch.cuda.get_rng_state_all() if torch.cuda.is_available() else None},
                    tmp / "state.pt")
         atomic_write_json(tmp / "trainer.json", state)
-        shutil.rmtree(path, ignore_errors=True)
-        os.replace(tmp, path)
+        commit_generation(ck, "last", tmp)
 
-    def _resume(self, path: Path, encoder, head, opt, device) -> dict:  # noqa: ANN001
+    def _resume(self, path: Path, encoder, head, opt) -> dict:  # noqa: ANN001
         torch = _torch()
-        st = torch.load(path / "state.pt", map_location=device, weights_only=False)
+        # map to CPU: RNG states must stay CPU ByteTensors; load_state_dict copies weights onto the live device.
+        st = torch.load(path / "state.pt", map_location="cpu", weights_only=False)
         head.load_state_dict(st["head"])
         if not self.frozen:
             encoder.load_state_dict(st["encoder"])

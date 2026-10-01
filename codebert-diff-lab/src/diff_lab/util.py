@@ -76,3 +76,48 @@ def atomic_write_json(path: str | Path, obj: Any) -> None:
 def read_json(path: str | Path) -> Any:
     with open(path, encoding="utf-8") as f:
         return json.load(f)
+
+
+def commit_generation(base: str | Path, kind: str, tmp_dir: str | Path, keep: int = 2) -> Path:
+    """Move a fully written tmp dir to an immutable `<kind>-NNNNN` generation, then atomically repoint `<kind>.json`.
+
+    A crash at any point leaves the previous pointer and its generation intact; older generations are
+    pruned only after the new pointer is durable.
+    """
+    base = Path(base)
+    gens = sorted(p for p in base.glob(f"{kind}-[0-9]*") if p.is_dir())
+    seq = int(gens[-1].name.rsplit("-", 1)[1]) + 1 if gens else 1
+    final = base / f"{kind}-{seq:05d}"
+    os.replace(tmp_dir, final)
+    files = {p.relative_to(final).as_posix(): sha256_file(p) for p in sorted(final.rglob("*")) if p.is_file()}
+    atomic_write_json(base / f"{kind}.json", {"generation": final.name, "files_sha256": files})
+    for old in gens[: max(len(gens) + 1 - keep, 0)]:
+        _rmtree(old)
+    return final
+
+
+def resolve_generation(base: str | Path, kind: str, verify: bool = True) -> Path | None:
+    base = Path(base)
+    ptr = base / f"{kind}.json"
+    if not ptr.exists():
+        return None
+    meta = read_json(ptr)
+    path = base / meta["generation"]
+    if verify:
+        for rel, digest in meta["files_sha256"].items():
+            f = path / rel
+            if not f.is_file() or sha256_file(f) != digest:
+                raise IntegrityError(f"checkpoint {path.name}/{rel} missing or corrupted")
+    return path
+
+
+def _rmtree(path: Path) -> None:
+    import shutil
+    shutil.rmtree(path)
+
+
+def tree_digest(root: str | Path, patterns: tuple[str, ...]) -> str:
+    """sha256 over (relative path, file sha256) of every file matching the glob patterns under root."""
+    root = Path(root)
+    files = sorted({p for pat in patterns for p in root.glob(pat) if p.is_file() and "__pycache__" not in p.parts})
+    return sha256_json([[p.relative_to(root).as_posix(), sha256_file(p)] for p in files])

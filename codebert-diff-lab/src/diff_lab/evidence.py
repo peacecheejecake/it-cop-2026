@@ -22,7 +22,13 @@ import pandas as pd
 from .util import ConfigError, IntegrityError, PolicyError, atomic_write_json, read_json, sha256_file, sha256_json, sha256_text
 
 RENDERER = "message-add-del-text-v2"
-TOKENIZER_FILES = ("vocab.json", "merges.txt", "tokenizer_config.json", "special_tokens_map.json")
+TOKENIZER_FILES = ("vocab.json", "merges.txt", "tokenizer_config.json", "special_tokens_map.json", "tokenizer.json",
+                   "added_tokens.json")
+
+
+def tokenizer_files_digest(local_path: str | Path) -> str:
+    p = Path(local_path)
+    return sha256_json({f: sha256_file(p / f) for f in TOKENIZER_FILES if (p / f).exists()})
 
 
 def load_tokenizer(local_path: str | Path, revision: str):  # noqa: ANN201
@@ -34,7 +40,7 @@ def load_tokenizer(local_path: str | Path, revision: str):  # noqa: ANN201
         raise ConfigError(f"tokenizer snapshot revision {src.get('resolved_revision')} != pinned {revision}")
     tok = AutoTokenizer.from_pretrained(str(p), local_files_only=True, use_fast=True)
     added = tok.get_added_vocab()
-    digest = sha256_json({f: sha256_file(p / f) for f in TOKENIZER_FILES if (p / f).exists()})
+    digest = tokenizer_files_digest(p)
     return tok, {"revision": revision, "files_sha256": digest, "vocab_size": tok.vocab_size,
                  "added_tokens": sorted(added), "class": type(tok).__name__}
 

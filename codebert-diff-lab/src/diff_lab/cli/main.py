@@ -89,11 +89,11 @@ def data_audit(snapshot_id: str = typer.Option(...), data_dir: Path = DATA) -> N
 @_guard
 def data_split(snapshot_id: str = typer.Option(...), split_id: str = typer.Option("upstream-clean1"), data_dir: Path = DATA) -> None:
     """Build the controlled split (eval membership kept, contaminated train removed, CPT-dev by ID hash)."""
-    from ..data.splits import SPLIT_ID, make_controlled_split
-    if split_id != SPLIT_ID:
-        typer.echo(f"only {SPLIT_ID} is implemented", err=True)
+    from ..data.splits import SPLIT_IDS, make_controlled_split
+    if split_id not in SPLIT_IDS:
+        typer.echo(f"split must be one of {SPLIT_IDS}", err=True)
         raise typer.Exit(2)
-    _emit(make_controlled_split(data_dir / "snapshots" / snapshot_id, data_dir / "splits" / snapshot_id / split_id))
+    _emit(make_controlled_split(data_dir / "snapshots" / snapshot_id, data_dir / "splits" / snapshot_id / split_id, split_id))
 
 
 @evidence_app.command("build")

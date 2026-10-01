@@ -1,7 +1,8 @@
 """Evaluation metrics (spec protocol §8, FR-12, AT-06/18).
 
 AP is sklearn.metrics.average_precision_score with pos_label=1 (not trapezoidal PR-AUC).
-ROC-AUC/AP are null with a reason when the cohort has a single class. Recall@q uses
+AP is null (with a reason) only when the cohort has no positives (all-positive -> 1.0);
+ROC-AUC is null unless both classes are present; an empty cohort makes every metric null. Recall@q uses
 K = ceil(q*N) clamped to [1, N]; ties are broken by sha256(salt:change_id), never by
 labels. Thresholds come from validation max F1, ties -> highest threshold, positive iff
 score >= threshold.
@@ -35,6 +36,9 @@ def tie_order(change_ids: list[str], scores: np.ndarray, salt: str) -> np.ndarra
 
 def recall_at(change_ids: list[str], y: np.ndarray, s: np.ndarray, q: float, salt: str) -> dict:
     n, pos = len(y), int(y.sum())
+    if n == 0:
+        return {"k": 0, "selection_rate": None, "tp": 0, "recall": None, "precision": None, "boundary_tie_size": 0,
+                "null_reason": "empty cohort"}
     k = min(max(math.ceil(q * n), 1), n)
     order = tie_order(change_ids, s, salt)
     sel = order[:k]
@@ -75,11 +79,15 @@ def at_threshold(y: np.ndarray, s: np.ndarray, threshold: float) -> dict:
 def evaluate(change_ids: list[str], y, s, salt: str, threshold: float | None = None) -> dict:
     y, s = np.asarray(y, dtype=int), np.asarray(s, dtype=float)
     _check(change_ids, y, s)
+    n, pos = len(y), int(y.sum())
     two = len(np.unique(y)) == 2
-    out = {"n": int(len(y)), "positives": int(y.sum()), "prevalence": float(y.mean()) if len(y) else None,
-           "ap": float(average_precision_score(y, s, pos_label=1)) if two else None,
-           "roc_auc": float(roc_auc_score(y, s)) if two else None,
-           "null_reason": None if two else "single class in cohort",
+    ap_reason = "empty cohort" if n == 0 else ("no positives in cohort" if pos == 0 else None)
+    auc_reason = "empty cohort" if n == 0 else (None if two else "single class in cohort")
+    out = {"n": n, "positives": pos, "prevalence": float(y.mean()) if n else None,
+           "ap": float(average_precision_score(y, s, pos_label=1)) if ap_reason is None else None,
+           "roc_auc": float(roc_auc_score(y, s)) if auc_reason is None else None,
+           "null_reasons": {"ap": ap_reason, "roc_auc": auc_reason},
+           "null_reason": ap_reason or auc_reason,
            "recall_at_5pct": recall_at(change_ids, y, s, 0.05, salt),
            "recall_at_10pct": recall_at(change_ids, y, s, 0.10, salt),
            "unique_scores": int(len(np.unique(s)))}

@@ -1,57 +1,25 @@
 """Neural contract tests on a tiny random RoBERTa (NOT CodeBERT; spec NFR-08/AT-23: no GPU/real-model claim)."""
-import json
-from pathlib import Path
-
 import numpy as np
 import pandas as pd
 import pytest
-import yaml
 
 torch = pytest.importorskip("torch")
-from transformers import RobertaConfig, RobertaModel  # noqa: E402
 
-from diff_lab.config import FEATURE_PROFILE_JIT14, load_study, resolve_local_path  # noqa: E402
-from diff_lab.evidence import load_tokenizer  # noqa: E402
+from conftest import REV, study_cfg  # noqa: E402
+
+from diff_lab.config import FEATURE_PROFILE_JIT14  # noqa: E402
 from diff_lab.neural import NeuralRun, load_encoder, state_hash  # noqa: E402
 from diff_lab.policy import QueryView, TrainingDatasetView  # noqa: E402
+from diff_lab.util import resolve_generation  # noqa: E402
 
-ROOT = Path(__file__).resolve().parents[1]
-STUDY = ROOT / "configs" / "studies" / "public-comparison-v2.yaml"
-REV = "3b0952feddeffad0063f274080e3c23d75e7eb39"
 FT = {"max_epochs": 2, "micro_batch_size": 4, "gradient_accumulation_steps": 2, "learning_rate": 1e-3, "weight_decay": 0.01,
       "lr_schedule": "constant", "max_grad_norm": 1.0, "head_dropout": 0.1, "selection_metric": "validation_ap",
       "patience_epochs": 5, "tie_rule": "earlier_checkpoint", "precision": "fp32", "device": "cpu", "allow_cpu": True,
       "eval_batch_size": 8}
 
 
-@pytest.fixture(scope="module")
-def tok():
-    try:
-        path = resolve_local_path("cache:models/codebert-base", ROOT)
-    except Exception:  # noqa: BLE001
-        pytest.skip("shared cache not found")
-    if not path.exists():
-        pytest.skip("CodeBERT tokenizer snapshot not available")
-    return load_tokenizer(path, REV)[0]
-
-
-@pytest.fixture()
-def tiny_encoder(tmp_path):
-    torch.manual_seed(0)
-    cfg = RobertaConfig(vocab_size=50265, hidden_size=16, num_hidden_layers=1, num_attention_heads=2, intermediate_size=32,
-                        max_position_embeddings=514, type_vocab_size=1, pad_token_id=1)
-    d = tmp_path / "tiny-encoder"
-    RobertaModel(cfg, add_pooling_layer=False).save_pretrained(d)
-    (d / "SOURCE.json").write_text(json.dumps({"resolved_revision": REV, "note": "random tiny test encoder"}))
-    return d
-
-
-def _cfg(tmp_path, ft=FT):  # noqa: ANN001
-    raw = yaml.safe_load(STUDY.read_text())
-    raw["finetune"] = ft
-    p = tmp_path / "study.yaml"
-    p.write_text(yaml.safe_dump(raw, sort_keys=False))
-    return load_study(p)[0]
+def _cfg(tmp_path, encoder, ft=FT):  # noqa: ANN001
+    return study_cfg(tmp_path, encoder, finetune=ft)
 
 
 def _views(n=24):  # noqa: ANN001
@@ -67,7 +35,7 @@ def _views(n=24):  # noqa: ANN001
 
 
 def test_at09_b2_b3_share_initial_encoder_and_head(tmp_path, tok, tiny_encoder):
-    cfg = _cfg(tmp_path)
+    cfg = _cfg(tmp_path, tiny_encoder)
     tr, va, yv = _views()
     r2 = NeuralRun(cfg, "B2-S", 42, tiny_encoder, tmp_path / "b2", tok).fit_predict(tr, va, yv, "salt")
     r3 = NeuralRun(cfg, "B3-S", 42, tiny_encoder, tmp_path / "b3", tok).fit_predict(tr, va, yv, "salt")
@@ -78,33 +46,90 @@ def test_at09_b2_b3_share_initial_encoder_and_head(tmp_path, tok, tiny_encoder):
 
 
 def test_at28_frozen_encoder_unchanged_and_b3_updates(tmp_path, tok, tiny_encoder):
-    cfg = _cfg(tmp_path)
+    cfg = _cfg(tmp_path, tiny_encoder)
     tr, va, yv = _views()
     NeuralRun(cfg, "B3-S", 42, tiny_encoder, tmp_path / "b3", tok).fit_predict(tr, va, yv, "salt")
     from safetensors.torch import load_file
     enc0, _ = load_encoder(tiny_encoder, REV)
-    tuned = load_file(str(tmp_path / "b3" / "checkpoints" / "best" / "encoder.safetensors"))
+    tuned = load_file(str(resolve_generation(tmp_path / "b3" / "checkpoints", "best") / "encoder.safetensors"))
     assert any(not torch.equal(enc0.state_dict()[k], tuned[k]) for k in tuned)
     r2 = NeuralRun(cfg, "B2-S", 42, tiny_encoder, tmp_path / "b2", tok).fit_predict(tr, va, yv, "salt")
     assert r2["embedding_cache"]["encoder_state_sha256"] == state_hash(enc0)
-    assert not (tmp_path / "b2" / "checkpoints" / "best" / "encoder.safetensors").exists()
+    assert not (resolve_generation(tmp_path / "b2" / "checkpoints", "best") / "encoder.safetensors").exists()
 
 
-def test_at14_resume_continues_from_last_epoch(tmp_path, tok, tiny_encoder):
+DEVICES = ["cpu"] + (["cuda"] if torch.cuda.is_available() else [])
+
+
+@pytest.mark.parametrize("device", DEVICES)
+def test_at14_resume_continues_from_last_epoch(tmp_path, tok, tiny_encoder, device, monkeypatch):
     tr, va, yv = _views()
-    one = _cfg(tmp_path, {**FT, "max_epochs": 1})
+    ft = {**FT, "device": device}
+    one = _cfg(tmp_path, tiny_encoder, {**ft, "max_epochs": 1})
     NeuralRun(one, "B3-S", 7, tiny_encoder, tmp_path / "run", tok).fit_predict(tr, va, yv, "salt")
-    two = _cfg(tmp_path, {**FT, "max_epochs": 2})
+    two = _cfg(tmp_path, tiny_encoder, {**ft, "max_epochs": 2})
+    seen = []
+    real_load = torch.load
+    monkeypatch.setattr(torch, "load", lambda *a, **k: seen.append(k.get("map_location")) or real_load(*a, **k))
     r = NeuralRun(two, "B3-S", 7, tiny_encoder, tmp_path / "run", tok).fit_predict(tr, va, yv, "salt")
-    assert [h["epoch"] for h in r["history"]] == [1, 2]
+    assert seen == ["cpu"] and [h["epoch"] for h in r["history"]] == [1, 2]
     fresh = NeuralRun(two, "B3-S", 7, tiny_encoder, tmp_path / "fresh", tok).fit_predict(tr, va, yv, "salt")
-    assert r["history"][1]["train_loss"] == pytest.approx(fresh["history"][1]["train_loss"], rel=1e-5)
+    tol = 1e-5 if device == "cpu" else 1e-3
+    assert r["history"][1]["train_loss"] == pytest.approx(fresh["history"][1]["train_loss"], rel=tol)
+
+
+def test_v3_split_learning_rates_and_b2_has_no_encoder_group(tmp_path, tok, tiny_encoder):
+    ft = {k: v for k, v in FT.items() if k != "learning_rate"} | {"encoder_learning_rate": 1e-5, "head_learning_rate": 1e-3}
+    cfg = _cfg(tmp_path, tiny_encoder, ft)
+    run3 = NeuralRun(cfg, "B3-S", 1, tiny_encoder, tmp_path / "x", tok)
+    enc, _ = run3._load_encoder()
+    from diff_lab.neural import build_head
+    head = build_head(16, 14, 0.1, 1)
+    opt, params = run3._optimizer(enc, head)
+    assert [(g["name"], g["lr"]) for g in opt.param_groups] == [("encoder", 1e-5), ("head", 1e-3)]
+    opt2, _ = NeuralRun(cfg, "B2-S", 1, tiny_encoder, tmp_path / "y", tok)._optimizer(enc, head)
+    assert [(g["name"], g["lr"]) for g in opt2.param_groups] == [("head", 1e-3)]
+    tr, va, yv = _views()
+    r = NeuralRun(cfg, "B3-S", 1, tiny_encoder, tmp_path / "z", tok).fit_predict(tr, va, yv, "salt")
+    assert r["learning_rates"] == {"encoder": 1e-5, "head": 1e-3}
+    assert r["token_accounting"]["optimizer_updates"] == 2 * 3  # 24 rows / window 8, 2 epochs
+
+
+def test_finetune_lr_form_is_exclusive(tmp_path, tiny_encoder):
+    bad = {**FT, "encoder_learning_rate": 1e-5}
+    with pytest.raises(Exception, match="learning_rate"):
+        _cfg(tmp_path, tiny_encoder, bad)
+
+
+def test_corrupted_checkpoint_generation_is_refused(tmp_path, tok, tiny_encoder):
+    tr, va, yv = _views()
+    NeuralRun(_cfg(tmp_path, tiny_encoder, {**FT, "max_epochs": 1}), "B3-S", 3, tiny_encoder, tmp_path / "run", tok).fit_predict(
+        tr, va, yv, "salt")
+    last = resolve_generation(tmp_path / "run" / "checkpoints", "last")
+    (last / "trainer.json").write_text("{}")
+    with pytest.raises(Exception, match="corrupted"):
+        NeuralRun(_cfg(tmp_path, tiny_encoder), "B3-S", 3, tiny_encoder, tmp_path / "run", tok).fit_predict(tr, va, yv, "salt")
+
+
+def test_weights_pin_mismatch_is_refused(tmp_path, tok, tiny_encoder):
+    import yaml
+    from conftest import STUDY_V3
+
+    from diff_lab.config import load_study
+    raw = yaml.safe_load(STUDY_V3.read_text())
+    raw["finetune"] = FT
+    raw["model"] = {**raw["model"], "weights_file": "model.safetensors", "weights_sha256": "0" * 64}
+    p = tmp_path / "s.yaml"
+    p.write_text(yaml.safe_dump(raw))
+    tr, va, yv = _views()
+    with pytest.raises(Exception, match="weights_sha256"):
+        NeuralRun(load_study(p)[0], "B3-S", 1, tiny_encoder, tmp_path / "r", tok).fit_predict(tr, va, yv, "salt")
 
 
 def test_cuda_request_without_cuda_fails(tmp_path, tok, tiny_encoder):
     if torch.cuda.is_available():
         pytest.skip("CUDA present")
-    cfg = _cfg(tmp_path, {**FT, "device": "cuda"})
+    cfg = _cfg(tmp_path, tiny_encoder, {**FT, "device": "cuda"})
     tr, va, yv = _views()
     with pytest.raises(Exception, match="no silent CPU fallback"):
         NeuralRun(cfg, "B3-S", 1, tiny_encoder, tmp_path / "x", tok).fit_predict(tr, va, yv, "salt")

@@ -12,6 +12,7 @@ Public-only training, public-validation selection, sealed public test until stud
 | M2 | import → audit → split → EvidenceView → B0-LR / B0-LGBM / B1-TFIDF-S on public validation | done (exp 006); B0-LGBM needs `libomp` on macOS |
 | M3 | B2-S (frozen CodeBERT + fusion head) / B3-S (full FT), resume, T14 profile | implemented, CPU/MPS-verified on tiny + real CodeBERT; CUDA run pending |
 | M4 | B4-S diff-MLM CPT (10M-token plan, structure-protected masking, resume, encoder-only export) → B3-S fine-tuning | implemented, CPU-tested; real CodeBERT 1-update check on MPS; CUDA run pending |
+| v3 | study `public-comparison-v3`: separate encoder/head lr, split `upstream-clean2`, lineage validator, generation checkpoints, CPU-mapped resume (Codex review fixes) | implemented; B0–B4 rerun under v3 = experiment 009 |
 | M5–M6 | MLM+RMI CPT, local LLM L0/L1, freeze/test/report/export | not implemented yet |
 
 ## Commands (run from this directory)
@@ -22,11 +23,11 @@ uv run diff-lab doctor
 uv run diff-lab data import --source jit-defects4j --archive <data.zip> \
     --approval configs/sources/jit-defects4j.yaml --snapshot-id jitd4j-audit1
 uv run diff-lab data audit --snapshot-id jitd4j-audit1
-uv run diff-lab data split --snapshot-id jitd4j-audit1 --split-id upstream-clean1
-uv run diff-lab evidence build --study configs/studies/public-comparison-v2.yaml
-uv run diff-lab experiment run --study configs/studies/public-comparison-v2.yaml --models B0-LR,B1-TFIDF-S --seeds 42
-uv run diff-lab experiment profile --study configs/studies/public-comparison-v2.yaml --precision fp32 --updates 100 --out profile/fp32.json
-uv run diff-lab study summary --study configs/studies/public-comparison-v2.yaml
+uv run diff-lab data split --snapshot-id jitd4j-audit1 --split-id upstream-clean2
+uv run diff-lab evidence build --study configs/studies/public-comparison-v3.yaml
+uv run diff-lab experiment run --study configs/studies/public-comparison-v3.yaml --models B0-LR,B1-TFIDF-S --seeds 42
+uv run diff-lab experiment profile --study configs/studies/public-comparison-v3.yaml --precision fp32 --updates 100 --out profile/fp32.json
+uv run diff-lab study summary --study configs/studies/public-comparison-v3.yaml
 uv run pytest
 ```
 
@@ -47,6 +48,7 @@ src/diff_lab/
   neural.py                        B2-S/B3-S/B4-S fusion head, frozen-encoder cache, training loop, resume, T14 profile
   cpt.py                           diff-MLM CPT corpus/masking/plan/resume and encoder export (B4-S)
   metrics.py                      AP / ROC-AUC / Recall@q (ceil, hash ties) / validation max-F1 threshold
+  lineage.py                       approval -> snapshot -> split -> evidence -> tokenizer cross-checks before any fit
   policy.py, config.py, registry.py
   runner.py, cli/main.py          run-folder contract, label-access ledger, public-test gate
 ```

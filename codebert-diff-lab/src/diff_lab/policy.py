@@ -79,6 +79,10 @@ class TrainingDatasetView(_View):
             raise PolicyError("training views must come from an approved public source")
         if self.labels is None or len(self.labels) != len(self.frame):
             raise PolicyError("training view requires aligned labels")
+        if not self.labels.index.equals(self.frame.index):
+            raise PolicyError("training labels must share the frame's row index (positional misalignment)")
+        if "label" in self.frame.columns:
+            raise PolicyError("training frame must not also carry a label column; labels travel separately")
 
 
 @dataclass(frozen=True)

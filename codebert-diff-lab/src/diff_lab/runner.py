@@ -7,6 +7,7 @@ public validation only; the public test is sealed until a study freeze exists.
 """
 from __future__ import annotations
 
+import json
 import os
 import platform
 import subprocess
@@ -23,11 +24,16 @@ from .metrics import best_threshold, evaluate
 from .models import MODELS, SCORE_SEMANTICS
 from .policy import QueryView, TrainingDatasetView
 from .registry import MATRIX_VERSION, Registry
-from .util import ExecutionError, IntegrityError, atomic_write_json, read_json, sha256_file, sha256_json
+from .util import ExecutionError, IntegrityError, atomic_write_json, read_json, sha256_file, sha256_json, tree_digest
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 NEEDS_EVIDENCE = {"B1-TFIDF-S", "B2-S", "B3-S", "B4-S"}
 NEURAL = {"B2-S", "B3-S", "B4-S"}
+CPT_VARIANTS = {"B4-S"}
+SOURCE_PATTERNS = ("src/**/*.py", "pyproject.toml", "uv.lock")
+REQUIRED_RUN_FILES = ("resolved-config.json", "environment.json", "data-lineage.json", "metrics.json", "metrics.jsonl",
+                      "label-access-ledger.json", "evidence-manifest.json", "cost.json", "model/state.json",
+                      "predictions/validation.parquet", "reports/summary.md")
 
 
 def paths(cfg: StudyConfig, data_dir: Path) -> dict[str, Path]:
@@ -96,7 +102,16 @@ def load_frames(cfg: StudyConfig, data_dir: Path, variant: str) -> tuple[pd.Data
     feats = pd.read_parquet(p["snapshot"] / "features.parquet")
     labels = pd.read_parquet(p["snapshot"] / "labels.parquet")[["change_id", "label"]]
     frame = sp[sp["split"].isin(["train", "valid"])].merge(feats, on="change_id", how="left", validate="1:1")
+    from .lineage import validate_lineage
+    tok_digest = None
+    if variant in NEEDS_EVIDENCE:
+        from .evidence import tokenizer_files_digest
+        tok_digest = tokenizer_files_digest(resolve_local_path(cfg.model.local_path, PROJECT_ROOT))
+    roles = ("supervised_train", "selection") + (("cpt_train",) if variant in CPT_VARIANTS else ())
+    approved = validate_lineage(resolve_local_path(cfg.dataset.source_approval, PROJECT_ROOT), p["snapshot"], p["split"],
+                                p["evidence"] if variant in NEEDS_EVIDENCE else None, tok_digest, roles)
     lineage = {"visibility": snap["visibility"], "snapshot_id": cfg.dataset.snapshot_id, "split_id": cfg.dataset.split_id,
+               **approved,
                "snapshot_manifest_sha256": sha256_file(snap_m), "split_manifest_sha256": sha256_file(split_m),
                "feature_schema_id": snap["feature_schema"]["feature_schema_id"]}
     if variant in NEEDS_EVIDENCE:
@@ -148,17 +163,26 @@ def run_variant(cfg: StudyConfig, raw: dict, study_hash: str, variant: str, seed
         raise ExecutionError(f"{variant} is not implemented in this milestone")
     frame, y, lineage = load_frames(cfg, data_dir, variant)
     git = git_state()
+    if git["sha"] is None:
+        raise ExecutionError("unknown code version (no git and no CODE_SHA marker); refusing a run that cannot be traced")
+    source = tree_digest(PROJECT_ROOT, SOURCE_PATTERNS)
     run_id = sha256_json({"study": scoped_config_hash(raw, variant), "variant": variant, "seed": seed, "lineage": lineage,
-                          "code": git["sha"], "dirty": git["dirty"]})[:16]
+                          "code": git["sha"], "source_digest": source})[:16]
     run_dir = artifacts_dir / "runs" / run_id
     if (run_dir / "run.json").exists() and read_json(run_dir / "run.json")["status"] == "completed":
-        return read_json(run_dir / "run.json")
+        done = read_json(run_dir / "run.json")
+        for rel, digest in done.get("artifacts_sha256", {}).items():
+            if not (run_dir / rel).is_file() or sha256_file(run_dir / rel) != digest:
+                raise IntegrityError(f"completed run {run_id} has a missing or modified artifact {rel}; not reusing it")
+        if not done.get("artifacts_sha256"):
+            raise IntegrityError(f"completed run {run_id} lacks an artifact manifest; not reusing it")
+        return done
     attempt = 1 + len(list(run_dir.glob("attempt-*"))) if run_dir.exists() else 1
     base = {"run_id": run_id, "attempt": attempt, "study_id": cfg.study_id, "matrix_version": MATRIX_VERSION,
             "variant_id": variant, "family": v.family, "adaptation_mode": v.adaptation_mode, "track": cfg.track,
             "protocol_version": cfg.protocol_version, "evidence_profile": cfg.evidence_profile,
             "information_profile": v.input_profile, "seed": seed, "split_evaluated": "valid",
-            "registry_sha256": registry.digest, "study_sha256": study_hash,
+            "registry_sha256": registry.digest, "study_sha256": study_hash, "source_digest": source, "code_git": git,
             "scoped_config_sha256": scoped_config_hash(raw, variant), "started_at": datetime.now(UTC).isoformat()}
     atomic_write_json(run_dir / "run.json", {**base, "status": "running"})
     atomic_write_json(run_dir / "resolved-config.json", raw)
@@ -178,17 +202,17 @@ def run_variant(cfg: StudyConfig, raw: dict, study_hash: str, variant: str, seed
             tok, _ = load_tokenizer(local, cfg.model.revision)
             t0 = time.perf_counter()
             init = None
-            if variant == "B4-S":
-                cpt = _run_cpt(cfg, seed, frame, lineage, git, local, tok, artifacts_dir)
+            if variant in CPT_VARIANTS:
+                cpt = _run_cpt(cfg, seed, frame, lineage, {"sha": git["sha"], "source_digest": source}, local, tok, artifacts_dir)
                 init = artifacts_dir / "cpt" / cpt["cpt_id"] / "encoder"
-                atomic_write_json(run_dir / "token-accounting.json", {"cpt_id": cpt["cpt_id"], **cpt["token_accounting"]})
             state = NeuralRun(cfg, variant, seed, local, run_dir, tok, init_encoder=init).fit_predict(
                 train_view, query, y[va].to_numpy(), cfg.evaluation.tie_salt)
             if cpt is not None:
                 state["cpt"] = {k: cpt[k] for k in ("cpt_id", "plan_sha256", "lm_head_newly_initialized", "encoder_init_state_sha256",
                                                     "exported_encoder_state_sha256", "dev", "precision")}
             scores = state.pop("scores")
-            fit_s, pred_s, device = time.perf_counter() - t0, 0.0, state["device"]
+            # Validation scores come from per-epoch evaluation inside fit; inference latency is not measured here.
+            fit_s, pred_s, device = time.perf_counter() - t0, None, state["device"]
         else:
             model = MODELS[variant](cfg, seed)
             t0 = time.perf_counter()
@@ -200,7 +224,7 @@ def run_variant(cfg: StudyConfig, raw: dict, study_hash: str, variant: str, seed
         ids = query.ids
         pred = pd.DataFrame({"change_id": ids, "run_id": run_id, "score": scores.astype(float),
                              "score_semantics": SCORE_SEMANTICS, "prediction_status": "ok",
-                             "latency_ms": pred_s * 1000 / max(len(ids), 1)})
+                             "latency_ms": None if pred_s is None else pred_s * 1000 / max(len(ids), 1)})
         if len(pred) != int(va.sum()) or not pred["score"].between(0, 1).all():
             raise IntegrityError("prediction coverage/score range check failed")
         (run_dir / "predictions").mkdir(parents=True, exist_ok=True)
@@ -212,24 +236,49 @@ def run_variant(cfg: StudyConfig, raw: dict, study_hash: str, variant: str, seed
         atomic_write_json(run_dir / "model" / "state.json", state)
         yv = y[va].to_numpy()
         thr = best_threshold(yv, scores)
-        metrics = {"split": "valid", **evaluate(ids, yv, scores, cfg.evaluation.tie_salt, thr["threshold"]),
-                   "threshold_selection": thr, "note": "threshold chosen on this same validation set (F1 is optimistic)"}
+        history = state.get("history") or [{"epoch": None, "note": "single fit (no epochs)"}]
+        metrics = {"split": "valid", "evaluation_role": "selection_validation",
+                   **evaluate(ids, yv, scores, cfg.evaluation.tie_salt, thr["threshold"]), "threshold_selection": thr,
+                   "note": ("selection-validation: the threshold" + (" and the checkpoint epoch" if variant in NEURAL else "")
+                            + " were chosen on this same validation set, so AP/recall/F1 are optimistic; "
+                            "only the sealed test after freeze is an independent estimate")}
         atomic_write_json(run_dir / "metrics.json", metrics)
+        (run_dir / "metrics.jsonl").write_text("".join(json.dumps({"kind": "epoch", **h}, sort_keys=True) + "\n" for h in history))
+        events = [{"kind": "threshold", "rule": thr["policy"], "chosen": thr["threshold"], "metric": "f1",
+                   "split": "valid"}]
+        if variant in NEURAL:
+            events.insert(0, {"kind": "checkpoint_epoch", "rule": "max validation AP, ties -> earlier", "metric": "validation_ap",
+                              "chosen_epoch": state["best_epoch"], "candidates": len(state["history"]), "split": "valid"})
         atomic_write_json(run_dir / "label-access-ledger.json", {
             "gradient_label_count": int(tr.sum()), "demo_unique_label_count": 0, "index_labeled_count": 0,
             "selection_label_count": int(va.sum()), "rmi_synthetic_target_count": 0, "adaptation_mode": v.adaptation_mode,
             "cpt_label_count": 0, "cpt_unlabeled_input_count": cpt["token_accounting"]["corpus_changes"] if cpt else 0,
-            "selection_use": "threshold (max F1) and reporting on public validation"})
+            "selection_events": events,
+            "selection_use": "checkpoint epoch / threshold selection and reporting on public validation"})
         atomic_write_json(run_dir / "evidence-manifest.json", {
             "evidence_profile": cfg.evidence_profile, "structured_feature_profile": cfg.dataset.feature_profile,
             "structured_columns": list(cfg.structured.features),
             "evidence_manifest_sha256": lineage.get("evidence_manifest_sha256"),
             "query_hash_digest": lineage.get("evidence_query_hash_digest")})
-        atomic_write_json(run_dir / "cost.json", {"wall_seconds": fit_s + pred_s, "fit_seconds": fit_s, "predict_seconds": pred_s,
-                                                  "device": device, "gpu_seconds": fit_s if device.startswith("cuda") else 0,
-                                                  "peak_cuda_bytes": state.get("peak_cuda_bytes"),
-                                                  "note": "neural fit_seconds include per-epoch validation scoring"})
-        done = {**base, "status": "completed", "finished_at": datetime.now(UTC).isoformat(),
+        if variant in NEURAL:
+            acct = {"downstream": state["token_accounting"]}
+            if cpt is not None:
+                acct["cpt"] = {"cpt_id": cpt["cpt_id"], **cpt["token_accounting"]}
+            atomic_write_json(run_dir / "token-accounting.json", acct)
+        atomic_write_json(run_dir / "cost.json", {
+            "wall_seconds": fit_s + (pred_s or 0.0), "fit_seconds": fit_s, "predict_seconds": pred_s,
+            "device": device, "gpu_seconds": fit_s if device.startswith("cuda") else 0,
+            "peak_cuda_bytes": state.get("peak_cuda_bytes"), "peak_cuda_reserved_bytes": state.get("peak_cuda_reserved_bytes"),
+            "inference_latency": "not measured (null); needs a separate inference benchmark" if pred_s is None else "measured",
+            "note": "neural fit_seconds include per-epoch validation scoring"})
+        (run_dir / "reports").mkdir(exist_ok=True)
+        (run_dir / "reports" / "summary.md").write_text(
+            f"# {variant} seed {seed} ({run_id})\n\nstudy `{cfg.study_id}` / split `{cfg.dataset.split_id}` / code `{git['sha']}`\n\n"
+            f"selection-validation AP {metrics['ap']}, ROC-AUC {metrics['roc_auc']}, "
+            f"Recall@5% {metrics['recall_at_5pct']['recall']}, Recall@10% {metrics['recall_at_10pct']['recall']}\n\n"
+            + (f"best epoch {state['best_epoch']} of {len(state['history'])}\n" if variant in NEURAL else ""))
+        artifacts = {rel: sha256_file(run_dir / rel) for rel in REQUIRED_RUN_FILES}
+        done = {**base, "status": "completed", "finished_at": datetime.now(UTC).isoformat(), "artifacts_sha256": artifacts,
                 "validation_ap": metrics["ap"], **({"cpt_id": cpt["cpt_id"]} if cpt else {})}
         atomic_write_json(run_dir / "run.json", done)
         return done

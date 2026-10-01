@@ -30,7 +30,18 @@ import pandas as pd
 
 from .config import CptCfg, StudyConfig
 from .neural import _torch, load_encoder, pick_device, seed_everything, state_hash
-from .util import ExecutionError, IntegrityError, PolicyError, atomic_write_json, read_json, sha256_file, sha256_json
+from .util import (
+    ExecutionError,
+    IntegrityError,
+    PolicyError,
+    atomic_write_json,
+    commit_generation,
+    read_json,
+    resolve_generation,
+    sha256_file,
+    sha256_json,
+    sha256_text,
+)
 
 PLAN_STREAM, MASK_STREAM, DEV_STREAM = 101, 202, 303
 CPT_COLUMNS = ("change_id", "split", "cpt_role", "query_text", "message_text", "code_text")
@@ -171,7 +182,7 @@ def _pad(rows: list[np.ndarray], fill: int):  # noqa: ANN202
 
 def cpt_id_for(cfg: StudyConfig, seed: int, lineage: dict, code: dict, task: str) -> str:
     return sha256_json({"cpt": cfg.cpt.model_dump(), "revision": cfg.model.revision, "seed": seed, "task": task,
-                        "lineage": lineage, "code": code.get("sha"), "dirty": code.get("dirty")})[:16]
+                        "lineage": lineage, "code": code})[:16]
 
 
 class MlmCpt:
@@ -227,6 +238,8 @@ class MlmCpt:
             raise PolicyError("CPT needs a cpt_train view for gradients and a cpt_dev view for diagnostics")
         if set(train.ids) & set(dev.ids):
             raise PolicyError("cpt_train and cpt_dev overlap")
+        dev_hashes = {sha256_text(t) for t in dev.frame["query_text"]}
+        content_overlap = int(sum(sha256_text(t) in dev_hashes for t in train.frame["query_text"]))
         export = self.out / "encoder"
         if (self.out / "cpt.json").exists() and read_json(self.out / "cpt.json")["status"] == "completed":
             return read_json(self.out / "cpt.json")
@@ -240,7 +253,8 @@ class MlmCpt:
         plan = plan_windows(tr.lengths, self.seed, window, cc.budget)
         N = plan["planned_updates"]
         warmup = max(1, math.ceil(cc.warmup_fraction * N))
-        base_encoder, enc_info = load_encoder(self.base, self.cfg.model.revision)
+        base_encoder, enc_info = load_encoder(self.base, self.cfg.model.revision,
+                                              (self.cfg.model.weights_file, self.cfg.model.weights_sha256))
         encoder_init_hash = state_hash(base_encoder)
         del base_encoder
         model, info = AutoModelForMaskedLM.from_pretrained(str(self.base), local_files_only=True, output_loading_info=True)
@@ -251,10 +265,11 @@ class MlmCpt:
         model.to(device).train()
         opt = torch.optim.AdamW(model.parameters(), lr=cc.learning_rate, weight_decay=cc.weight_decay)
         dev_batches = self._dev_batches(dv, cand)
-        ck = self.out / "checkpoints" / "last"
+        ck = self.out / "checkpoints"
         st = {"update": 0, "input_tokens": 0, "target_tokens": 0, "forced_single_target": 0, "history": [], "dev": []}
-        if (ck / "trainer.json").exists():
-            st = self._resume(ck, model, opt, device, plan["plan_sha256"])
+        last = resolve_generation(ck, "last")
+        if last is not None:
+            st = self._resume(last, model, opt, plan["plan_sha256"])
         else:
             atomic_write_json(self.out / "cpt.json", {"status": "running", "seed": self.seed, "task": "mlm"})
             st["dev"].append({"update": 0, **self._dev_loss(model, dev_batches, device)})
@@ -310,6 +325,7 @@ class MlmCpt:
                       "excluded": {"train": tr.excluded, "dev": dv.excluded},
                       "forced_single_target_samples": st["forced_single_target"],
                       "dev_forward_tokens_per_eval": int(dv.lengths.sum()), "dev_evals": len(st["dev"]),
+                      "cpt_train_rows_with_dev_identical_text": content_overlap,
                       "train_seconds_this_attempt": train_s}
         result = {"status": "completed", "seed": self.seed, "task": "mlm", "plan_sha256": plan["plan_sha256"],
                   "token_accounting": accounting, "encoder_init_state_sha256": encoder_init_hash,
@@ -340,23 +356,23 @@ class MlmCpt:
         os.replace(tmp, path)
         return h
 
-    def _checkpoint(self, path: Path, model, opt, st: dict, plan_hash: str) -> None:  # noqa: ANN001
+    def _checkpoint(self, ck: Path, model, opt, st: dict, plan_hash: str) -> None:  # noqa: ANN001
         torch = _torch()
-        tmp = path.with_name(path.name + ".tmp")
+        tmp = ck / "last.tmp"
         shutil.rmtree(tmp, ignore_errors=True)
         tmp.mkdir(parents=True)
         torch.save({"model": model.state_dict(), "optimizer": opt.state_dict(), "torch_rng": torch.get_rng_state(),
                     "cuda_rng": torch.cuda.get_rng_state_all() if torch.cuda.is_available() else None}, tmp / "state.pt")
         atomic_write_json(tmp / "trainer.json", {**st, "plan_sha256": plan_hash})
-        shutil.rmtree(path, ignore_errors=True)
-        os.replace(tmp, path)
+        commit_generation(ck, "last", tmp)
 
-    def _resume(self, path: Path, model, opt, device, plan_hash: str) -> dict:  # noqa: ANN001
+    def _resume(self, path: Path, model, opt, plan_hash: str) -> dict:  # noqa: ANN001
         torch = _torch()
         st = read_json(path / "trainer.json")
         if st.pop("plan_sha256") != plan_hash:
             raise IntegrityError("CPT resume refused: update plan changed (start a new run)")
-        ck = torch.load(path / "state.pt", map_location=device, weights_only=False)
+        # map to CPU: RNG states must stay CPU ByteTensors; load_state_dict copies weights onto the live device.
+        ck = torch.load(path / "state.pt", map_location="cpu", weights_only=False)
         model.load_state_dict(ck["model"])
         opt.load_state_dict(ck["optimizer"])
         torch.set_rng_state(ck["torch_rng"])
@@ -365,7 +381,7 @@ class MlmCpt:
         return st
 
 
-def load_cpt_encoder(export_dir: Path, base_path: Path, revision: str):  # noqa: ANN201
+def load_cpt_encoder(export_dir: Path, base_path: Path, revision: str, weights: tuple[str, str] | None = None):  # noqa: ANN201
     """Fine-tuning init from a CPT export: pinned architecture + exported encoder weights only (AT-10)."""
     from safetensors.torch import load_file
 
@@ -374,7 +390,7 @@ def load_cpt_encoder(export_dir: Path, base_path: Path, revision: str):  # noqa:
         raise IntegrityError(f"{export_dir} is not a CPT export of revision {revision}")
     if sha256_file(export_dir / "encoder.safetensors") != m["encoder_safetensors_sha256"]:
         raise IntegrityError("CPT encoder export hash mismatch")
-    encoder, info = load_encoder(base_path, revision)
+    encoder, info = load_encoder(base_path, revision, weights)
     encoder.load_state_dict(load_file(str(export_dir / "encoder.safetensors")), strict=True)
     if state_hash(encoder) != m["encoder_state_sha256"]:
         raise IntegrityError("CPT encoder state hash mismatch after load")
