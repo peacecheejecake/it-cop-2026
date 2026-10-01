@@ -1,6 +1,9 @@
 # Study diffllm-v1 (exploratory). Values follow docs/diffllm-study-v1.md, registered before any training.
 # Deviation recorded before training: checkpoint selection during SFT uses a fixed 2,000-change subset of public
 # validation (sha256 rank, label-free) to bound evaluation cost; reported validation metrics use all 5,465 changes.
+# Technical change before any SFT result (exp 012): padded micro-batches of 4 gave NaN gradients at update 42 of
+# R-base (each example alone was finite under sdpa and eager); SFT now uses micro-batch 1 x accumulation 16
+# (same effective batch 16, no padding).
 study_id: diffllm-v1
 status: exploratory (beyond spec v0.2; registered after the v3 public test was opened)
 design_doc: docs/diffllm-study-v1.md
@@ -96,8 +99,8 @@ cpt:
   gradient_checkpointing: true
 sft:
   max_prompt_tokens: 2304
-  micro_batch: 4
-  accumulation: 4
+  micro_batch: 1
+  accumulation: 16
   learning_rate: 0.0001
   max_epochs: 2
   evals_per_epoch: 2
