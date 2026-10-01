@@ -117,6 +117,8 @@ python scripts/smoke.py --out runs/smoke-core   # neural이면 --neural 추가
 
 ## 5. 실험 목록
 
+legacy 001~005의 worktree는 2026-10-01에 정리했다(`git worktree remove`). 브랜치와 커밋된 RUNLOG/결과는 남아 있고, git-ignore 산출물(모델 가중치, run 출력)은 삭제했다.
+
 | 실험 | 요약 |
 |---|---|
 | `001-baseline-smoke` | README 전체 파이프라인, 전체 ApacheJIT. B 우위가 Hadoop 라벨 이상에서 기인함을 발견 |
@@ -126,7 +128,7 @@ python scripts/smoke.py --out runs/smoke-core   # neural이면 --neural 추가
 | `009-dl-v3-rerun` | **[diff-lab] 현재 기준 결과.** v3(encoder/head lr 분리, upstream-clean2)로 B0~B4 재실행. selection-validation AP: B3-S 0.687±0.008 > B4-S 0.674±0.014 > B2-S 0.616±0.011 > B1-TFIDF 0.546 > B0-LR 0.319 > B0-LGBM 0.211. v2의 B4>B3 역전 → MLM CPT 추가가치 없음(validation). best 가중치는 worktree `artifacts/` |
 | `008-dl-m4-mlm-cpt` | **[diff-lab]** M4(v2): B4-S AP 0.551±0.008(seed 43/44는 로그 수치만 남음, Pod 강제 종료). 보조 B2 민감도(head lr 1e-3) AP 0.616 → v3 전환 근거. Codex 리뷰 `reviews/2026-10-01-codex-review.md` |
 | `007-dl-m3-encoder` | **[diff-lab]** M3(H100, fp32, seed 42/43/44, public validation): B3-S full FT AP 0.527±0.024 < B1-TFIDF-S 0.546, B2-S frozen 0.377±0.005(20 epoch 상한에서 미수렴). B3 best 가중치는 worktree `artifacts/`(로컬)에 있다 |
-| `005-cross-project-jd4j` | 003 프로토콜을 새 Pod에서 재현(3 seed)한 뒤 JIT-Defects4J(처음 보는 21개 프로젝트)에 재학습 없이 적용. 처음 보는 프로젝트에서 B의 향상 배수(2.31)는 rule(2.39)보다 낮아지고 정형 LR(2.78)은 오른다. 가중치는 network volume `c8wdh0j8ek`(CA-MTL-3)에 보관 |
+| `005-cross-project-jd4j` | 003 프로토콜을 새 Pod에서 재현(3 seed)한 뒤 JIT-Defects4J(처음 보는 21개 프로젝트)에 재학습 없이 적용. 처음 보는 프로젝트에서 B의 향상 배수(2.31)는 rule(2.39)보다 낮아지고 정형 LR(2.78)은 오른다. 가중치를 보관하던 network volume `c8wdh0j8ek`는 2026-10-01 삭제 |
 
 데이터셋 출처·라이선스·알려진 문제는 루트 `DATASETS.md`에 기록한다.
 
