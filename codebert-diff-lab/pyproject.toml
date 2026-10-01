@@ -22,7 +22,11 @@ dependencies = [
 
 [project.optional-dependencies]
 lgbm = ["lightgbm>=4.5,<5"]
-neural = ["torch>=2.6,<3", "safetensors>=0.4,<1"]
+neural = [
+    "torch>=2.6,<3",
+    "safetensors>=0.4,<1",
+    "peft>=0.13",
+]
 dev = ["pytest>=8,<10", "ruff>=0.6,<1", "mypy>=1.11,<2"]
 
 [project.scripts]
