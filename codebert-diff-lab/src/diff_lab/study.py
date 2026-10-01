@@ -30,7 +30,7 @@ from .metrics import evaluate
 from .policy import QueryView, TrainingDatasetView, require_test_unlocked
 from .registry import Registry
 from .runner import LLM, NEURAL, PROJECT_ROOT, environment, git_state, load_frames, scoped_config_hash
-from .util import ExecutionError, IntegrityError, PolicyError, atomic_write_json, read_json, sha256_file, sha256_json
+from .util import ConfigError, ExecutionError, IntegrityError, PolicyError, atomic_write_json, read_json, sha256_file, sha256_json
 
 REPLICATES = {"L0-S": [42]}
 PAIRS = [("B3-S", "B2-S"), ("B4-S", "B3-S"), ("B5-S", "B4-S"), ("B5-S", "B3-S"), ("L1-S", "L0-S"), ("B1-TFIDF-S", "B0-LR"),
@@ -427,7 +427,7 @@ def write_report_tables(r: dict, md: Path, csv: Path) -> None:
     md.write_text("\n".join(lines) + "\n")
 
 
-def export_bundle(cfg: StudyConfig, raw: dict, artifacts_dir: Path, freeze_path: Path, out: Path) -> dict:
+def export_bundle(cfg: StudyConfig, raw: dict, artifacts_dir: Path, freeze_path: Path, out: Path, data_dir: Path | None = None) -> dict:
     """Inference-only bundle: frozen run states, best checkpoints, prompt manifests, study config and freeze record.
 
     Excludes optimizer/resume state, CPT heads, training data and base model weights (referenced by pinned revision/sha256).
@@ -454,12 +454,28 @@ def export_bundle(cfg: StudyConfig, raw: dict, artifacts_dir: Path, freeze_path:
                                                 "weights_sha256": cfg.model.weights_sha256},
                                     "llm": None if not hasattr(cfg.llm, "model_id") else
                                     {"id": cfg.llm.model_id, "revision": cfg.llm.revision, "files_sha256": cfg.llm.files_sha256}},
+                    "public_demos": "L1 frozen 4-shot public-train demos (approved public source) for offline in-context use",
                     "excluded": ["optimizer/resume state", "CPT MLM/RMI heads", "training data", "base model weights"],
                     "use": "offline inference only; internal data must not be used for training, selection or calibration"}
+        l1 = [e for e in rec["runs"] if e["variant_id"] == "L1-S"]
+        if l1:
+            if data_dir is None:
+                raise ConfigError("exporting L1 needs --data-dir to bundle its frozen public demos")
+            from .frozen import FrozenLlm
+            from .llm import select_demos
+            _, _, _, train = _frames(cfg, data_dir, "L1-S")
+            for e in l1:
+                demos = select_demos(train, cfg.llm, e["seed"])
+                FrozenLlm(artifacts_dir / "runs" / e["run_id"], cfg, "L1-S", e["seed"], Path("."), None, demos)  # manifest check
+                dp = out.parent / f"demos-{e['run_id']}.parquet"
+                demos[["change_id", "demo_label", "query_text", *cfg.structured.features]].to_parquet(dp, index=False)
+                add(dp, f"demos/{e['run_id']}.parquet")
+                dp.unlink()
+        cfg_path = out.parent / "study.json"
+        cfg_path.write_text(json.dumps(raw, indent=2, sort_keys=True))
+        add(cfg_path, "study.json")
         mpath = out.parent / "export-manifest.json"
         atomic_write_json(mpath, manifest)
         tar.add(mpath, arcname="export-manifest.json")
-        cfg_path = out.parent / "study.json"
-        cfg_path.write_text(json.dumps(raw, indent=2, sort_keys=True))
-        tar.add(cfg_path, arcname="study.json")
+
     return {"bundle": str(out), "bundle_sha256": sha256_file(out), "files": len(files), "freeze_id": rec["freeze_id"]}

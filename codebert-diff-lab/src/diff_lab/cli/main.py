@@ -18,10 +18,12 @@ data_app = typer.Typer(no_args_is_help=True)
 evidence_app = typer.Typer(no_args_is_help=True)
 experiment_app = typer.Typer(no_args_is_help=True)
 study_app = typer.Typer(no_args_is_help=True)
+bundle_app = typer.Typer(no_args_is_help=True)
 app.add_typer(data_app, name="data")
 app.add_typer(evidence_app, name="evidence")
 app.add_typer(experiment_app, name="experiment")
 app.add_typer(study_app, name="study")
+app.add_typer(bundle_app, name="bundle")
 
 DATA = typer.Option(PROJECT_ROOT / "data", "--data-dir")
 ARTIFACTS = typer.Option(PROJECT_ROOT / "artifacts", "--artifacts-dir")
@@ -197,11 +199,40 @@ def study_report(study: Path = typer.Option(...), freeze: Path = typer.Option(..
 @study_app.command("export")
 @_guard
 def study_export(study: Path = typer.Option(...), freeze: Path = typer.Option(...), out: Path = typer.Option(...),
-                 artifacts_dir: Path = ARTIFACTS) -> None:
+                 artifacts_dir: Path = ARTIFACTS, data_dir: Path = DATA) -> None:
     """Inference-only export bundle of the frozen study (no optimizer state, CPT heads or training data)."""
     from ..study import export_bundle
     cfg, raw, _ = load_study(study)
-    _emit(export_bundle(cfg, raw, artifacts_dir, freeze, out))
+    _emit(export_bundle(cfg, raw, artifacts_dir, freeze, out, data_dir))
+
+
+@bundle_app.command("unpack")
+@_guard
+def bundle_unpack(bundle: Path = typer.Option(...), out: Path = typer.Option(...)) -> None:
+    """Safely extract an export bundle and verify every file against its manifest."""
+    from ..offline import unpack_bundle
+    info = unpack_bundle(bundle, out)
+    _emit({"freeze_id": info["freeze"]["freeze_id"], "files": len(info["manifest"]["files_sha256"]), "verified": True})
+
+
+@bundle_app.command("verify")
+@_guard
+def bundle_verify(bundle_dir: Path = typer.Option(...)) -> None:
+    """Re-hash an unpacked bundle against its export manifest (AT-20)."""
+    from ..offline import verify_bundle
+    info = verify_bundle(bundle_dir)
+    _emit({"freeze_id": info["freeze"]["freeze_id"], "files": len(info["manifest"]["files_sha256"]), "verified": True})
+
+
+@app.command("predict")
+@_guard
+def offline_predict(bundle_dir: Path = typer.Option(...), dataset: Path = typer.Option(...), out_dir: Path = typer.Option(...),
+                    device: str = typer.Option("cpu"), variants: str = typer.Option(""),
+                    encoder_path: Path = typer.Option(None), llm_path: Path = typer.Option(None)) -> None:
+    """Evaluation-only offline scoring of an internal dataset (no labels, no fitting, network blocked). Prints counts only."""
+    from ..offline import predict
+    sel = tuple(v.strip() for v in variants.split(",") if v.strip()) or None
+    _emit(predict(bundle_dir, dataset, out_dir, device, sel, encoder_path, llm_path))
 
 
 @study_app.command("summary")
