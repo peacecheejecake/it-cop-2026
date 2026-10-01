@@ -60,6 +60,23 @@ policy:
   allow_test_selection: false
   automatic_remote_logging: false
 
-finetune: PIN_REQUIRED
+# Shared downstream protocol for B2-S/B3-S/B4-S/B5-S (spec protocol §2.1); B2-S only freezes the encoder.
+# precision: fp32 until the CUDA 100-step profile (spec T14) shows bf16_encoder_autocast is equivalent; then re-pinned before formal runs.
+finetune:
+  max_epochs: 20
+  micro_batch_size: 8
+  gradient_accumulation_steps: 4
+  learning_rate: 0.00001
+  weight_decay: 0.01
+  lr_schedule: constant
+  max_grad_norm: 1.0
+  head_dropout: 0.1
+  selection_metric: validation_ap
+  patience_epochs: 5
+  tie_rule: earlier_checkpoint
+  precision: fp32
+  device: cuda
+  allow_cpu: false
+  eval_batch_size: 64
 cpt: PIN_REQUIRED
 llm: PIN_REQUIRED

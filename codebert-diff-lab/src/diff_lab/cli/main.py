@@ -132,6 +132,32 @@ def experiment_run(study: Path = typer.Option(...), models: str = typer.Option(.
     _emit(results)
 
 
+@experiment_app.command("profile")
+@_guard
+def experiment_profile(study: Path = typer.Option(...), precision: str = typer.Option(...), updates: int = typer.Option(100),
+                       seed: int = typer.Option(42), data_dir: Path = DATA, out: Path = typer.Option(...)) -> None:
+    """Spec T14: N-update B3-style profile (throughput, peak VRAM, loss trajectory) for one precision. Train split only."""
+    from ..evidence import load_tokenizer
+    from ..neural import NeuralRun
+    from ..policy import TrainingDatasetView
+    from ..runner import load_frames
+    from ..util import atomic_write_json
+    cfg, raw, _ = load_study(study)
+    if precision not in ("fp32", "bf16_encoder_autocast"):
+        typer.echo("precision must be fp32 or bf16_encoder_autocast", err=True)
+        raise typer.Exit(2)
+    cfg = cfg.model_copy(update={"finetune": cfg.finetune.model_copy(update={"precision": precision})})
+    frame, y, lineage = load_frames(cfg, data_dir, "B3-S")
+    tr = frame["split"] == "train"
+    view = TrainingDatasetView(split="train", frame=frame[tr].reset_index(drop=True), lineage=lineage,
+                               labels=y[tr].reset_index(drop=True))
+    local = resolve_local_path(cfg.model.local_path, PROJECT_ROOT)
+    tok, _ = load_tokenizer(local, cfg.model.revision)
+    result = NeuralRun(cfg, "B3-S", seed, local, out.parent, tok).profile(view, updates)
+    atomic_write_json(out, {**result, "seed": seed, "lineage": lineage})
+    _emit({k: v for k, v in result.items() if k != "losses"} | {"loss_first_last": [result["losses"][0], result["losses"][-1]]})
+
+
 @study_app.command("summary")
 @_guard
 def study_summary(study: Path = typer.Option(...), artifacts_dir: Path = ARTIFACTS) -> None:

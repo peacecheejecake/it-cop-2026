@@ -18,7 +18,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from .config import StudyConfig, require_pinned
+from .config import StudyConfig, require_pinned, resolve_local_path
 from .metrics import best_threshold, evaluate
 from .models import MODELS, SCORE_SEMANTICS
 from .policy import QueryView, TrainingDatasetView
@@ -26,7 +26,8 @@ from .registry import MATRIX_VERSION, Registry
 from .util import ExecutionError, IntegrityError, atomic_write_json, read_json, sha256_file, sha256_json
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-NEEDS_EVIDENCE = {"B1-TFIDF-S"}
+NEEDS_EVIDENCE = {"B1-TFIDF-S", "B2-S", "B3-S"}
+NEURAL = {"B2-S", "B3-S"}
 
 
 def paths(cfg: StudyConfig, data_dir: Path) -> dict[str, Path]:
@@ -53,9 +54,17 @@ def environment() -> dict:
     if _installed("lightgbm"):
         pkgs["lightgbm"] = metadata.version("lightgbm")
     lock = PROJECT_ROOT / "uv.lock"
-    return {"python": platform.python_version(), "platform": platform.platform(), "machine": platform.machine(),
-            "cpu_count": os.cpu_count(), "packages": pkgs, "uv_lock_sha256": sha256_file(lock) if lock.exists() else None,
-            "git": git_state(), "device": "cpu"}
+    env = {"python": platform.python_version(), "platform": platform.platform(), "machine": platform.machine(),
+           "cpu_count": os.cpu_count(), "packages": pkgs, "uv_lock_sha256": sha256_file(lock) if lock.exists() else None,
+           "git": git_state()}
+    if _installed("torch"):
+        import torch
+        env["packages"]["torch"] = torch.__version__
+        env["cuda"] = {"available": torch.cuda.is_available(), "version": torch.version.cuda,
+                       "device_name": torch.cuda.get_device_name(0) if torch.cuda.is_available() else None,
+                       "tf32_matmul": torch.backends.cuda.matmul.allow_tf32}
+        env["mps_available"] = torch.backends.mps.is_available()
+    return env
 
 
 def _installed(name: str) -> bool:
@@ -91,7 +100,8 @@ def load_frames(cfg: StudyConfig, data_dir: Path, variant: str) -> tuple[pd.Data
             raise IntegrityError(f"missing evidence {em}; run evidence build first")
         if sha256_file(p["evidence"] / "evidence.parquet") != read_json(em)["evidence_parquet_sha256"]:
             raise IntegrityError("evidence hash mismatch")
-        ev = pd.read_parquet(p["evidence"] / "evidence.parquet")[["change_id", "message_text", "code_text", "query_content_hash"]]
+        ev_cols = ["change_id", "query_text", "message_text", "code_text", "query_content_hash"]
+        ev = pd.read_parquet(p["evidence"] / "evidence.parquet")[ev_cols]
         frame = frame.merge(ev, on="change_id", how="left", validate="1:1")
         if frame["query_content_hash"].isna().any():
             raise IntegrityError("evidence missing for some changes")
@@ -108,7 +118,7 @@ def run_variant(cfg: StudyConfig, raw: dict, study_hash: str, variant: str, seed
     registry = Registry()
     v = registry.resolve(variant)
     require_pinned(raw, variant)
-    if variant not in MODELS:
+    if variant not in MODELS and variant not in NEURAL:
         raise ExecutionError(f"{variant} is not implemented in this milestone")
     frame, y, lineage = load_frames(cfg, data_dir, variant)
     git = git_state()
@@ -132,13 +142,25 @@ def run_variant(cfg: StudyConfig, raw: dict, study_hash: str, variant: str, seed
         train_view = TrainingDatasetView(split="train", frame=frame[tr].reset_index(drop=True), lineage=lineage,
                                          labels=y[tr].reset_index(drop=True))
         query = QueryView(split="valid", frame=frame[va].reset_index(drop=True), lineage=lineage)
-        model = MODELS[variant](cfg, seed)
-        t0 = time.perf_counter()
-        state = model.fit(train_view)
-        fit_s = time.perf_counter() - t0
-        t1 = time.perf_counter()
-        scores = model.predict(query)
-        pred_s = time.perf_counter() - t1
+        device = "cpu"
+        if variant in NEURAL:
+            from .evidence import load_tokenizer
+            from .neural import NeuralRun
+            local = resolve_local_path(cfg.model.local_path, PROJECT_ROOT)
+            tok, _ = load_tokenizer(local, cfg.model.revision)
+            t0 = time.perf_counter()
+            state = NeuralRun(cfg, variant, seed, local, run_dir, tok).fit_predict(
+                train_view, query, y[va].to_numpy(), cfg.evaluation.tie_salt)
+            scores = state.pop("scores")
+            fit_s, pred_s, device = time.perf_counter() - t0, 0.0, state["device"]
+        else:
+            model = MODELS[variant](cfg, seed)
+            t0 = time.perf_counter()
+            state = model.fit(train_view)
+            fit_s = time.perf_counter() - t0
+            t1 = time.perf_counter()
+            scores = model.predict(query)
+            pred_s = time.perf_counter() - t1
         ids = query.ids
         pred = pd.DataFrame({"change_id": ids, "run_id": run_id, "score": scores.astype(float),
                              "score_semantics": SCORE_SEMANTICS, "prediction_status": "ok",
@@ -166,8 +188,10 @@ def run_variant(cfg: StudyConfig, raw: dict, study_hash: str, variant: str, seed
             "structured_columns": list(cfg.structured.features),
             "evidence_manifest_sha256": lineage.get("evidence_manifest_sha256"),
             "query_hash_digest": lineage.get("evidence_query_hash_digest")})
-        atomic_write_json(run_dir / "cost.json", {"fit_seconds": fit_s, "predict_seconds": pred_s, "device": "cpu",
-                                                  "gpu_seconds": 0})
+        atomic_write_json(run_dir / "cost.json", {"wall_seconds": fit_s + pred_s, "fit_seconds": fit_s, "predict_seconds": pred_s,
+                                                  "device": device, "gpu_seconds": fit_s if device.startswith("cuda") else 0,
+                                                  "peak_cuda_bytes": state.get("peak_cuda_bytes"),
+                                                  "note": "neural fit_seconds include per-epoch validation scoring"})
         done = {**base, "status": "completed", "finished_at": datetime.now(UTC).isoformat(),
                 "validation_ap": metrics["ap"]}
         atomic_write_json(run_dir / "run.json", done)

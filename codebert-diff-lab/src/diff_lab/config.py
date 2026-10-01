@@ -107,6 +107,26 @@ class PolicyCfg(Strict):
     automatic_remote_logging: Literal[False]
 
 
+class FinetuneCfg(Strict):
+    """Shared downstream protocol for B2-S/B3-S/B4-S/B5-S (spec protocol §2.1). B2 differs only by a frozen encoder."""
+    max_epochs: int = Field(ge=1)
+    micro_batch_size: int = Field(ge=1)
+    gradient_accumulation_steps: int = Field(ge=1)
+    learning_rate: float = Field(gt=0)
+    weight_decay: float = Field(ge=0)
+    lr_schedule: Literal["constant"]
+    max_grad_norm: float = Field(gt=0)
+    head_dropout: float = Field(ge=0, lt=1)
+    selection_metric: Literal["validation_ap"]
+    patience_epochs: int = Field(ge=1)
+    tie_rule: Literal["earlier_checkpoint"]
+    class_weight: None = None
+    precision: Literal["fp32", "bf16_encoder_autocast"]
+    device: Literal["cuda", "mps", "cpu"]
+    allow_cpu: bool = False
+    eval_batch_size: int = Field(ge=1)
+
+
 class StudyConfig(Strict):
     schema_version: Literal[2]
     matrix_version: Literal[2]
@@ -125,7 +145,7 @@ class StudyConfig(Strict):
     policy: PolicyCfg
     llm: dict[str, Any] | Literal["PIN_REQUIRED"] | None = None
     cpt: dict[str, Any] | Literal["PIN_REQUIRED"] | None = None
-    finetune: dict[str, Any] | Literal["PIN_REQUIRED"] | None = None
+    finetune: FinetuneCfg | Literal["PIN_REQUIRED"] | None = None
 
 
 SECTIONS_READ = {
