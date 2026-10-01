@@ -42,6 +42,14 @@ def bundle(study):  # noqa: F811
     return cfg, arts, tmp, out
 
 
+def test_bundled_checkpoint_generation_is_complete(bundle):
+    from diff_lab.util import read_json
+    _, _, _, out = bundle
+    for ptr in out.glob("runs/*/checkpoints/best.json"):
+        meta = read_json(ptr)
+        assert all((ptr.parent / meta["generation"] / f).is_file() for f in meta["files_sha256"])
+
+
 def test_at20_bundle_verifies_and_detects_tampering(bundle):
     _, _, tmp, out = bundle
     assert verify_bundle(out)["freeze"]["status"] == "frozen"
