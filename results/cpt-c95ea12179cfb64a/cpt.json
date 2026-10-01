@@ -1,0 +1,191 @@
+{
+  "dev": [
+    {
+      "dev_mlm_loss": 15.11583170076696,
+      "dev_rmi_accuracy": 0.4561186650185414,
+      "dev_rmi_auc": 0.4867447292396583,
+      "dev_rmi_loss": 0.6960769295692444,
+      "dev_rmi_n": 809,
+      "dev_targets": 31488,
+      "update": 0
+    },
+    {
+      "dev_mlm_loss": 7.981027308518325,
+      "dev_rmi_accuracy": 0.5389369592088998,
+      "dev_rmi_auc": 0.5272389206466286,
+      "dev_rmi_loss": 0.6905525922775269,
+      "dev_rmi_n": 809,
+      "dev_targets": 31488,
+      "update": 25
+    },
+    {
+      "dev_mlm_loss": 5.619705184688413,
+      "dev_rmi_accuracy": 0.5772558714462299,
+      "dev_rmi_auc": 0.5748570901714918,
+      "dev_rmi_loss": 0.6903728246688843,
+      "dev_rmi_n": 809,
+      "dev_targets": 31488,
+      "update": 50
+    },
+    {
+      "dev_mlm_loss": 4.41207104194455,
+      "dev_rmi_accuracy": 0.48084054388133496,
+      "dev_rmi_auc": 0.5731974921630094,
+      "dev_rmi_loss": 0.694037914276123,
+      "dev_rmi_n": 809,
+      "dev_targets": 31488,
+      "update": 75
+    },
+    {
+      "dev_mlm_loss": 3.7408556124059165,
+      "dev_rmi_accuracy": 0.5760197775030902,
+      "dev_rmi_auc": 0.576698014629049,
+      "dev_rmi_loss": 0.6895816922187805,
+      "dev_rmi_n": 809,
+      "dev_targets": 31488,
+      "update": 100
+    },
+    {
+      "dev_mlm_loss": 3.307543064520611,
+      "dev_rmi_accuracy": 0.4672435105067985,
+      "dev_rmi_auc": 0.6175671522527506,
+      "dev_rmi_loss": 0.6944734454154968,
+      "dev_rmi_n": 809,
+      "dev_targets": 31488,
+      "update": 125
+    },
+    {
+      "dev_mlm_loss": 3.005327581390133,
+      "dev_rmi_accuracy": 0.588380716934487,
+      "dev_rmi_auc": 0.6384535005224661,
+      "dev_rmi_loss": 0.6879326105117798,
+      "dev_rmi_n": 809,
+      "dev_targets": 31488,
+      "update": 150
+    },
+    {
+      "dev_mlm_loss": 2.7796772980108493,
+      "dev_rmi_accuracy": 0.519159456118665,
+      "dev_rmi_auc": 0.625914315569488,
+      "dev_rmi_loss": 0.6904149055480957,
+      "dev_rmi_n": 809,
+      "dev_targets": 31488,
+      "update": 175
+    },
+    {
+      "dev_mlm_loss": 2.6374308655901655,
+      "dev_rmi_accuracy": 0.5772558714462299,
+      "dev_rmi_auc": 0.6501874731083657,
+      "dev_rmi_loss": 0.6822903752326965,
+      "dev_rmi_n": 809,
+      "dev_targets": 31488,
+      "update": 200
+    },
+    {
+      "dev_mlm_loss": 2.5324273768479264,
+      "dev_rmi_accuracy": 0.6316440049443758,
+      "dev_rmi_auc": 0.6767963611776998,
+      "dev_rmi_loss": 0.6744554042816162,
+      "dev_rmi_n": 809,
+      "dev_targets": 31488,
+      "update": 225
+    },
+    {
+      "dev_mlm_loss": 2.4843660215052163,
+      "dev_rmi_accuracy": 0.6266996291718171,
+      "dev_rmi_auc": 0.6845534452025325,
+      "dev_rmi_loss": 0.6709837913513184,
+      "dev_rmi_n": 809,
+      "dev_targets": 31488,
+      "update": 250
+    },
+    {
+      "dev_mlm_loss": 2.4775644860616546,
+      "dev_rmi_accuracy": 0.6341161928306551,
+      "dev_rmi_auc": 0.6878726412194972,
+      "dev_rmi_loss": 0.6696312427520752,
+      "dev_rmi_n": 809,
+      "dev_targets": 31488,
+      "update": 265
+    }
+  ],
+  "dev_ids_sha256": "b3c5602dc9bea051243fd372ac139d34ee49a7245211c6965dc031cc465917a4",
+  "device": "cuda",
+  "encoder_init_state_sha256": "a010cf3a06a3cbae52c3abf1bfc361f85c88a24352704c4f51715499c623dc4d",
+  "exported_encoder_state_sha256": "d13a5e531f78eccd53c6afc8fd8d01a51f601a9f1991779e607c1064455db812",
+  "lm_head_init_state_sha256": "5dee7a01bfe8625dfb07ca169158cf68eb3ddbb7ea0b4f1e454dc5c1da7474c2",
+  "lm_head_newly_initialized": [
+    "lm_head.bias",
+    "lm_head.decoder.bias",
+    "lm_head.dense.bias",
+    "lm_head.dense.weight",
+    "lm_head.layer_norm.bias",
+    "lm_head.layer_norm.weight"
+  ],
+  "peak_cuda_bytes": 4998096896,
+  "plan_sha256": "99ba9876cea6681e153dcdd69ce74a2e240adeacd29151850acf6b26ecf5080e",
+  "precision": "fp32",
+  "rmi_head_init": "seeded uniform, seed+1000003",
+  "seed": 43,
+  "status": "completed",
+  "task": "mlm+rmi",
+  "token_accounting": {
+    "budget": 10000000,
+    "budget_unit": "nonpadding_input_token_exposures",
+    "corpus_changes": 15375,
+    "corpus_tokens_per_pass": 4547062,
+    "cpt_train_rows_with_dev_identical_text": 1,
+    "dev_evals": 12,
+    "dev_forward_tokens_per_eval": 239066,
+    "excluded": {
+      "dev": {},
+      "train": {}
+    },
+    "forced_single_target_samples": 38,
+    "forward_tokens": 10003324,
+    "mlm_input_tokens": 5031305,
+    "mlm_passes": 1.1064957988257034,
+    "mlm_target_tokens": 662134,
+    "mlm_updates": 133,
+    "optimizer_updates": 265,
+    "permutation_epochs": {
+      "mlm": 2,
+      "rmi": 2
+    },
+    "planned_updates": 265,
+    "rmi": {
+      "dev_examples": 809,
+      "dev_pool_sha256": "f1853ffb7e90969b3cb337a6d55e95cf40597699f2e49e13e52c8f5cfb911c9e",
+      "dev_positive": 374,
+      "false_negative_limit": "a swapped message can still describe the change; not filtered",
+      "ineligible": {
+        "jitd4j:ant-ivy:258959fd7449fda1c1855431351420c73c8d3cbd": "empty_message",
+        "jitd4j:commons-beanutils:fd64cac9b33995fd539ea08de9035783ff06548e": "empty_message",
+        "jitd4j:commons-codec:5dae4d949e1ce53048fdb817ce6e2a76cb3a25ee": "empty_message",
+        "jitd4j:commons-jcs:de4cf5efa3316f4624f8d80bcfc5a922c7e71680": "empty_message",
+        "jitd4j:commons-net:05b92b6049e869f78de79fa71ac48149f10fca23": "empty_message",
+        "jitd4j:commons-net:187c41822e10d1c69779a11ca6ba0e0a7b0c1894": "empty_message",
+        "jitd4j:commons-net:928559647506b9c328d0e83612db27cae400d960": "empty_message",
+        "jitd4j:commons-net:dcea3bb4343dcf1b818fd7412ea0adefa30ebbf5": "empty_message",
+        "jitd4j:opennlp:80bbc70fd4b4d07529041c78eca1bc3b425c04d6": "empty_message"
+      },
+      "ineligible_rate": 0.0005853658536585366,
+      "pool_sha256": "dd81ae20fcc2eafdca227262ae55fa4ace84ba2038cbf7b5337059ff6207f6d8",
+      "pool_size": 15366,
+      "replacement_probability": 0.5,
+      "sampler": "rmi-uniform-reject-v1",
+      "target_convention": "1 = original message, 0 = message from another CPT-train change"
+    },
+    "rmi_input_tokens": 4972019,
+    "rmi_negative_targets": 8371,
+    "rmi_positive_targets": 8525,
+    "rmi_targets": 16896,
+    "rmi_truncated_inputs": 879,
+    "rmi_updates": 132,
+    "task": "mlm+rmi",
+    "train_seconds_this_attempt": 348.6699503995478,
+    "unique_changes_seen": 15375,
+    "warmup_updates": 16
+  },
+  "train_ids_sha256": "e73fcabdbc220736a426d1f1f0af5bcd2bd6514e72f8cc41cc911af21240af7c"
+}

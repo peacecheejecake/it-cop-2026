@@ -1,0 +1,191 @@
+{
+  "dev": [
+    {
+      "dev_mlm_loss": 15.360856343091019,
+      "dev_rmi_accuracy": 0.5377008652657602,
+      "dev_rmi_auc": 0.49055565799987705,
+      "dev_rmi_loss": 0.701530933380127,
+      "dev_rmi_n": 809,
+      "dev_targets": 31488,
+      "update": 0
+    },
+    {
+      "dev_mlm_loss": 8.312347412109375,
+      "dev_rmi_accuracy": 0.5401730531520396,
+      "dev_rmi_auc": 0.5058669862929497,
+      "dev_rmi_loss": 0.690777063369751,
+      "dev_rmi_n": 809,
+      "dev_targets": 31488,
+      "update": 25
+    },
+    {
+      "dev_mlm_loss": 5.617296947696345,
+      "dev_rmi_accuracy": 0.4622991347342398,
+      "dev_rmi_auc": 0.5281271129141312,
+      "dev_rmi_loss": 0.7009081244468689,
+      "dev_rmi_n": 809,
+      "dev_targets": 31488,
+      "update": 50
+    },
+    {
+      "dev_mlm_loss": 4.4557130394912345,
+      "dev_rmi_accuracy": 0.5377008652657602,
+      "dev_rmi_auc": 0.5139959432048682,
+      "dev_rmi_loss": 0.6899948120117188,
+      "dev_rmi_n": 809,
+      "dev_targets": 31488,
+      "update": 75
+    },
+    {
+      "dev_mlm_loss": 3.822411405361765,
+      "dev_rmi_accuracy": 0.4622991347342398,
+      "dev_rmi_auc": 0.5394861392832995,
+      "dev_rmi_loss": 0.6968472003936768,
+      "dev_rmi_n": 809,
+      "dev_targets": 31488,
+      "update": 100
+    },
+    {
+      "dev_mlm_loss": 3.3747312034048687,
+      "dev_rmi_accuracy": 0.546353522867738,
+      "dev_rmi_auc": 0.5773710738213781,
+      "dev_rmi_loss": 0.6898674964904785,
+      "dev_rmi_n": 809,
+      "dev_targets": 31488,
+      "update": 125
+    },
+    {
+      "dev_mlm_loss": 3.0740258596776946,
+      "dev_rmi_accuracy": 0.49814585908529047,
+      "dev_rmi_auc": 0.5481099022681173,
+      "dev_rmi_loss": 0.6941633224487305,
+      "dev_rmi_n": 809,
+      "dev_targets": 31488,
+      "update": 150
+    },
+    {
+      "dev_mlm_loss": 2.8528378882059235,
+      "dev_rmi_accuracy": 0.5426452410383189,
+      "dev_rmi_auc": 0.6000245866371627,
+      "dev_rmi_loss": 0.6884187459945679,
+      "dev_rmi_n": 809,
+      "dev_targets": 31488,
+      "update": 175
+    },
+    {
+      "dev_mlm_loss": 2.7046284249158408,
+      "dev_rmi_accuracy": 0.5550061804697157,
+      "dev_rmi_auc": 0.5930542750015366,
+      "dev_rmi_loss": 0.6900463700294495,
+      "dev_rmi_n": 809,
+      "dev_targets": 31488,
+      "update": 200
+    },
+    {
+      "dev_mlm_loss": 2.60124056901389,
+      "dev_rmi_accuracy": 0.5587144622991347,
+      "dev_rmi_auc": 0.6068258651422952,
+      "dev_rmi_loss": 0.688855767250061,
+      "dev_rmi_n": 809,
+      "dev_targets": 31488,
+      "update": 225
+    },
+    {
+      "dev_mlm_loss": 2.5465880293187086,
+      "dev_rmi_accuracy": 0.5661310259579728,
+      "dev_rmi_auc": 0.6020468375437951,
+      "dev_rmi_loss": 0.6897979378700256,
+      "dev_rmi_n": 809,
+      "dev_targets": 31488,
+      "update": 250
+    },
+    {
+      "dev_mlm_loss": 2.5390339517981055,
+      "dev_rmi_accuracy": 0.5648949320148331,
+      "dev_rmi_auc": 0.6023603171676194,
+      "dev_rmi_loss": 0.6897273659706116,
+      "dev_rmi_n": 809,
+      "dev_targets": 31488,
+      "update": 265
+    }
+  ],
+  "dev_ids_sha256": "b3c5602dc9bea051243fd372ac139d34ee49a7245211c6965dc031cc465917a4",
+  "device": "cuda",
+  "encoder_init_state_sha256": "a010cf3a06a3cbae52c3abf1bfc361f85c88a24352704c4f51715499c623dc4d",
+  "exported_encoder_state_sha256": "a7ea594a70233e8e29cb38f6cf019371e44bb6137acc1d8f60b5b9b79003d774",
+  "lm_head_init_state_sha256": "ed7bfb301cbd329d024f93a383e3e65007c5e1ada3813e1d5c357dfe9012f6a4",
+  "lm_head_newly_initialized": [
+    "lm_head.bias",
+    "lm_head.decoder.bias",
+    "lm_head.dense.bias",
+    "lm_head.dense.weight",
+    "lm_head.layer_norm.bias",
+    "lm_head.layer_norm.weight"
+  ],
+  "peak_cuda_bytes": 5008681984,
+  "plan_sha256": "938aa3400335bcee0914567a1357ed7ca005f99c3dc7361a0d6cdf5a8ae83467",
+  "precision": "fp32",
+  "rmi_head_init": "seeded uniform, seed+1000003",
+  "seed": 44,
+  "status": "completed",
+  "task": "mlm+rmi",
+  "token_accounting": {
+    "budget": 10000000,
+    "budget_unit": "nonpadding_input_token_exposures",
+    "corpus_changes": 15375,
+    "corpus_tokens_per_pass": 4547062,
+    "cpt_train_rows_with_dev_identical_text": 1,
+    "dev_evals": 12,
+    "dev_forward_tokens_per_eval": 239066,
+    "excluded": {
+      "dev": {},
+      "train": {}
+    },
+    "forced_single_target_samples": 37,
+    "forward_tokens": 10010623,
+    "mlm_input_tokens": 5035841,
+    "mlm_passes": 1.1074933660460315,
+    "mlm_target_tokens": 663031,
+    "mlm_updates": 133,
+    "optimizer_updates": 265,
+    "permutation_epochs": {
+      "mlm": 2,
+      "rmi": 2
+    },
+    "planned_updates": 265,
+    "rmi": {
+      "dev_examples": 809,
+      "dev_pool_sha256": "f1853ffb7e90969b3cb337a6d55e95cf40597699f2e49e13e52c8f5cfb911c9e",
+      "dev_positive": 374,
+      "false_negative_limit": "a swapped message can still describe the change; not filtered",
+      "ineligible": {
+        "jitd4j:ant-ivy:258959fd7449fda1c1855431351420c73c8d3cbd": "empty_message",
+        "jitd4j:commons-beanutils:fd64cac9b33995fd539ea08de9035783ff06548e": "empty_message",
+        "jitd4j:commons-codec:5dae4d949e1ce53048fdb817ce6e2a76cb3a25ee": "empty_message",
+        "jitd4j:commons-jcs:de4cf5efa3316f4624f8d80bcfc5a922c7e71680": "empty_message",
+        "jitd4j:commons-net:05b92b6049e869f78de79fa71ac48149f10fca23": "empty_message",
+        "jitd4j:commons-net:187c41822e10d1c69779a11ca6ba0e0a7b0c1894": "empty_message",
+        "jitd4j:commons-net:928559647506b9c328d0e83612db27cae400d960": "empty_message",
+        "jitd4j:commons-net:dcea3bb4343dcf1b818fd7412ea0adefa30ebbf5": "empty_message",
+        "jitd4j:opennlp:80bbc70fd4b4d07529041c78eca1bc3b425c04d6": "empty_message"
+      },
+      "ineligible_rate": 0.0005853658536585366,
+      "pool_sha256": "dd81ae20fcc2eafdca227262ae55fa4ace84ba2038cbf7b5337059ff6207f6d8",
+      "pool_size": 15366,
+      "replacement_probability": 0.5,
+      "sampler": "rmi-uniform-reject-v1",
+      "target_convention": "1 = original message, 0 = message from another CPT-train change"
+    },
+    "rmi_input_tokens": 4974782,
+    "rmi_negative_targets": 8535,
+    "rmi_positive_targets": 8361,
+    "rmi_targets": 16896,
+    "rmi_truncated_inputs": 844,
+    "rmi_updates": 132,
+    "task": "mlm+rmi",
+    "train_seconds_this_attempt": 343.7051759585738,
+    "unique_changes_seen": 15375,
+    "warmup_updates": 16
+  },
+  "train_ids_sha256": "e73fcabdbc220736a426d1f1f0af5bcd2bd6514e72f8cc41cc911af21240af7c"
+}

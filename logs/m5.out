@@ -1,0 +1,76 @@
+CPT-MLM+RMI seed=42 update=25/265 mlm_loss=9.0098 dev_mlm=8.5735 dev_rmi_acc=0.541 tokens=943590
+CPT-MLM+RMI seed=42 update=50/265 rmi_loss=0.6906 dev_mlm=6.0115 dev_rmi_acc=0.530 tokens=1877743
+CPT-MLM+RMI seed=42 update=75/265 mlm_loss=4.8662 dev_mlm=4.6999 dev_rmi_acc=0.515 tokens=2833851
+CPT-MLM+RMI seed=42 update=100/265 rmi_loss=0.7002 dev_mlm=3.9760 dev_rmi_acc=0.476 tokens=3784057
+CPT-MLM+RMI seed=42 update=125/265 mlm_loss=3.5336 dev_mlm=3.4954 dev_rmi_acc=0.581 tokens=4729820
+CPT-MLM+RMI seed=42 update=150/265 rmi_loss=0.6897 dev_mlm=3.1856 dev_rmi_acc=0.501 tokens=5660033
+CPT-MLM+RMI seed=42 update=175/265 mlm_loss=3.2838 dev_mlm=2.9754 dev_rmi_acc=0.533 tokens=6603339
+CPT-MLM+RMI seed=42 update=200/265 rmi_loss=0.6629 dev_mlm=2.8136 dev_rmi_acc=0.650 tokens=7536235
+CPT-MLM+RMI seed=42 update=225/265 mlm_loss=3.0111 dev_mlm=2.7120 dev_rmi_acc=0.661 tokens=8496584
+CPT-MLM+RMI seed=42 update=250/265 rmi_loss=0.6389 dev_mlm=2.6622 dev_rmi_acc=0.692 tokens=9446304
+CPT-MLM+RMI seed=42 update=265/265 mlm_loss=2.8861 dev_mlm=2.6522 dev_rmi_acc=0.703 tokens=10022448
+B5-S seed=42 epoch=1 loss=0.2125 val_ap=0.6574 best=0.6574@1
+B5-S seed=42 epoch=2 loss=0.1662 val_ap=0.6345 best=0.6574@1
+B5-S seed=42 epoch=3 loss=0.1387 val_ap=0.6529 best=0.6574@1
+B5-S seed=42 epoch=4 loss=0.1064 val_ap=0.5998 best=0.6574@1
+B5-S seed=42 epoch=5 loss=0.0788 val_ap=0.5653 best=0.6574@1
+B5-S seed=42 epoch=6 loss=0.0532 val_ap=0.5215 best=0.6574@1
+CPT-MLM+RMI seed=43 update=25/265 mlm_loss=8.3328 dev_mlm=7.9810 dev_rmi_acc=0.539 tokens=944185
+CPT-MLM+RMI seed=43 update=50/265 rmi_loss=0.6895 dev_mlm=5.6197 dev_rmi_acc=0.577 tokens=1882717
+CPT-MLM+RMI seed=43 update=75/265 mlm_loss=4.7220 dev_mlm=4.4121 dev_rmi_acc=0.481 tokens=2830802
+CPT-MLM+RMI seed=43 update=100/265 rmi_loss=0.6945 dev_mlm=3.7409 dev_rmi_acc=0.576 tokens=3787155
+CPT-MLM+RMI seed=43 update=125/265 mlm_loss=3.7528 dev_mlm=3.3075 dev_rmi_acc=0.467 tokens=4729991
+CPT-MLM+RMI seed=43 update=150/265 rmi_loss=0.6753 dev_mlm=3.0053 dev_rmi_acc=0.588 tokens=5661810
+CPT-MLM+RMI seed=43 update=175/265 mlm_loss=3.1171 dev_mlm=2.7797 dev_rmi_acc=0.519 tokens=6605514
+CPT-MLM+RMI seed=43 update=200/265 rmi_loss=0.6794 dev_mlm=2.6374 dev_rmi_acc=0.577 tokens=7545691
+CPT-MLM+RMI seed=43 update=225/265 mlm_loss=3.1542 dev_mlm=2.5324 dev_rmi_acc=0.632 tokens=8493355
+CPT-MLM+RMI seed=43 update=250/265 rmi_loss=0.6725 dev_mlm=2.4844 dev_rmi_acc=0.627 tokens=9440794
+CPT-MLM+RMI seed=43 update=265/265 mlm_loss=2.6557 dev_mlm=2.4776 dev_rmi_acc=0.634 tokens=10003324
+B5-S seed=43 epoch=1 loss=0.2111 val_ap=0.6578 best=0.6578@1
+B5-S seed=43 epoch=2 loss=0.1613 val_ap=0.6746 best=0.6746@2
+B5-S seed=43 epoch=3 loss=0.1355 val_ap=0.6385 best=0.6746@2
+B5-S seed=43 epoch=4 loss=0.1063 val_ap=0.5815 best=0.6746@2
+B5-S seed=43 epoch=5 loss=0.0699 val_ap=0.5309 best=0.6746@2
+B5-S seed=43 epoch=6 loss=0.0469 val_ap=0.5003 best=0.6746@2
+B5-S seed=43 epoch=7 loss=0.0302 val_ap=0.4975 best=0.6746@2
+CPT-MLM+RMI seed=44 update=25/265 mlm_loss=8.4320 dev_mlm=8.3123 dev_rmi_acc=0.540 tokens=928525
+CPT-MLM+RMI seed=44 update=50/265 rmi_loss=0.6942 dev_mlm=5.6173 dev_rmi_acc=0.462 tokens=1882696
+CPT-MLM+RMI seed=44 update=75/265 mlm_loss=4.6182 dev_mlm=4.4557 dev_rmi_acc=0.538 tokens=2823385
+CPT-MLM+RMI seed=44 update=100/265 rmi_loss=0.6779 dev_mlm=3.8224 dev_rmi_acc=0.462 tokens=3766694
+CPT-MLM+RMI seed=44 update=125/265 mlm_loss=3.5765 dev_mlm=3.3747 dev_rmi_acc=0.546 tokens=4701518
+CPT-MLM+RMI seed=44 update=150/265 rmi_loss=0.6897 dev_mlm=3.0740 dev_rmi_acc=0.498 tokens=5656768
+CPT-MLM+RMI seed=44 update=175/265 mlm_loss=3.1602 dev_mlm=2.8528 dev_rmi_acc=0.543 tokens=6611525
+CPT-MLM+RMI seed=44 update=200/265 rmi_loss=0.6886 dev_mlm=2.7046 dev_rmi_acc=0.555 tokens=7543621
+CPT-MLM+RMI seed=44 update=225/265 mlm_loss=2.9394 dev_mlm=2.6012 dev_rmi_acc=0.559 tokens=8498794
+CPT-MLM+RMI seed=44 update=250/265 rmi_loss=0.6885 dev_mlm=2.5466 dev_rmi_acc=0.566 tokens=9442597
+CPT-MLM+RMI seed=44 update=265/265 mlm_loss=2.8932 dev_mlm=2.5390 dev_rmi_acc=0.565 tokens=10010623
+B5-S seed=44 epoch=1 loss=0.2093 val_ap=0.6498 best=0.6498@1
+B5-S seed=44 epoch=2 loss=0.1677 val_ap=0.6743 best=0.6743@2
+B5-S seed=44 epoch=3 loss=0.1409 val_ap=0.6260 best=0.6743@2
+B5-S seed=44 epoch=4 loss=0.1065 val_ap=0.6063 best=0.6743@2
+B5-S seed=44 epoch=5 loss=0.0741 val_ap=0.5043 best=0.6743@2
+B5-S seed=44 epoch=6 loss=0.0493 val_ap=0.4956 best=0.6743@2
+B5-S seed=44 epoch=7 loss=0.0277 val_ap=0.5116 best=0.6743@2
+[
+  {
+    "run_id": "60269328794d8df7",
+    "seed": 42,
+    "status": "completed",
+    "validation_ap": 0.6574294531672292,
+    "variant_id": "B5-S"
+  },
+  {
+    "run_id": "e1b8ef1f29915aaf",
+    "seed": 43,
+    "status": "completed",
+    "validation_ap": 0.6746119971525576,
+    "variant_id": "B5-S"
+  },
+  {
+    "run_id": "810917980633be9b",
+    "seed": 44,
+    "status": "completed",
+    "validation_ap": 0.6743236326198481,
+    "variant_id": "B5-S"
+  }
+]

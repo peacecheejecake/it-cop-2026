@@ -1,0 +1,7 @@
+{"epoch": 1, "kind": "epoch", "optimizer_updates": 506, "train_loss": 0.2092554067135837, "validation_ap": 0.6497975920924776, "validation_roc_auc": 0.9087712172663498}
+{"epoch": 2, "kind": "epoch", "optimizer_updates": 506, "train_loss": 0.16771840736190768, "validation_ap": 0.6743236326198481, "validation_roc_auc": 0.9060412173434684}
+{"epoch": 3, "kind": "epoch", "optimizer_updates": 506, "train_loss": 0.14089950603132334, "validation_ap": 0.6259602935396599, "validation_roc_auc": 0.8987685009764077}
+{"epoch": 4, "kind": "epoch", "optimizer_updates": 506, "train_loss": 0.10653100537867433, "validation_ap": 0.6062659524882692, "validation_roc_auc": 0.8886578185878207}
+{"epoch": 5, "kind": "epoch", "optimizer_updates": 506, "train_loss": 0.07414447209296951, "validation_ap": 0.504319238937716, "validation_roc_auc": 0.8692509123563772}
+{"epoch": 6, "kind": "epoch", "optimizer_updates": 506, "train_loss": 0.04928371676908728, "validation_ap": 0.495647046938399, "validation_roc_auc": 0.8577062516655485}
+{"epoch": 7, "kind": "epoch", "optimizer_updates": 506, "train_loss": 0.027719524552702473, "validation_ap": 0.5115833901457456, "validation_roc_auc": 0.8712724918661257}

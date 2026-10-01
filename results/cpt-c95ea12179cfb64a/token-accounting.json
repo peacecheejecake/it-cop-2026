@@ -1,0 +1,58 @@
+{
+  "budget": 10000000,
+  "budget_unit": "nonpadding_input_token_exposures",
+  "corpus_changes": 15375,
+  "corpus_tokens_per_pass": 4547062,
+  "cpt_train_rows_with_dev_identical_text": 1,
+  "dev_evals": 12,
+  "dev_forward_tokens_per_eval": 239066,
+  "excluded": {
+    "dev": {},
+    "train": {}
+  },
+  "forced_single_target_samples": 38,
+  "forward_tokens": 10003324,
+  "mlm_input_tokens": 5031305,
+  "mlm_passes": 1.1064957988257034,
+  "mlm_target_tokens": 662134,
+  "mlm_updates": 133,
+  "optimizer_updates": 265,
+  "permutation_epochs": {
+    "mlm": 2,
+    "rmi": 2
+  },
+  "planned_updates": 265,
+  "rmi": {
+    "dev_examples": 809,
+    "dev_pool_sha256": "f1853ffb7e90969b3cb337a6d55e95cf40597699f2e49e13e52c8f5cfb911c9e",
+    "dev_positive": 374,
+    "false_negative_limit": "a swapped message can still describe the change; not filtered",
+    "ineligible": {
+      "jitd4j:ant-ivy:258959fd7449fda1c1855431351420c73c8d3cbd": "empty_message",
+      "jitd4j:commons-beanutils:fd64cac9b33995fd539ea08de9035783ff06548e": "empty_message",
+      "jitd4j:commons-codec:5dae4d949e1ce53048fdb817ce6e2a76cb3a25ee": "empty_message",
+      "jitd4j:commons-jcs:de4cf5efa3316f4624f8d80bcfc5a922c7e71680": "empty_message",
+      "jitd4j:commons-net:05b92b6049e869f78de79fa71ac48149f10fca23": "empty_message",
+      "jitd4j:commons-net:187c41822e10d1c69779a11ca6ba0e0a7b0c1894": "empty_message",
+      "jitd4j:commons-net:928559647506b9c328d0e83612db27cae400d960": "empty_message",
+      "jitd4j:commons-net:dcea3bb4343dcf1b818fd7412ea0adefa30ebbf5": "empty_message",
+      "jitd4j:opennlp:80bbc70fd4b4d07529041c78eca1bc3b425c04d6": "empty_message"
+    },
+    "ineligible_rate": 0.0005853658536585366,
+    "pool_sha256": "dd81ae20fcc2eafdca227262ae55fa4ace84ba2038cbf7b5337059ff6207f6d8",
+    "pool_size": 15366,
+    "replacement_probability": 0.5,
+    "sampler": "rmi-uniform-reject-v1",
+    "target_convention": "1 = original message, 0 = message from another CPT-train change"
+  },
+  "rmi_input_tokens": 4972019,
+  "rmi_negative_targets": 8371,
+  "rmi_positive_targets": 8525,
+  "rmi_targets": 16896,
+  "rmi_truncated_inputs": 879,
+  "rmi_updates": 132,
+  "task": "mlm+rmi",
+  "train_seconds_this_attempt": 348.6699503995478,
+  "unique_changes_seen": 15375,
+  "warmup_updates": 16
+}

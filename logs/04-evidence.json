@@ -1,0 +1,14 @@
+{
+  "cache_key": "1858e3a77748fd2a6e4a9eacdf549da49e729c06cabc4dd8ab94ef7f027ef385",
+  "coverage": {
+    "add_lines_kept_ratio": 0.30677006194860085,
+    "changes_with_all_code_kept": 17660,
+    "coverage_scope": "within preprocessed_lines package (not repository diff coverage)",
+    "del_lines_kept_ratio": 0.29766938099193213,
+    "encoder_tokens_median": 280.0,
+    "message_truncated": 1471,
+    "n": 27129,
+    "truncated": 10057
+  },
+  "evidence_dir": "<repo>/experiments/010-dl-m5-mlm-rmi/codebert-diff-lab/data/evidence/jitd4j-audit1/upstream-clean2/message-add-del-text-v2-L512-M64-3b0952feddef"
+}

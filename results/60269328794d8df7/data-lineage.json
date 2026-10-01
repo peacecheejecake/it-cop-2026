@@ -1,0 +1,12 @@
+{
+  "approval_sha256": "31b840ab1482e846dd01ef1edba28410f7d51c983c67dfc7e36af8c2218b95c6",
+  "approval_source_id": "jit-defects4j",
+  "evidence_manifest_sha256": "35168d16e2cc8a1172c5dc6ce630c1100d7c025b962a2a4958c5a33e2af9e91f",
+  "evidence_query_hash_digest": "7d8774b4545993e08636d7a91310c851166bf6e6e0ecff7ef31bdc78207c7371",
+  "feature_schema_id": "jit14-provided-v1",
+  "snapshot_id": "jitd4j-audit1",
+  "snapshot_manifest_sha256": "32b454ff989862325dc205b24e455ee50a6cf187aab384c6de933aa3f5b48e57",
+  "split_id": "upstream-clean2",
+  "split_manifest_sha256": "490575aaeed13cc7ba138dcfdf9d7d2292c7aac49d808047216192b3f5d4eabb",
+  "visibility": "public"
+}
