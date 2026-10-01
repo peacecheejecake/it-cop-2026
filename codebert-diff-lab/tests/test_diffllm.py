@@ -66,13 +66,17 @@ def test_cpt_corpus_budget_dedupe_and_exclusion(tmp_path, tok):
     root.mkdir()
     _repo(root / "r1", 12)
     from diff_lab.fulldiff import commit_diff
-    shas = subprocess.run(["git", "-C", str(root / "r1.git"), "rev-list", "HEAD"], capture_output=True, text=True).stdout.split()
-    excluded = commit_diff(root / "r1.git", shas[0])[0]
     from diff_lab.util import sha256_text
-    m = build_cpt_corpus(root, ["r1"], {sha256_text(excluded)}, tok, budget=200, max_tokens=512, out=tmp_path / "cpt")
+    shas = subprocess.run(["git", "-C", str(root / "r1.git"), "rev-list", "HEAD"], capture_output=True, text=True).stdout.split()
+    keep = shas[len(shas) // 2]
+    # Rank order depends on commit SHAs (new every run): exclude all but one so the outcome is order-independent.
+    excluded = {sha256_text(commit_diff(root / "r1.git", s)[0]) for s in shas if s != keep}
+    m = build_cpt_corpus(root, ["r1"], excluded, tok, budget=1, max_tokens=512, out=tmp_path / "cpt")
     df = pd.read_parquet(tmp_path / "cpt" / "corpus.parquet")
-    assert m["tokens"] >= 200 and shas[0] not in set(df["sha"]) and df["diff_sha256"].is_unique
-    assert m["skipped"]["excluded_jd4j"] == 1
+    assert set(df["sha"]) == {keep} and m["tokens"] >= 1
+    assert m["skipped"]["excluded_jd4j"] + m["skipped"]["duplicate"] + m["skipped"]["empty"] + 1 <= len(shas)
+    m2 = build_cpt_corpus(root, ["r1"], set(), tok, budget=200, max_tokens=512, out=tmp_path / "cpt-b")
+    assert m2["tokens"] >= 200 and pd.read_parquet(tmp_path / "cpt-b" / "corpus.parquet")["diff_sha256"].is_unique
     with pytest.raises(Exception, match="only"):
         build_cpt_corpus(root, ["r1"], set(), tok, budget=10**9, max_tokens=512, out=tmp_path / "cpt2")
 
