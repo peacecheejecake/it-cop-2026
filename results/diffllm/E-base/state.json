@@ -1,0 +1,6 @@
+{
+  "best_epoch": 5,
+  "best_validation_ap": 0.24993014590497792,
+  "epochs": 10,
+  "history": null
+}

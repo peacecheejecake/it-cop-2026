@@ -1,0 +1,45 @@
+SFT step 505 epoch 1 loss=0.2487 selection_AP=0.2342
+SFT step 1010 epoch 1 loss=0.1615 selection_AP=0.2924
+SFT step 1011 epoch 1 loss=0.2078 selection_AP=0.2907
+SFT step 1515 epoch 2 loss=0.3177 selection_AP=0.2469
+R-base: validation AP 0.3224
+E-base: validation AP 0.2499
+CPT update 10/381 loss=0.8875 lr=8.33e-05 tok/s=4814
+CPT update 20/381 loss=0.8506 lr=9.99e-05 tok/s=4826
+CPT update 30/381 loss=0.8282 lr=9.95e-05 tok/s=4830
+CPT update 40/381 loss=0.7963 lr=9.87e-05 tok/s=4832
+CPT update 50/381 loss=0.7768 lr=9.75e-05 tok/s=4834
+CPT update 60/381 loss=0.8576 lr=9.61e-05 tok/s=4828
+CPT update 70/381 loss=0.8423 lr=9.42e-05 tok/s=4829
+CPT update 80/381 loss=0.7308 lr=9.21e-05 tok/s=4831
+CPT update 90/381 loss=0.8208 lr=8.96e-05 tok/s=4832
+CPT update 100/381 loss=0.8107 lr=8.69e-05 tok/s=4832
+CPT update 110/381 loss=0.7746 lr=8.39e-05 tok/s=4829
+CPT update 120/381 loss=0.8005 lr=8.06e-05 tok/s=4830
+CPT update 130/381 loss=0.8005 lr=7.72e-05 tok/s=4830
+CPT update 140/381 loss=0.8239 lr=7.35e-05 tok/s=4831
+CPT update 150/381 loss=0.7884 lr=6.97e-05 tok/s=4831
+CPT update 160/381 loss=0.7016 lr=6.57e-05 tok/s=4829
+CPT update 170/381 loss=0.7580 lr=6.16e-05 tok/s=4830
+CPT update 180/381 loss=0.7956 lr=5.74e-05 tok/s=4830
+CPT update 190/381 loss=0.7818 lr=5.32e-05 tok/s=4831
+CPT update 200/381 loss=0.7613 lr=4.89e-05 tok/s=4831
+CPT update 210/381 loss=0.7691 lr=4.47e-05 tok/s=4830
+CPT update 220/381 loss=0.7483 lr=4.05e-05 tok/s=4830
+CPT update 230/381 loss=0.7746 lr=3.63e-05 tok/s=4830
+CPT update 240/381 loss=0.7723 lr=3.23e-05 tok/s=4831
+CPT update 250/381 loss=0.7527 lr=2.84e-05 tok/s=4831
+CPT update 260/381 loss=0.8217 lr=2.46e-05 tok/s=4829
+CPT update 270/381 loss=0.7583 lr=2.11e-05 tok/s=4830
+CPT update 280/381 loss=0.7729 lr=1.77e-05 tok/s=4830
+CPT update 290/381 loss=0.7506 lr=1.46e-05 tok/s=4830
+CPT update 300/381 loss=0.7604 lr=1.17e-05 tok/s=4830
+CPT update 310/381 loss=0.7506 lr=9.10e-06 tok/s=4829
+CPT update 320/381 loss=0.7813 lr=6.81e-06 tok/s=4830
+CPT update 330/381 loss=0.7660 lr=4.82e-06 tok/s=4830
+CPT update 340/381 loss=0.7706 lr=3.16e-06 tok/s=4830
+CPT update 350/381 loss=0.8170 lr=1.84e-06 tok/s=4830
+CPT update 360/381 loss=0.7467 lr=8.75e-07 tok/s=4829
+CPT update 370/381 loss=0.7903 lr=2.61e-07 tok/s=4830
+CPT update 380/381 loss=0.7564 lr=7.25e-09 tok/s=4830
+CPT update 381/381 loss=0.7462 lr=1.81e-09 tok/s=4830

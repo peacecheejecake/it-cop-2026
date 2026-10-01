@@ -1,0 +1,18 @@
+{
+  "arm": "E-base",
+  "artifacts_sha256": {
+    "metrics.json": "3a0514c182ca328efb488eff95e9c623f6606a913d6d61c28069c71469ecbecb",
+    "mlp.json": "a6204b0863ea2fd68c65e08c683d30b68b2c188acfda54728844124c651389bd",
+    "state.json": "02b0bd1c451da0399d7ea84d0b680ed5f9de0bc4252c8014d2f3f8f0c2e06d04",
+    "validation.parquet": "0b730f09bdf7e0f210a10366b98b63f6307bbcba5012922bc91d21cbb0e5845a"
+  },
+  "code_git_sha": "0d0fdb8754fe2cd43a8dabe07c3cbd897c46b613",
+  "config_sha256": "dabad0a0bd8b7d13110fea8593b430ae3be09665465ec945ad4d31e0f9519ace",
+  "cpt_adapter": null,
+  "finished_at": "2026-10-01T18:32:41.852242+00:00",
+  "seed": 42,
+  "started_at": "2026-10-01T18:19:06.504257+00:00",
+  "status": "completed",
+  "study_id": "diffllm-v1",
+  "validation_ap": 0.24993014590497792
+}

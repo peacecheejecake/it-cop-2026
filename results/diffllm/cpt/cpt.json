@@ -1,0 +1,39 @@
+{
+  "adapter_files": [
+    "README.md",
+    "adapter_config.json",
+    "adapter_model.safetensors"
+  ],
+  "cfg": {
+    "accumulation": 16,
+    "checkpoint_every": 50,
+    "gradient_checkpointing": true,
+    "learning_rate": 0.0001,
+    "lora_alpha": 128,
+    "lora_dropout": 0.05,
+    "lora_r": 64,
+    "micro_batch": 4,
+    "seq_len": 2048,
+    "target_modules": [
+      "q_proj",
+      "k_proj",
+      "v_proj",
+      "o_proj",
+      "gate_proj",
+      "up_proj",
+      "down_proj"
+    ],
+    "warmup_fraction": 0.03
+  },
+  "code_git_sha": "0d0fdb8754fe2cd43a8dabe07c3cbd897c46b613",
+  "config_sha256": "dabad0a0bd8b7d13110fea8593b430ae3be09665465ec945ad4d31e0f9519ace",
+  "corpus_manifest_sha256": "5841617376ab87b47f89252ce7ca9daf5247d18b2b741a79d7a4cf2d833e3186",
+  "final_loss": 0.7461772747337818,
+  "loss_first": 0.9756196066737175,
+  "seconds_this_attempt": 10339.905988745391,
+  "seq_len": 2048,
+  "sequences": 24438,
+  "status": "completed",
+  "tokens": 49938432,
+  "updates": 381
+}

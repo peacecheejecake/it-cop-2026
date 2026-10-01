@@ -1,0 +1,45 @@
+{
+  "ap": 0.24993014590497792,
+  "at_threshold": {
+    "f1": 0.33240611961057026,
+    "precision": 0.24613800205973224,
+    "predicted_positive": 971,
+    "recall": 0.5117773019271948,
+    "threshold": 0.013219797983765602
+  },
+  "evaluation_role": "selection_validation",
+  "n": 5465,
+  "null_reason": null,
+  "null_reasons": {
+    "ap": null,
+    "roc_auc": null
+  },
+  "positives": 467,
+  "prevalence": 0.08545288197621226,
+  "recall_at_10pct": {
+    "boundary_tie_size": 1,
+    "k": 547,
+    "null_reason": null,
+    "precision": 0.2797074954296161,
+    "recall": 0.32762312633832974,
+    "selection_rate": 0.1000914913083257,
+    "tp": 153
+  },
+  "recall_at_5pct": {
+    "boundary_tie_size": 1,
+    "k": 274,
+    "null_reason": null,
+    "precision": 0.354014598540146,
+    "recall": 0.20770877944325483,
+    "selection_rate": 0.05013723696248856,
+    "tp": 97
+  },
+  "roc_auc": 0.7660179703573078,
+  "split": "valid",
+  "threshold_selection": {
+    "f1": 0.33240611961057026,
+    "policy": "validation_max_f1_then_highest_threshold",
+    "threshold": 0.013219797983765602
+  },
+  "unique_scores": 5453
+}

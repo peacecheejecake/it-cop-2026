@@ -1,0 +1,27 @@
+{
+  "arm": "R-base",
+  "artifacts_sha256": {
+    "best-00001/README.md": "04560c2bf04feb4ee5a886db4895bab126fa5df7f4af775ab63b2d7f6f62c2fc",
+    "best-00001/adapter_config.json": "8e4e3c9d18cb8c94703f80015df74e21144c70ed8f4f36bd44baf6ef660e8258",
+    "best-00001/adapter_model.safetensors": "7ce4583b7b24ee5967ccd1e067c4dee970cc958465751152fb9168b8f822dbe1",
+    "best-00001/step.json": "0147fce67800615e8884272911aded1de44c2fb3d8878ef9c21e0c02e250e856",
+    "best-00002/README.md": "04560c2bf04feb4ee5a886db4895bab126fa5df7f4af775ab63b2d7f6f62c2fc",
+    "best-00002/adapter_config.json": "8e4e3c9d18cb8c94703f80015df74e21144c70ed8f4f36bd44baf6ef660e8258",
+    "best-00002/adapter_model.safetensors": "b65c005c89e0e5e6390ef2bd589951973299b15dc2216f2fa46b159d21e92f8e",
+    "best-00002/step.json": "e7a698806c1765067298306b09a3284e29def0d058742aab7bca4f71efa71f98",
+    "best.json": "4ecf2596aba3ff5c6d8922332b873217caa78c3d41b7dbf22e1e5a10d6d27ae2",
+    "metrics.json": "c1bba7739f841c0e5a6a81e0c6c27c8aa5ae57b2e293de6ba46d293b2ea8143a",
+    "metrics.jsonl": "80eae8a3fb32dda77bb34218f4e12aa8fd9df1a3af3738a9091d9e7f8238a21f",
+    "state.json": "42382a4f4e87ae9891d51890cc8b7e80c11d6b42d5b71d1f09022d929c20248e",
+    "validation.parquet": "e64f0a671e8e5d0cbdea53d5be8a7ce4eefdf89f810fe5c1e864c064b1daf95d"
+  },
+  "code_git_sha": "0d0fdb8754fe2cd43a8dabe07c3cbd897c46b613",
+  "config_sha256": "dabad0a0bd8b7d13110fea8593b430ae3be09665465ec945ad4d31e0f9519ace",
+  "cpt_adapter": null,
+  "finished_at": "2026-10-01T18:18:49.851202+00:00",
+  "seed": 42,
+  "started_at": "2026-10-01T16:20:07.173276+00:00",
+  "status": "completed",
+  "study_id": "diffllm-v1",
+  "validation_ap": 0.3224039561142377
+}
