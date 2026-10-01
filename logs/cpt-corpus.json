@@ -1,0 +1,30 @@
+Token indices sequence length is longer than the specified maximum sequence length for this model (153138 > 32768). Running this sequence through the model will result in indexing errors
+{
+ "tokens": 50000641,
+ "commits": 48570,
+ "truncated_commits": 17926,
+ "skipped": {
+  "empty": 791,
+  "duplicate": 178,
+  "excluded_jd4j": 0
+ },
+ "per_repo": {
+  "count": {
+   "activemq": 7142,
+   "cassandra": 11379,
+   "groovy": 13862,
+   "kafka": 11189,
+   "zeppelin": 3335,
+   "zookeeper": 1663
+  },
+  "sum": {
+   "activemq": 6713741,
+   "cassandra": 11552608,
+   "groovy": 12705000,
+   "kafka": 13753108,
+   "zeppelin": 3427335,
+   "zookeeper": 1848849
+  }
+ },
+ "candidates_ranked": 80117
+}
