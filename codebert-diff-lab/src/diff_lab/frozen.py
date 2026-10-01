@@ -138,19 +138,30 @@ class FrozenEncoder:
 
 
 class FrozenLlm:
-    def __init__(self, run_dir: Path, cfg: StudyConfig, variant: str, seed: int, model_path: Path, train: TrainingDatasetView) -> None:
-        from .llm import select_demos
+    """Frozen L0/L1 scorer. L1 demos come from public train (re-derived) or a bundle; both must match the frozen manifest."""
+
+    def __init__(self, run_dir: Path, cfg: StudyConfig, variant: str, seed: int, model_path: Path,
+                 train: TrainingDatasetView | None, demos: pd.DataFrame | None = None) -> None:
+        from .llm import select_demos, user_message
+        from .util import sha256_text
         self.manifest = read_json(run_dir / "prompts" / "manifest.json")
         self.cfg, self.variant, self.seed, self.path, self.train = cfg, variant, seed, model_path, train
+        self.demos = None
         if variant == "L1-S":
-            demos = select_demos(train, cfg.llm, seed)
-            if demos["change_id"].tolist() != [d["change_id"] for d in self.manifest["demos"]]:
-                raise IntegrityError("re-derived L1 demo set differs from the frozen prompt manifest")
+            if demos is None:
+                if train is None:
+                    raise IntegrityError("L1 needs public train or bundled public demos")
+                demos = select_demos(train, cfg.llm, seed)
+            frozen = [(d["change_id"], d["label"], d["content_sha256"]) for d in self.manifest["demos"]]
+            given = [(r["change_id"], int(r["demo_label"]), sha256_text(user_message(r))) for _, r in demos.iterrows()]
+            if given != frozen:
+                raise IntegrityError("L1 demos differ from the frozen public demo manifest (internal or altered demos refused)")
+            self.demos = demos
 
     def predict(self, view: QueryView, out_dir: Path) -> np.ndarray:
         from .llm import LlmRun
         out_dir.mkdir(parents=True, exist_ok=True)
-        res = LlmRun(self.cfg, self.variant, self.seed, self.path, out_dir).fit_predict(self.train, view)
+        res = LlmRun(self.cfg, self.variant, self.seed, self.path, out_dir).fit_predict(self.train, view, self.demos)
         if read_json(out_dir / "prompts" / "manifest.json") != self.manifest:
-            raise IntegrityError("test-time prompt manifest differs from the frozen manifest")
+            raise IntegrityError("prompt manifest at prediction time differs from the frozen manifest")
         return res["scores"]

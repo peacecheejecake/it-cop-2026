@@ -173,14 +173,18 @@ class LlmRun:
             raise ExecutionError("llm section is not pinned")
         self.cfg, self.lc, self.variant, self.seed, self.path, self.run_dir = cfg, cfg.llm, variant, seed, model_path, run_dir
 
-    def fit_predict(self, train: TrainingDatasetView, valid: QueryView) -> dict:
+    def fit_predict(self, train: TrainingDatasetView | None, valid: QueryView, demos: pd.DataFrame | None = None) -> dict:
+        """`demos` (L1 only) are frozen public demo rows supplied by an export bundle; otherwise they are drawn from `train`."""
         torch = _torch()
         from transformers import AutoModelForCausalLM
 
         lc = self.lc
         verify_model_files(lc, self.path)
         tok, label_ids = load_llm_tokenizer(lc, self.path)
-        demos = select_demos(train, lc, self.seed) if self.variant == "L1-S" else None
+        if self.variant == "L1-S":
+            demos = demos if demos is not None else select_demos(train, lc, self.seed)
+        elif demos is not None:
+            raise PolicyError("L0-S is zero-shot; demos are not allowed (AT-30)")
         prompts, status = [], []
         for _, row in valid.frame.iterrows():
             ids = encode_prompt(tok, build_messages(row, demos), label_ids)

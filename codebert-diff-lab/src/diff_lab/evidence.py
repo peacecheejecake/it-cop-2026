@@ -67,26 +67,18 @@ def render(msg_span: str, adds: list[str], dels: list[str]) -> tuple[str, str]:
     return (msg_span + "\n" + code) if code else msg_span, code
 
 
-def build_evidence(snapshot_dir: str | Path, split_dir: str | Path, local_path: str, revision: str,
-                   max_length: int, max_message_tokens: int, out_dir: str | Path) -> dict:
-    out = Path(out_dir)
-    if out.exists():
-        raise PolicyError(f"{out} exists; evidence artifacts are content-addressed and immutable")
-    tok, tinfo = load_tokenizer(local_path, revision)
-    if tinfo["added_tokens"] not in ([], ["<mask>"]) and set(tinfo["added_tokens"]) - set(tok.all_special_tokens):
-        raise ConfigError(f"tokenizer has non-native added tokens {tinfo['added_tokens']}")
-    snap = Path(snapshot_dir)
-    changes = pd.read_parquet(snap / "changes.parquet")
-    edits = pd.read_parquet(snap / "edits.parquet").sort_values(["change_id", "op", "order"])
-    members = set(pd.read_parquet(Path(split_dir) / "splits.parquet")["change_id"])
-    changes = changes[changes["change_id"].isin(members)].reset_index(drop=True)
-    grouped = {k: g["text"].tolist() for k, g in edits.groupby(["change_id", "op"])}
-    pieces = [f"\n+ {x}" for x in edits.loc[edits.op == "add", "text"]] + [f"\n- {x}" for x in edits.loc[edits.op == "delete", "text"]]
+def render_changes(tok, changes: pd.DataFrame, grouped: dict, max_length: int, max_message_tokens: int) -> list[dict]:  # noqa: ANN001
+    """Apply the fixed renderer/budget rule to (change_id, message) rows with their add/delete line lists.
+
+    Shared by the public EvidenceView build and offline internal prediction so both see the same query form.
+    """
+    adds_all = [x for (_, op), lines in grouped.items() if op == "add" for x in lines]
+    dels_all = [x for (_, op), lines in grouped.items() if op == "delete" for x in lines]
+    pieces = [f"\n+ {x}" for x in adds_all] + [f"\n- {x}" for x in dels_all]
     lens = dict(zip(pieces, (len(i) for i in tok(pieces, add_special_tokens=False)["input_ids"]), strict=True)) if pieces else {}
     msg_enc = tok(changes["message"].tolist(), add_special_tokens=False, return_offsets_mapping=True)
     body = max_length - 2
-    rows = []
-    texts = []
+    rows, texts = [], []
     for i, r in enumerate(changes.itertuples()):
         ids, offs = msg_enc["input_ids"][i], msg_enc["offset_mapping"][i]
         keep_m = min(len(ids), max_message_tokens)
@@ -96,7 +88,7 @@ def build_evidence(snapshot_dir: str | Path, split_dir: str | Path, local_path: 
         ka, kd = _allocate(al, dl, max(body - keep_m, 0))
         rows.append([r.change_id, msg_span, adds, dels, ka, kd, len(ids), keep_m])
         texts.append(render(msg_span, adds[:ka], dels[:kd])[0])
-    n_tokens = [len(x) for x in tok(texts, add_special_tokens=True)["input_ids"]]
+    n_tokens = [len(x) for x in tok(texts, add_special_tokens=True)["input_ids"]] if texts else []
     out_rows = []
     for (cid, msg_span, adds, dels, ka, kd, m_tot, m_keep), n in zip(rows, n_tokens, strict=True):
         while n > max_length:
@@ -115,6 +107,24 @@ def build_evidence(snapshot_dir: str | Path, split_dir: str | Path, local_path: 
                          "msg_tokens_total": m_tot, "msg_tokens_kept": m_keep, "add_lines_total": len(adds),
                          "add_lines_kept": ka, "del_lines_total": len(dels), "del_lines_kept": kd,
                          "truncated": bool(m_keep < m_tot or ka < len(adds) or kd < len(dels))})
+    return out_rows
+
+
+def build_evidence(snapshot_dir: str | Path, split_dir: str | Path, local_path: str, revision: str,
+                   max_length: int, max_message_tokens: int, out_dir: str | Path) -> dict:
+    out = Path(out_dir)
+    if out.exists():
+        raise PolicyError(f"{out} exists; evidence artifacts are content-addressed and immutable")
+    tok, tinfo = load_tokenizer(local_path, revision)
+    if tinfo["added_tokens"] not in ([], ["<mask>"]) and set(tinfo["added_tokens"]) - set(tok.all_special_tokens):
+        raise ConfigError(f"tokenizer has non-native added tokens {tinfo['added_tokens']}")
+    snap = Path(snapshot_dir)
+    changes = pd.read_parquet(snap / "changes.parquet")
+    edits = pd.read_parquet(snap / "edits.parquet").sort_values(["change_id", "op", "order"])
+    members = set(pd.read_parquet(Path(split_dir) / "splits.parquet")["change_id"])
+    changes = changes[changes["change_id"].isin(members)].reset_index(drop=True)
+    grouped = {k: g["text"].tolist() for k, g in edits.groupby(["change_id", "op"])}
+    out_rows = render_changes(tok, changes[["change_id", "message"]], grouped, max_length, max_message_tokens)
     ev = pd.DataFrame(out_rows)
     if (ev["encoder_tokens"] > max_length).any():
         raise IntegrityError("evidence exceeds max_length after verification")
