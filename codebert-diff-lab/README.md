@@ -3,7 +3,7 @@
 Implementation of the **CodeBERT Diff Lab spec v0.2** (`docs/spec-v0.2/`, copied verbatim with `SHA256SUMS`).
 Public-only training, public-validation selection, sealed public test until study freeze, internal data evaluation-only.
 
-Latest results: [`docs/results-2026-10-01.md`](docs/results-2026-10-01.md) (M0–M4, study v3, public validation).
+Final results: [`docs/results-final-2026-10-01.md`](docs/results-final-2026-10-01.md) (M0–M6, study v3, freeze `b6afa59f3a2a9550`, one-shot public test).
 
 ## Status (what exists vs. what the spec plans)
 
@@ -14,10 +14,10 @@ Latest results: [`docs/results-2026-10-01.md`](docs/results-2026-10-01.md) (M0�
 | M2 | import → audit → split → EvidenceView → B0-LR / B0-LGBM / B1-TFIDF-S on public validation | done (exp 006); B0-LGBM needs `libomp` on macOS |
 | M3 | B2-S (frozen CodeBERT + fusion head) / B3-S (full FT), resume, T14 profile | implemented, CPU/MPS-verified on tiny + real CodeBERT; CUDA run pending |
 | M4 | B4-S diff-MLM CPT (10M-token plan, structure-protected masking, resume, encoder-only export) → B3-S fine-tuning | implemented, CPU-tested; real CodeBERT 1-update check on MPS; CUDA run pending |
-| v3 | study `public-comparison-v3`: separate encoder/head lr, split `upstream-clean2`, lineage validator, generation checkpoints, CPU-mapped resume (Codex review fixes) | implemented; B0–B4 rerun under v3 = experiment 009 |
-| M5 | B5-S MLM+RMI CPT (train-only negative pool, alternating 1:1 updates, shared 10M budget, per-task accounting) → v3 FT | implemented, CPU-tested; real CodeBERT 2-update check on MPS; CUDA run = experiment 010 |
-| M6L | L0-S / L1-S with frozen Qwen2.5-Coder-7B-Instruct (pinned revision + file sha256), candidate log-likelihood scorer, 3 static 4-shot demo sets | implemented, CPU-tested with a tiny model; real prompts checked (max 3,354 tokens) |
-| M6 | `study freeze` (all variants x replicates, validation re-derived from frozen state), `experiment test` (one-shot public test), `study report` (seed-paired diffs + project bootstrap), `study export` (inference-only bundle) | implemented, tested end-to-end on a synthetic snapshot |
+| v3 | study `public-comparison-v3`: separate encoder/head lr, split `upstream-clean2`, lineage validator, generation checkpoints, CPU-mapped resume (Codex review fixes) | done (exp 009) |
+| M5 | B5-S MLM+RMI CPT (train-only negative pool, alternating 1:1 updates, shared 10M budget, per-task accounting) → v3 FT | done (exp 010) |
+| M6L | L0-S / L1-S with frozen Qwen2.5-Coder-7B-Instruct (pinned revision + file sha256), candidate log-likelihood scorer, 3 static 4-shot demo sets | done (exp 011) |
+| M6 | `study freeze` (all variants x replicates, validation re-derived from frozen state), `experiment test` (one-shot public test), `study report` (seed-paired diffs + project bootstrap), `study export` (inference-only bundle) | done (exp 011): freeze `b6afa59f3a2a9550`, public test evaluated once |
 
 ## Commands (run from this directory)
 

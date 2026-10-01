@@ -13,6 +13,7 @@ baseline 코드의 실제 버그를 고치는 경우가 아니면, 실험용 변
 - 코드는 `main`의 `codebert-diff-lab/`에서 개발하고, **각 단계의 실제 실행은 `experiments/<NNN>-dl-<slug>/` worktree**에서 그 커밋의 코드로 돌려 RUNLOG/RESULTS를 남긴다. 데이터 snapshot·split·evidence·run은 worktree 안 `codebert-diff-lab/{data,artifacts}`(git-ignored)에 생기며 내용 hash로 고정된다.
 - 실행 순서는 사양 implementation-plan §7/§12를 따른다: M0 감사 → M1 골격 → M2(B0-LR/B0-LGBM/B1-TFIDF-S, public validation) → M3(B2-S/B3-S) → M4(B4-S) → M5(B5-S) → M6L(L0-S/L1-S) → M6(freeze → public test → report).
 - **현재 study는 `public-comparison-v3`**(2026-10-01 등록)이다. v2(인코더와 head가 같은 lr 1e-5)는 B2-S head가 덜 학습되는 문제 때문에 test를 열기 전에 대체했고, v2 결과(006~008)는 초기 프로토콜의 기록으로만 남긴다. v3은 encoder lr 1e-5 / head lr 1e-3을 분리하고, split `upstream-clean2`(CPT-dev를 중복 그룹 단위로 뽑음)를 쓴다.
+- **study v3는 freeze되었고 public test를 1회 평가했다**(2026-10-01, `exp/011`). 이후 공개 test를 보고 모델·설정·예산을 바꾸면 그 결과는 새 study/holdout으로 표기해야 하며 v3의 untouched 비교라고 주장할 수 없다(사양 §12).
 - **public test는 study freeze 전에는 열지 않는다**(코드가 거부한다). validation으로 고른 뒤 9개 primary variant를 모두 freeze하고 한 번에 평가한다.
 - uv 명령은 사내 TLS 프록시 때문에 `--system-certs`를 붙인다. Python은 3.11(`uv python install 3.11 --system-certs`).
 - GPU(B2~B5)와 로컬 LLM(L0/L1)은 비용·모델 선택이 필요하므로 해당 단계 전에 사용자에게 GPU 종류·예상 비용·LLM 후보(revision·license·메모리)를 확인받는다.
@@ -125,7 +126,9 @@ legacy 001~005의 worktree는 2026-10-01에 정리했다(`git worktree remove`).
 | `002-no-hadoop` | 001과 동일 프로토콜, Hadoop 계열 3개 저장소만 제외 |
 | `003-seeds-cuda` | 002 데이터, Runpod CUDA에서 seed 42/43/44, 수렴까지(epoch 상한 100, patience 2). 정형 LR > B(−0.037±0.004), B 우위는 시간이 갈수록 소멸 |
 | `006-dl-m2-cpu-baselines` | **[diff-lab]** M0 감사 + M2 CPU 기준선(public validation): B1-TFIDF-S AP 0.546 > B0-LR 0.319 > B0-LGBM 0.211(시작 설정 과적합) |
-| `009-dl-v3-rerun` | **[diff-lab] 현재 기준 결과.** v3(encoder/head lr 분리, upstream-clean2)로 B0~B4 재실행. selection-validation AP: B3-S 0.687±0.008 > B4-S 0.674±0.014 > B2-S 0.616±0.011 > B1-TFIDF 0.546 > B0-LR 0.319 > B0-LGBM 0.211. v2의 B4>B3 역전 → MLM CPT 추가가치 없음(validation). best 가중치는 worktree `artifacts/` |
+| `011-dl-m6-final` | **[diff-lab] 최종.** L0/L1(Qwen2.5-Coder-7B) → freeze `b6afa59f3a2a9550`(25 run) → public test 1회. test AP: B3-S 0.598 > B4-S 0.590 > B5-S 0.580 > B2-S 0.475 > B1 0.440 > B0-LR 0.215 > B0-LGBM 0.197 > L1 0.172 > L0 0.125. CPT·RMI 추가가치 없음. `codebert-diff-lab/docs/results-final-2026-10-01.md` |
+| `010-dl-m5-mlm-rmi` | **[diff-lab]** M5 B5-S(MLM+RMI, 같은 10M 예산) validation AP 0.669±0.010(B4 0.674, B3 0.687) |
+| `009-dl-v3-rerun` | **[diff-lab]** v3(encoder/head lr 분리, upstream-clean2)로 B0~B4 재실행. selection-validation AP: B3-S 0.687±0.008 > B4-S 0.674±0.014 > B2-S 0.616±0.011 > B1-TFIDF 0.546 > B0-LR 0.319 > B0-LGBM 0.211. v2의 B4>B3 역전 → MLM CPT 추가가치 없음(validation). best 가중치는 worktree `artifacts/` |
 | `008-dl-m4-mlm-cpt` | **[diff-lab]** M4(v2): B4-S AP 0.551±0.008(seed 43/44는 로그 수치만 남음, Pod 강제 종료). 보조 B2 민감도(head lr 1e-3) AP 0.616 → v3 전환 근거. Codex 리뷰 `reviews/2026-10-01-codex-review.md` |
 | `007-dl-m3-encoder` | **[diff-lab]** M3(H100, fp32, seed 42/43/44, public validation): B3-S full FT AP 0.527±0.024 < B1-TFIDF-S 0.546, B2-S frozen 0.377±0.005(20 epoch 상한에서 미수렴). B3 best 가중치는 worktree `artifacts/`(로컬)에 있다 |
 | `005-cross-project-jd4j` | 003 프로토콜을 새 Pod에서 재현(3 seed)한 뒤 JIT-Defects4J(처음 보는 21개 프로젝트)에 재학습 없이 적용. 처음 보는 프로젝트에서 B의 향상 배수(2.31)는 rule(2.39)보다 낮아지고 정형 LR(2.78)은 오른다. 가중치를 보관하던 network volume `c8wdh0j8ek`는 2026-10-01 삭제 |
