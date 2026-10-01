@@ -213,3 +213,15 @@ def test_diffllm_orchestration_freeze_and_single_test(tmp_path, tiny_qwen):
     with pytest.raises(PolicyError, match="never overwritten"):
         test_arms_once(cfg, h, view, snap, art, fz, tmp_path / "test")
     assert json.loads((tmp_path / "test" / "R-diff" / "metrics.json").read_text())["evaluation_role"] == "frozen_final_test"
+
+
+def test_right_padded_training_logits_match_unpadded(tiny_qwen):
+    import torch
+
+    from diff_lab.llm_train import last_token_logits, load_base
+    m = load_base(tiny_qwen, torch.device("cpu")).float().eval()
+    rows = [[1, 2, 3, 4, 5, 6], [7, 8, 9], [10, 11, 12, 13]]
+    batched = last_token_logits(m, rows, 0, torch.device("cpu"))
+    for i, r in enumerate(rows):
+        single = m(input_ids=torch.tensor([r])).logits[0, -1].float()
+        assert torch.allclose(batched[i], single, atol=1e-4)

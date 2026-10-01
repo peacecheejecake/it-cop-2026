@@ -193,6 +193,26 @@ def cpt_lora(base: Path, corpus: Path, out: Path, cfg: CptLoraCfg, seed: int, de
     return res
 
 
+def last_token_logits(model, rows: list[list[int]], pad: int, device):  # noqa: ANN001, ANN201
+    """Training-time next-token logits after each prompt, with RIGHT padding.
+
+    Left padding puts pad queries before any real key; those fully masked attention rows give garbage
+    or NaN activations that, even with zero weight, turn gradients into NaN (exp 012, SFT step 43).
+    Right padding keeps every pad query after real keys; only the last real position reaches lm_head.
+    """
+    torch = _torch()
+    L = max(len(r) for r in rows)
+    ids = torch.full((len(rows), L), pad, dtype=torch.long)
+    mask = torch.zeros((len(rows), L), dtype=torch.long)
+    for r, p in enumerate(rows):
+        ids[r, :len(p)] = torch.tensor(p)
+        mask[r, :len(p)] = 1
+    base = model.get_base_model() if hasattr(model, "get_base_model") else model
+    h = base.model(input_ids=ids.to(device), attention_mask=mask.to(device)).last_hidden_state
+    last = torch.tensor([len(p) - 1 for p in rows], device=device)
+    return base.lm_head(h[torch.arange(len(rows), device=device), last]).float()
+
+
 def label_ids_for(tok) -> list[int]:  # noqa: ANN001
     ids = [tok(x, add_special_tokens=False)["input_ids"] for x in ("0", "1")]
     if any(len(i) != 1 for i in ids):
@@ -257,25 +277,16 @@ def sft_risk(base: Path, cpt_adapter: Path | None, train: pd.DataFrame, valid: p
             loss_sum = 0.0
             for j in range(cfg.accumulation):
                 mb = idx[j * cfg.micro_batch:(j + 1) * cfg.micro_batch]
-                rows = [tr_p[i] for i in mb]
-                L = max(len(r) for r in rows)
-                ids = torch.full((len(rows), L), pad, dtype=torch.long)
-                mask = torch.zeros((len(rows), L), dtype=torch.long)
-                for r, p in enumerate(rows):
-                    ids[r, L - len(p):] = torch.tensor(p)
-                    mask[r, L - len(p):] = 1
-                pos = (mask.cumsum(-1) - 1).clamp(min=0)
-                logits = model(input_ids=ids.to(dev), attention_mask=mask.to(dev), position_ids=pos.to(dev),
-                               logits_to_keep=1).logits[:, -1, :].float()
+                logits = last_token_logits(model, [tr_p[i] for i in mb], pad, dev)
                 tgt = torch.tensor([target[int(y_tr[i])] for i in mb], device=dev)
                 loss = torch.nn.functional.cross_entropy(logits, tgt)
                 (loss / cfg.accumulation).backward()
                 loss_sum += float(loss.detach())
-            torch.nn.utils.clip_grad_norm_(params, 1.0)
+            gn = float(torch.nn.utils.clip_grad_norm_(params, 1.0))
+            if not math.isfinite(loss_sum) or not math.isfinite(gn):
+                raise ExecutionError(f"non-finite SFT loss/grad at step {step + 1} (loss {loss_sum}, grad norm {gn})")
             opt.step()
             step += 1
-            if not math.isfinite(loss_sum):
-                raise ExecutionError(f"non-finite SFT loss at step {step}")
             if step % eval_every == 0 or u + 1 == updates_per_epoch:
                 s = score(model, [va_p[i] for i in sel], lids, pad, dev, cfg.eval_token_budget)
                 ap = evaluate([valid["change_id"].iloc[i] for i in sel], y_va[sel], s, salt)["ap"]
