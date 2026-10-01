@@ -20,12 +20,14 @@ experiment_app = typer.Typer(no_args_is_help=True)
 study_app = typer.Typer(no_args_is_help=True)
 bundle_app = typer.Typer(no_args_is_help=True)
 internal_app = typer.Typer(no_args_is_help=True)
+diffllm_app = typer.Typer(no_args_is_help=True)
 app.add_typer(data_app, name="data")
 app.add_typer(evidence_app, name="evidence")
 app.add_typer(experiment_app, name="experiment")
 app.add_typer(study_app, name="study")
 app.add_typer(bundle_app, name="bundle")
 app.add_typer(internal_app, name="internal")
+app.add_typer(diffllm_app, name="diffllm")
 
 DATA = typer.Option(PROJECT_ROOT / "data", "--data-dir")
 ARTIFACTS = typer.Option(PROJECT_ROOT / "artifacts", "--artifacts-dir")
@@ -233,6 +235,61 @@ def internal_evaluate(protocol: Path = typer.Option(...), predictions: Path = ty
     """Deployment-level evaluation of label-free offline predictions under a pre-registered protocol (prints counts only)."""
     from ..internal_eval import evaluate_internal
     _emit(evaluate_internal(protocol, predictions, mapping, deployments, out))
+
+
+@diffllm_app.command("prepare")
+@_guard
+def diffllm_prepare(config: Path = typer.Option(...), fulldiff: Path = typer.Option(...), tokenizer: Path = typer.Option(...),
+                    out: Path = typer.Option(...), data_dir: Path = DATA) -> None:
+    """Render full-diff prompts (message + whole hunks within budget); test rows stay label-free."""
+    from ..diffllm import load_cfg, prepare
+    cfg, _ = load_cfg(config)
+    d = cfg["dataset"]
+    m = prepare(cfg, data_dir / "snapshots" / d["snapshot_id"], data_dir / "splits" / d["snapshot_id"] / d["split_id"], fulldiff,
+                tokenizer, out)
+    _emit({k: m[k] for k in ("rows", "by_split", "truncated_share", "content_tokens_mean")})
+
+
+@diffllm_app.command("cpt")
+@_guard
+def diffllm_cpt(config: Path = typer.Option(...), data_dir: Path = DATA, artifacts_dir: Path = ARTIFACTS) -> None:
+    """LoRA diff continued pretraining on the registered disjoint-repository corpus."""
+    from ..diffllm import load_cfg, run_cpt
+    cfg, h = load_cfg(config)
+    _emit(run_cpt(cfg, h, data_dir, artifacts_dir / "diffllm"))
+
+
+@diffllm_app.command("arm")
+@_guard
+def diffllm_arm(config: Path = typer.Option(...), arms: str = typer.Option(...), view: Path = typer.Option(...),
+                artifacts_dir: Path = ARTIFACTS) -> None:
+    """Train/select one or more arms (R-base, E-base, R-diff, E-diff) on public train/valid."""
+    from ..diffllm import load_cfg, run_arm
+    cfg, h = load_cfg(config)
+    _emit([{k: r[k] for k in ("arm", "validation_ap")} for r in (run_arm(cfg, h, a.strip(), view, artifacts_dir / "diffllm")
+                                                                 for a in arms.split(","))])
+
+
+@diffllm_app.command("freeze")
+@_guard
+def diffllm_freeze(config: Path = typer.Option(...), view: Path = typer.Option(...), out: Path = typer.Option(...),
+                   artifacts_dir: Path = ARTIFACTS) -> None:
+    """Freeze all diffllm arms after reproducing a validation sample from frozen artifacts."""
+    from ..diffllm import freeze, load_cfg
+    cfg, h = load_cfg(config)
+    rec = freeze(cfg, h, view, artifacts_dir / "diffllm", out)
+    _emit({"freeze_id": rec["freeze_id"], "arms": [e["arm"] for e in rec["arms"]]})
+
+
+@diffllm_app.command("test")
+@_guard
+def diffllm_test(config: Path = typer.Option(...), view: Path = typer.Option(...), freeze: Path = typer.Option(...),
+                 out_dir: Path = typer.Option(...), data_dir: Path = DATA, artifacts_dir: Path = ARTIFACTS) -> None:
+    """One-shot public test evaluation of the frozen diffllm arms (never overwrites)."""
+    from ..diffllm import load_cfg, test_arms_once
+    cfg, h = load_cfg(config)
+    _emit(test_arms_once(cfg, h, view, data_dir / "snapshots" / cfg["dataset"]["snapshot_id"], artifacts_dir / "diffllm", freeze,
+                         out_dir))
 
 
 @app.command("predict")

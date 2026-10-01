@@ -157,3 +157,59 @@ def test_lora_cpt_then_risk_sft_and_embedding_mlp(tmp_path, tiny_qwen):
     state, info = mlp_train(x_tr, tr["label"].to_numpy(), x_va, va["label"].to_numpy(), va["change_id"].tolist(), mcfg, 42, "salt")
     p = mlp_predict(state, x_va, mcfg)
     assert p.shape == (len(va),) and info["best_epoch"] >= 1
+
+
+def test_diffllm_orchestration_freeze_and_single_test(tmp_path, tiny_qwen):
+    import json
+
+    import yaml
+    from conftest import ROOT
+
+    from diff_lab.diffllm import freeze, load_cfg, run_arm, run_cpt, test_arms_once
+    from diff_lab.util import PolicyError, atomic_write_json, sha256_file
+    raw = yaml.safe_load((ROOT / "configs" / "studies" / "diffllm-v1.yaml").read_text())
+    files = {p.name: sha256_file(p) for p in sorted(tiny_qwen.iterdir()) if p.is_file()}
+    raw["models"]["qwen7b"] = {**raw["models"]["qwen7b"], "local_path": str(tiny_qwen), "files_sha256": files}
+    raw["device"] = "cpu"
+    raw["cpt"] = {**raw["cpt"], "seq_len": 256, "micro_batch": 2, "accumulation": 2, "lora_r": 4, "lora_alpha": 8,
+                  "gradient_checkpointing": False, "checkpoint_every": 2}
+    raw["sft"] = {**raw["sft"], "max_prompt_tokens": 512, "micro_batch": 4, "accumulation": 2, "lora_r": 4, "lora_alpha": 8,
+                  "gradient_checkpointing": False, "selection_subset": 100, "eval_token_budget": 4096}
+    raw["mlp"] = {**raw["mlp"], "hidden": 16, "max_epochs": 5, "batch_size": 8}
+    raw["embed_token_budget"] = 4096
+    cfgp = tmp_path / "cfg.yaml"
+    cfgp.write_text(yaml.safe_dump(raw))
+    cfg, h = load_cfg(cfgp)
+    data = tmp_path / "data"
+    corpus = data / "cpt" / cfg["cpt_corpus"]["id"]
+    corpus.mkdir(parents=True)
+    pd.DataFrame({"text": [f"Commit message:\nchange {i}\n\nDiff:\n+ int v = {i};" for i in range(120)]}).to_parquet(
+        corpus / "corpus.parquet")
+    atomic_write_json(corpus / "manifest.json", {"corpus_parquet_sha256": sha256_file(corpus / "corpus.parquet")})
+    tr, va = _frames(48)
+    te = va.copy()
+    te["change_id"] = [f"jitd4j:p{i % 3}:t{i}" for i in range(len(te))]
+    view = tmp_path / "view"
+    view.mkdir()
+    v = pd.concat([tr.assign(split="train"), va.assign(split="valid"), te.assign(split="test")])
+    v.drop(columns=["label"]).to_parquet(view / "view.parquet")
+    pd.concat([tr, va])[["change_id", "label"]].to_parquet(view / "labels-train-valid.parquet")
+    atomic_write_json(view / "manifest.json", {"view_sha256": sha256_file(view / "view.parquet"),
+                                               "labels_sha256": sha256_file(view / "labels-train-valid.parquet")})
+    snap = tmp_path / "snap"
+    snap.mkdir()
+    pd.DataFrame({"change_id": te["change_id"], "label": te["label"]}).to_parquet(snap / "labels.parquet")
+    art = tmp_path / "art"
+    run_cpt(cfg, h, data, art)
+    for arm in ("R-base", "E-base", "R-diff", "E-diff"):
+        assert run_arm(cfg, h, arm, view, art)["status"] == "completed"
+    fz = tmp_path / "freeze.json"
+    with pytest.raises(PolicyError, match="sealed"):
+        test_arms_once(cfg, h, view, snap, art, fz, tmp_path / "test")
+    rec = freeze(cfg, h, view, art, fz, check_rows=8)
+    assert [e["arm"] for e in rec["arms"]] == ["R-base", "E-base", "R-diff", "E-diff"]
+    res = test_arms_once(cfg, h, view, snap, art, fz, tmp_path / "test")
+    assert set(res) == {"R-base", "E-base", "R-diff", "E-diff"}
+    with pytest.raises(PolicyError, match="never overwritten"):
+        test_arms_once(cfg, h, view, snap, art, fz, tmp_path / "test")
+    assert json.loads((tmp_path / "test" / "R-diff" / "metrics.json").read_text())["evaluation_role"] == "frozen_final_test"
