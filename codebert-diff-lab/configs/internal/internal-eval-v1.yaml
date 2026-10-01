@@ -1,0 +1,15 @@
+# Internal evaluation protocol (spec FR-17, protocol §10). Register every field BEFORE looking at internal results;
+# PIN_REQUIRED fields block `internal evaluate`. Labels are read only by the evaluator; nothing is tuned on them.
+protocol_id: internal-eval-v1
+freeze_id: b6afa59f3a2a9550          # public-comparison-v3 frozen models
+unit: deployment
+aggregation: max                     # spec first candidate; its bias toward large deployments is reported, not tuned away
+budget_unit: deployment_count
+q: [0.05, 0.1]
+label_definition: PIN_REQUIRED       # e.g. "deployment linked to a SEV/incident (rollback or incident ticket) within the window"
+observation_window_days: PIN_REQUIRED
+evaluation_start: PIN_REQUIRED       # ISO date, inclusive; time-ordered evaluation period
+evaluation_end: PIN_REQUIRED         # ISO date, exclusive
+min_linkage_confidence: null         # or a registered minimum if linkage_confidence is provided
+stratify_by: service                 # optional column in deployments.parquet
+tie_salt: internal-topk-tie-v1

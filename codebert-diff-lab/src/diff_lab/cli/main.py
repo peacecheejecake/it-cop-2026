@@ -19,11 +19,13 @@ evidence_app = typer.Typer(no_args_is_help=True)
 experiment_app = typer.Typer(no_args_is_help=True)
 study_app = typer.Typer(no_args_is_help=True)
 bundle_app = typer.Typer(no_args_is_help=True)
+internal_app = typer.Typer(no_args_is_help=True)
 app.add_typer(data_app, name="data")
 app.add_typer(evidence_app, name="evidence")
 app.add_typer(experiment_app, name="experiment")
 app.add_typer(study_app, name="study")
 app.add_typer(bundle_app, name="bundle")
+app.add_typer(internal_app, name="internal")
 
 DATA = typer.Option(PROJECT_ROOT / "data", "--data-dir")
 ARTIFACTS = typer.Option(PROJECT_ROOT / "artifacts", "--artifacts-dir")
@@ -222,6 +224,15 @@ def bundle_verify(bundle_dir: Path = typer.Option(...)) -> None:
     from ..offline import verify_bundle
     info = verify_bundle(bundle_dir)
     _emit({"freeze_id": info["freeze"]["freeze_id"], "files": len(info["manifest"]["files_sha256"]), "verified": True})
+
+
+@internal_app.command("evaluate")
+@_guard
+def internal_evaluate(protocol: Path = typer.Option(...), predictions: Path = typer.Option(...), mapping: Path = typer.Option(...),
+                      deployments: Path = typer.Option(...), out: Path = typer.Option(...)) -> None:
+    """Deployment-level evaluation of label-free offline predictions under a pre-registered protocol (prints counts only)."""
+    from ..internal_eval import evaluate_internal
+    _emit(evaluate_internal(protocol, predictions, mapping, deployments, out))
 
 
 @app.command("predict")
