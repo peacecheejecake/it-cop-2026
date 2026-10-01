@@ -246,16 +246,22 @@ def report(cfg: StudyConfig, data_dir: Path, artifacts_dir: Path, freeze_path: P
         per.setdefault(v, {})[s] = {"valid": vm, "test": t}
         preds.setdefault(v, {})[s] = pd.read_parquet(test_dir / e["run_id"] / "predictions.parquet")
 
+    fields = {"ap": ("ap", None), "roc_auc": ("roc_auc", None), "recall_at_5pct": ("recall_at_5pct", "recall"),
+              "recall_at_10pct": ("recall_at_10pct", "recall"), "f1_at_threshold": ("at_threshold", "f1"),
+              "precision_at_threshold": ("at_threshold", "precision"), "recall_at_threshold": ("at_threshold", "recall")}
+
     def agg(v: str, split: str, key: str) -> dict:
+        top, sub = fields[key]
         vals = []
         for r in per[v].values():
-            x = r[split][key]
-            vals.append(x["recall"] if isinstance(x, dict) and "recall" in x else (x["f1"] if isinstance(x, dict) else x))
+            x = r[split][top]
+            vals.append(x[sub] if sub else x)
         a = np.asarray(vals, dtype=float)
         return {"mean": float(a.mean()), "sd": float(a.std(ddof=1)) if len(a) > 1 else None, "n": len(a)}
 
     table = {v: {f"{split}_{k}": agg(v, split, k) for split in ("valid", "test")
-                 for k in ("ap", "roc_auc", "recall_at_5pct", "recall_at_10pct")} | {"test_f1_at_threshold": agg(v, "test", "at_threshold")}
+                 for k in ("ap", "roc_auc", "recall_at_5pct", "recall_at_10pct")}
+             | {f"test_{k}": agg(v, "test", k) for k in ("f1_at_threshold", "precision_at_threshold", "recall_at_threshold")}
              for v in per}
     any_v = next(iter(preds))
     base = preds[any_v][next(iter(preds[any_v]))][["change_id", "project"]]

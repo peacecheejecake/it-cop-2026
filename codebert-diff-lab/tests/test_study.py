@@ -75,6 +75,9 @@ def test_at17_freeze_test_report_export_end_to_end(study):
         evaluate_public_test(cfg, raw, data, arts, fz, tmp / "test", "cpu")
     r = report(cfg, data, arts, fz, tmp / "test", tmp / "report.json", n_boot=50)
     assert r["test_n"] == 60 and r["projects"] == 5 and "test_ap" in r["variants"]["B0-LR"]
+    import json
+    f1s = [json.loads((tmp / "test" / e["run_id"] / "metrics.json").read_text())["at_threshold"]["f1"] for e in rec["runs"]]
+    assert r["variants"]["B0-LR"]["test_f1_at_threshold"]["mean"] == pytest.approx(float(np.mean(f1s)))
     b = export_bundle(cfg, raw, arts, fz, tmp / "export" / "bundle.tar.gz")
     with tarfile.open(b["bundle"]) as t:
         names = t.getnames()
