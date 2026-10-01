@@ -15,6 +15,7 @@ import scipy.sparse as sp
 
 from .config import StudyConfig
 from .features import StructuredPipeline
+from .models import B1_FIELDS
 from .policy import QueryView, TrainingDatasetView
 from .util import IntegrityError, read_json, resolve_generation, sha256_json
 
@@ -41,17 +42,27 @@ class FrozenB0LR:
 
 
 class FrozenB0LGBM:
+    """Scores in a subprocess (see lgbm_predict) so torch and LightGBM never share an OpenMP runtime."""
+
     def __init__(self, run_dir: Path, cfg: StudyConfig) -> None:
-        import lightgbm as lgb
         st = read_json(run_dir / "model" / "state.json")
-        text = (run_dir / "model" / "lightgbm.txt").read_text()
-        if sha256_json(text) != st["booster_sha256"]:
+        self.booster_path = run_dir / "model" / "lightgbm.txt"
+        if sha256_json(self.booster_path.read_text()) != st["booster_sha256"]:
             raise IntegrityError("LightGBM booster text hash mismatch")
-        self.booster = lgb.Booster(model_str=text)
         self.pipe = StructuredPipeline(list(cfg.structured.features))
 
     def predict(self, view: QueryView) -> np.ndarray:
-        return self.booster.predict(pd.DataFrame(self.pipe.raw(view.frame), columns=self.pipe.columns))
+        import subprocess
+        import sys
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            inp, out = Path(tmp) / "x.parquet", Path(tmp) / "s.npy"
+            pd.DataFrame(self.pipe.raw(view.frame), columns=self.pipe.columns).to_parquet(inp)
+            r = subprocess.run([sys.executable, "-m", "diff_lab.lgbm_predict", str(self.booster_path), str(inp), str(out)],
+                               capture_output=True, text=True)
+            if r.returncode != 0:
+                raise IntegrityError(f"LightGBM scoring subprocess failed ({r.returncode}): {r.stderr[-500:]}")
+            return np.load(out)
 
 
 class FrozenB1:
@@ -62,7 +73,11 @@ class FrozenB1:
             raise IntegrityError("TF-IDF state hash mismatch")
         t = cfg.text_baseline
         self.vecs = {}
-        for f, v in st["tfidf"].items():
+        # Block order must match training (message, code); the state JSON is written with sorted keys.
+        if set(st["tfidf"]) != set(B1_FIELDS):
+            raise IntegrityError(f"unexpected TF-IDF fields {sorted(st['tfidf'])}")
+        for f in B1_FIELDS:
+            v = st["tfidf"][f]
             vec = TfidfVectorizer(analyzer=t.analyzer, ngram_range=tuple(t.ngram_range), lowercase=t.lowercase,
                                   vocabulary=v["vocabulary"], dtype=np.float32)
             vec.idf_ = np.asarray(v["idf"], dtype=np.float64)

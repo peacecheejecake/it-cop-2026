@@ -21,6 +21,7 @@ from .policy import QueryView, TrainingDatasetView, require_training_view
 from .util import ExecutionError, IntegrityError, sha256_json
 
 SCORE_SEMANTICS = "supervised_sigmoid_uncalibrated_public_defect_score"
+B1_FIELDS = ("message_text", "code_text")
 
 
 def _fit_lr(x, y: np.ndarray, C: float, max_iter: int, solver: str, seed: int) -> LogisticRegression:  # noqa: N803
@@ -92,7 +93,7 @@ class B1TFIDF:
         t = cfg.text_baseline
         self.vecs = {f: TfidfVectorizer(analyzer=t.analyzer, ngram_range=tuple(t.ngram_range), lowercase=t.lowercase,
                                         min_df=t.min_df, max_features=t.max_features_per_field, dtype=np.float32)
-                     for f in ("message_text", "code_text")}
+                     for f in B1_FIELDS}
 
     def _x(self, frame: pd.DataFrame) -> sp.csr_matrix:
         blocks = [self.vecs[f].transform(frame[f].fillna("")) for f in self.vecs]

@@ -94,3 +94,25 @@ def test_freeze_requires_all_replicates_and_detects_tampering(study):
     pred.write_text(pred.read_text() + " ")
     with pytest.raises(IntegrityError, match="changed after freeze"):
         evaluate_public_test(cfg, raw, data, arts, fz, tmp / "test", "cpu")
+
+
+def test_frozen_b1_reproduces_predictions_after_sorted_json_roundtrip(tmp_path):
+    from diff_lab.frozen import FrozenB1
+    from diff_lab.models import B1TFIDF
+    from diff_lab.policy import QueryView, TrainingDatasetView
+    cfg = load_study(STUDY_V3)[0]
+    rng = np.random.default_rng(1)
+    n = 80
+    f = pd.DataFrame(rng.integers(0, 30, (n, len(FEATURE_PROFILE_JIT14))).astype(float), columns=FEATURE_PROFILE_JIT14)
+    f["change_id"] = [f"c{i}" for i in range(n)]
+    f["message_text"] = [f"fix bug {i % 7} in parser" if i % 2 else f"add feature {i % 5}" for i in range(n)]
+    f["code_text"] = [f"+ if (x{i % 3} == null) return;" if i % 2 else f"- old{i % 4}();" for i in range(n)]
+    y = pd.Series([i % 2 for i in range(n)])
+    tr = TrainingDatasetView(split="train", frame=f.iloc[:60].reset_index(drop=True), lineage={"visibility": "public"},
+                             labels=y.iloc[:60].reset_index(drop=True))
+    q = QueryView(split="valid", frame=f.iloc[60:].reset_index(drop=True), lineage={})
+    m = B1TFIDF(cfg, 42)
+    state = m.fit(tr)
+    d = tmp_path / "run"
+    atomic_write_json(d / "model" / "state.json", state)
+    assert np.abs(FrozenB1(d, cfg).predict(q) - m.predict(q)).max() < 1e-12
