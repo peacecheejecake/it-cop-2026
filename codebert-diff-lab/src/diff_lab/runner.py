@@ -91,7 +91,8 @@ def _installed(name: str) -> bool:
         return False
 
 
-def load_frames(cfg: StudyConfig, data_dir: Path, variant: str) -> tuple[pd.DataFrame, pd.Series, dict]:
+def load_frames(cfg: StudyConfig, data_dir: Path, variant: str, test_unlock: dict | None = None) -> tuple[pd.DataFrame, pd.Series, dict]:
+    """train+valid frames; test rows are added only with an unlocked study-freeze record (spec AT-17)."""
     p = paths(cfg, data_dir)
     snap_m, split_m = p["snapshot"] / "manifest.json", p["split"] / "manifest.json"
     for f in (snap_m, split_m):
@@ -106,7 +107,8 @@ def load_frames(cfg: StudyConfig, data_dir: Path, variant: str) -> tuple[pd.Data
         raise IntegrityError("split membership hash mismatch")
     feats = pd.read_parquet(p["snapshot"] / "features.parquet")
     labels = pd.read_parquet(p["snapshot"] / "labels.parquet")[["change_id", "label"]]
-    frame = sp[sp["split"].isin(["train", "valid"])].merge(feats, on="change_id", how="left", validate="1:1")
+    splits = ["train", "valid"] + (["test"] if test_unlock is not None and test_unlock.get("status") == "frozen" else [])
+    frame = sp[sp["split"].isin(splits)].merge(feats, on="change_id", how="left", validate="1:1")
     from .lineage import validate_lineage
     tok_digest = None
     if variant in NEEDS_EVIDENCE:
@@ -134,7 +136,7 @@ def load_frames(cfg: StudyConfig, data_dir: Path, variant: str) -> tuple[pd.Data
         lineage["evidence_query_hash_digest"] = read_json(em)["query_hash_digest"]
     y = frame[["change_id"]].merge(labels, on="change_id", how="left", validate="1:1")["label"]
     if y.isna().any():
-        raise IntegrityError("unlabelled rows in train/valid")
+        raise IntegrityError("unlabelled rows in the loaded splits")
     return frame, y.astype(int), lineage
 
 

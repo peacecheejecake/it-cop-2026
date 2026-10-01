@@ -158,6 +158,52 @@ def experiment_profile(study: Path = typer.Option(...), precision: str = typer.O
     _emit({k: v for k, v in result.items() if k != "losses"} | {"loss_first_last": [result["losses"][0], result["losses"][-1]]})
 
 
+@study_app.command("freeze")
+@_guard
+def study_freeze(study: Path = typer.Option(...), out: Path = typer.Option(...), device: str = typer.Option("cpu"),
+                 data_dir: Path = DATA, artifacts_dir: Path = ARTIFACTS, skip: str = typer.Option("")) -> None:
+    """Freeze every registered variant x replicate after re-deriving its validation predictions from frozen state."""
+    from ..study import freeze
+    cfg, raw, _ = load_study(study)
+    skipped = tuple(v.strip() for v in skip.split(",") if v.strip())
+    rec = freeze(cfg, raw, data_dir, artifacts_dir, out, device, skip_variants=skipped)
+    _emit({"freeze_id": rec["freeze_id"], "runs": len(rec["runs"]), "skipped": rec["skipped_variants"], "out": str(out)})
+
+
+@experiment_app.command("test")
+@_guard
+def experiment_test(study: Path = typer.Option(...), freeze: Path = typer.Option(...), out_dir: Path = typer.Option(...),
+                    device: str = typer.Option("cpu"), variants: str = typer.Option(""), data_dir: Path = DATA,
+                    artifacts_dir: Path = ARTIFACTS) -> None:
+    """One-shot public test evaluation of frozen runs (never overwrites existing results)."""
+    from ..study import evaluate_public_test
+    cfg, raw, _ = load_study(study)
+    sel = tuple(v.strip() for v in variants.split(",") if v.strip()) or None
+    _emit(evaluate_public_test(cfg, raw, data_dir, artifacts_dir, freeze, out_dir, device, sel))
+
+
+@study_app.command("report")
+@_guard
+def study_report(study: Path = typer.Option(...), freeze: Path = typer.Option(...), test_dir: Path = typer.Option(...),
+                 out: Path = typer.Option(...), data_dir: Path = DATA, artifacts_dir: Path = ARTIFACTS,
+                 bootstrap: int = typer.Option(2000)) -> None:
+    """Validation/test table, seed-paired test AP differences and project-bootstrap intervals."""
+    from ..study import report
+    cfg, _, _ = load_study(study)
+    r = report(cfg, data_dir, artifacts_dir, freeze, test_dir, out, n_boot=bootstrap)
+    _emit({v: {"test_ap": t["test_ap"], "valid_ap": t["valid_ap"]} for v, t in r["variants"].items()})
+
+
+@study_app.command("export")
+@_guard
+def study_export(study: Path = typer.Option(...), freeze: Path = typer.Option(...), out: Path = typer.Option(...),
+                 artifacts_dir: Path = ARTIFACTS) -> None:
+    """Inference-only export bundle of the frozen study (no optimizer state, CPT heads or training data)."""
+    from ..study import export_bundle
+    cfg, raw, _ = load_study(study)
+    _emit(export_bundle(cfg, raw, artifacts_dir, freeze, out))
+
+
 @study_app.command("summary")
 @_guard
 def study_summary(study: Path = typer.Option(...), artifacts_dir: Path = ARTIFACTS) -> None:

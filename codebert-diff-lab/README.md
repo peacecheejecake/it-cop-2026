@@ -17,7 +17,7 @@ Latest results: [`docs/results-2026-10-01.md`](docs/results-2026-10-01.md) (M0�
 | v3 | study `public-comparison-v3`: separate encoder/head lr, split `upstream-clean2`, lineage validator, generation checkpoints, CPU-mapped resume (Codex review fixes) | implemented; B0–B4 rerun under v3 = experiment 009 |
 | M5 | B5-S MLM+RMI CPT (train-only negative pool, alternating 1:1 updates, shared 10M budget, per-task accounting) → v3 FT | implemented, CPU-tested; real CodeBERT 2-update check on MPS; CUDA run = experiment 010 |
 | M6L | L0-S / L1-S with frozen Qwen2.5-Coder-7B-Instruct (pinned revision + file sha256), candidate log-likelihood scorer, 3 static 4-shot demo sets | implemented, CPU-tested with a tiny model; real prompts checked (max 3,354 tokens) |
-| M6 | freeze/test/report/export | not implemented yet |
+| M6 | `study freeze` (all variants x replicates, validation re-derived from frozen state), `experiment test` (one-shot public test), `study report` (seed-paired diffs + project bootstrap), `study export` (inference-only bundle) | implemented, tested end-to-end on a synthetic snapshot |
 
 ## Commands (run from this directory)
 
@@ -56,4 +56,5 @@ src/diff_lab/
   lineage.py                       approval -> snapshot -> split -> evidence -> tokenizer cross-checks before any fit
   policy.py, config.py, registry.py
   runner.py, cli/main.py          run-folder contract, label-access ledger, public-test gate
+  frozen.py, study.py              predictors rebuilt from frozen state; freeze / test / report / export
 ```
