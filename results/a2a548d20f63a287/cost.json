@@ -1,0 +1,6 @@
+{
+  "device": "cpu",
+  "fit_seconds": 0.33076791604980826,
+  "gpu_seconds": 0,
+  "predict_seconds": 0.012165624997578561
+}

@@ -1,0 +1,7 @@
+{
+  "lightgbm": "4.7.0",
+  "network_sandbox": "sandbox-exec",
+  "platform": "macOS-27.0-arm64-arm-64bit",
+  "python": "3.11.16",
+  "torch": "not installed (extra 'neural')"
+}

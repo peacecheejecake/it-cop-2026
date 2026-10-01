@@ -32,11 +32,11 @@ uv run --system-certs diff-lab evidence build --study configs/studies/public-com
 |---|---|---|---|---|---|---|
 | B0-LR | 0.3193 | 0.7920 | 0.2441 | 0.3961 | 0.369 | `2de31167bc4915ce` |
 | **B1-TFIDF-S** | **0.5464** | **0.8847** | **0.3983** | **0.5653** | 0.530 | `1912ea338feda8a3` |
-| B0-LGBM | — | — | — | — | — | 실패(`c10aa9e1f0d4cf9f`, exit 5, libomp 없음) |
+| B0-LGBM | 0.2106 | 0.7099 | 0.1670 | 0.2934 | 0.289 | `a2a548d20f63a287` |
 
 \* threshold는 같은 validation에서 max-F1로 골랐으므로 F1은 낙관적이다(사양상 test에는 이 threshold를 고정 적용).
 
-- **seed 42/43/44 결과가 bit 단위로 같다**(LR lbfgs / liblinear 모두 결정적). 사양 §8.3에 따라 이를 독립 반복 3회로 세지 않는다: `n_training_seeds_effective = 1`.
+- **seed 42/43/44 결과가 bit 단위로 같다**(LR lbfgs / liblinear, LightGBM `deterministic=True`·행 샘플링 없음 모두 결정적). 사양 §8.3에 따라 이를 독립 반복 3회로 세지 않는다: `n_training_seeds_effective = 1`.
 - B1 학습은 sparse 행렬 100,014열(메시지 5만 + 코드 5만 + 정형 14), liblinear 12회 반복 수렴. TF-IDF vocabulary/IDF는 train으로만 fit(테스트 AT-26).
 - label-access ledger: gradient 16,184 / selection 5,465 / demo 0 / index 0.
 
@@ -44,7 +44,20 @@ uv run --system-certs diff-lab evidence build --study configs/studies/public-com
 
 상위 계수: 음(위험↓)은 `assert`, `Test` 등 **테스트 코드 n-gram**(결함 유발 라벨이 운영 코드 줄에서 역추적되므로 테스트만 바꾼 변경은 거의 음성), 양(위험↑)은 `if (`, `+ i`, `offset` 등 **추가된 제어 흐름**과 정형 `la`. 메시지의 `T - 1`, `- 1` 등 **이슈 번호 조각**도 상위에 있어, 같은 프로젝트·같은 시기 split(시간순 아님)에서 이슈 번호 대역을 외우는 성분이 섞였을 수 있다 → project/time holdout(P3)에서 재확인 필요.
 
+### B0-LGBM (libomp 설치 후, 사용자 조치 2026-10-01)
+
+첫 시도(`c10aa9e1f0d4cf9f`)는 libomp가 없어 exit 5로 실패했고 `failure.json`이 남았다(실패를 완료로 기록하지 않는 경로 확인). 설치 후 `--models B0-LGBM --seeds 42,43,44` → 위 표.
+
+**LightGBM < LR**(AP 0.211 대 0.319). 진단(저장된 booster, 설정 변경·선택에 쓰지 않음): 반복 수별 AP
+
+| 반복 | 50 | 100 | 200 | 300(등록 설정) |
+|---|---|---|---|---|
+| train | 0.420 | 0.488 | 0.587 | 0.665 |
+| valid | 0.297 | 0.251 | 0.223 | 0.211 |
+
+→ 사양의 시작 설정(300 tree, early stopping 없음)이 이 작은 불균형 데이터(16k, 양성 8.6%)에서 **과적합**한다. 결과를 보고 반복 수를 고르면 사전 등록 없는 validation 선택이 되므로 등록 설정의 결과를 그대로 보고한다. formal 단계에서는 LR의 C와 LGBM 후보(early stopping 포함)를 **미리 등록한 후보 수 안에서만** validation으로 고른다.
+
 ## 상태와 다음 단계
 
-- DoD-Core 미달: B0-LGBM 미실행(libomp), B2~B5 미구현.
-- 다음: libomp 확보 후 B0-LGBM → M3(EvidenceView 기반 B2-S/B3-S, GPU).
+- M2 CPU 기준선 3종(B0-LR/B0-LGBM/B1-TFIDF-S) validation 완료. DoD-Core 미달: B2~B5 미구현.
+- 다음: M3(EvidenceView 기반 B2-S/B3-S, fusion head, GPU).

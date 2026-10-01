@@ -1,0 +1,23 @@
+[
+  {
+    "run_id": "a2a548d20f63a287",
+    "seed": 42,
+    "status": "completed",
+    "validation_ap": 0.21057041392777193,
+    "variant_id": "B0-LGBM"
+  },
+  {
+    "run_id": "fdfffa46c3ed8a40",
+    "seed": 43,
+    "status": "completed",
+    "validation_ap": 0.21057041392777193,
+    "variant_id": "B0-LGBM"
+  },
+  {
+    "run_id": "748ba823b792a808",
+    "seed": 44,
+    "status": "completed",
+    "validation_ap": 0.21057041392777193,
+    "variant_id": "B0-LGBM"
+  }
+]
