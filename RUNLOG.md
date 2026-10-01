@@ -79,3 +79,20 @@ Branch `exp/011-dl-m6-final`, branched from main `4f7792b` and fast-forwarded to
   - B2–B5 have 3 training seeds each.
   - L0 has no replicate axis.
   - L1's 3 demo sets are not training seeds (AT-38).
+
+## DoD-Internal-Ready check (local, main `86aae74` → `4d64de1`)
+
+- **Export bundle v2** (`study export … --data-dir data`): 194 files, sha256 `a6e61370…abe1`. Includes the three frozen L1 public demo sets, `study.json` and the full best generations.
+  - The first v2 attempt left `validation-scores.parquet` out of the generation, so the generation-pointer check refused the encoder runs. Fixed by exporting the whole generation (main commit "Export the complete best checkpoint generation").
+- **Command**: `bundle unpack` → `predict --bundle-dir bundle-v2 --dataset public-as-internal.parquet --device mps --encoder-path <codebert>`.
+  - Input: 300 public test changes sampled with random_state=0, converted to the internal format (message, added_lines, deleted_lines, jit14).
+  - Result: 21 runs ok. The 4 L runs were **unavailable** because Qwen was not on local disk; the reason is recorded.
+  - 109 of the 300 renders were truncated. `labels_read: false`.
+- **Agreement with the frozen test scores** (max |diff|): B0-LGBM 0, B0-LR/B1 2.2e-16, B2–B5 6e-7 to 1.9e-6 (MPS vs H100). So the offline path (internal-format rendering, then bundle predictors) reproduces the test path.
+- Unit tests on synthetic fixtures (`tests/test_offline.py`):
+  - bundle tampering refused (AT-20) and unsafe tar members refused
+  - label columns refused (AT-19)
+  - missing feature columns → unavailable (AT-25)
+  - network blocked (AT-21)
+  - only frozen public demos accepted, L0 refuses demos (AT-30/35)
+- Record: `results/offline-check/offline-manifest.json`, `results/export-manifest-v2.json`. Usage: `codebert-diff-lab/docs/internal-offline-eval.md`.
