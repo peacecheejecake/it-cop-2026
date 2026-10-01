@@ -1,0 +1,44 @@
+[
+  {
+    "run_id": "2de31167bc4915ce",
+    "seed": 42,
+    "status": "completed",
+    "validation_ap": 0.3192886953697644,
+    "variant_id": "B0-LR"
+  },
+  {
+    "run_id": "bbc9c750b432d748",
+    "seed": 43,
+    "status": "completed",
+    "validation_ap": 0.3192886953697644,
+    "variant_id": "B0-LR"
+  },
+  {
+    "run_id": "827a3e7cd24ff901",
+    "seed": 44,
+    "status": "completed",
+    "validation_ap": 0.3192886953697644,
+    "variant_id": "B0-LR"
+  },
+  {
+    "run_id": "1912ea338feda8a3",
+    "seed": 42,
+    "status": "completed",
+    "validation_ap": 0.5463648613877781,
+    "variant_id": "B1-TFIDF-S"
+  },
+  {
+    "run_id": "d2657817df52a12c",
+    "seed": 43,
+    "status": "completed",
+    "validation_ap": 0.5463648613877781,
+    "variant_id": "B1-TFIDF-S"
+  },
+  {
+    "run_id": "5900ec551169ca42",
+    "seed": 44,
+    "status": "completed",
+    "validation_ap": 0.5463648613877781,
+    "variant_id": "B1-TFIDF-S"
+  }
+]

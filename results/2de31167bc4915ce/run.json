@@ -1,0 +1,20 @@
+{
+  "adaptation_mode": "supervised_classifier",
+  "attempt": 1,
+  "evidence_profile": "matched",
+  "family": "B0",
+  "finished_at": "2026-10-01T01:23:08.118133+00:00",
+  "information_profile": "structured_only",
+  "matrix_version": 2,
+  "protocol_version": "v2",
+  "registry_sha256": "37b2591e226cd22ec81a51e6c944e72fa27518ea26f1dd9594433ac7b6ef7021",
+  "run_id": "2de31167bc4915ce",
+  "seed": 42,
+  "split_evaluated": "valid",
+  "started_at": "2026-10-01T01:23:07.993569+00:00",
+  "status": "completed",
+  "study_id": "public-comparison-v2",
+  "track": "controlled",
+  "validation_ap": 0.3192886953697644,
+  "variant_id": "B0-LR"
+}

@@ -1,0 +1,10 @@
+{
+  "evidence_manifest_sha256": "896bc2def79fe06fbd5ad83d064a7a1c3d84c094225d334a7565a5a5bf5f3b7c",
+  "evidence_query_hash_digest": "7d8774b4545993e08636d7a91310c851166bf6e6e0ecff7ef31bdc78207c7371",
+  "feature_schema_id": "jit14-provided-v1",
+  "snapshot_id": "jitd4j-audit1",
+  "snapshot_manifest_sha256": "c958a2f4dc14e4172e490b34728f2a88b1fd2406e04239ff7292daf472b4c8ab",
+  "split_id": "upstream-clean1",
+  "split_manifest_sha256": "b6b08555ea88a7c7800c63dc32ace75ef3e59ef2d7f27047a7bc911ab5e5841b",
+  "visibility": "public"
+}

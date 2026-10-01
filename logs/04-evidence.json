@@ -1,0 +1,14 @@
+{
+  "cache_key": "f3cd51f06ebf98d33a13255b7a27d9ebfea2b2a97344ab47e60a93a9567512a5",
+  "coverage": {
+    "add_lines_kept_ratio": 0.30677006194860085,
+    "changes_with_all_code_kept": 17660,
+    "coverage_scope": "within preprocessed_lines package (not repository diff coverage)",
+    "del_lines_kept_ratio": 0.29766938099193213,
+    "encoder_tokens_median": 280.0,
+    "message_truncated": 1471,
+    "n": 27129,
+    "truncated": 10057
+  },
+  "evidence_dir": "<repo>/experiments/006-dl-m2-cpu-baselines/codebert-diff-lab/data/evidence/jitd4j-audit1/upstream-clean1/message-add-del-text-v2-L512-M64-3b0952feddef"
+}

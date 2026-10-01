@@ -1,0 +1,19 @@
+{
+  "adaptation_mode": "supervised_classifier",
+  "attempt": 1,
+  "error": "ExecutionError: LightGBM native library unavailable (macOS needs libomp): dlopen(<repo>/experiments/006-dl-m2-cpu-baselines/codebert-diff-lab/.venv/lib/python3.11/site-packages/lightgbm/lib/lib_lightgbm.dylib, 0x0006): Library not loaded: @rpath/libomp.dylib\n  Referenced from: <59CCDAC2-EBAE-32F7-ADF4-469B834532C9> <repo>/experiments/006-dl-m2-cpu-baselines/codebert-diff-lab/.venv/lib/python3.11/site-packages/lightgbm/lib/lib_lightgbm.dylib\n  Reason: tried: '/opt/homebrew/opt/libomp/lib/libomp.dylib' (no such file), '/System/Volumes/Preboot/Cryptexes/OS/opt/homebrew/opt/libomp/lib/libomp.dylib' (no such file), '/opt/local/lib/libomp/libomp.dylib' (no such file), '/System/Volumes/Preboot/Cryptexes/OS/opt/local/lib/libomp/libomp.dylib' (no such file), '/opt/homebrew/opt/libomp/lib/libomp.dylib' (no such file), '/System/Volumes/Preboot/Cryptexes/OS/opt/homebrew/opt/libomp/lib/libomp.dylib' (no such file), '/opt/local/lib/libomp/libomp.dylib' (no such file), '/System/Volumes/Preboot/Cryptexes/OS/opt/local/lib/libomp/libomp.dylib' (no such file), '~/.local/share/uv/python/cpython-3.11.16-macos-aarch64-none/lib/libomp.dylib' (no such file), '~/.local/share/uv/python/cpython-3.11.16-macos-aarch64-none/lib/libomp.dylib' (no such file)",
+  "evidence_profile": "matched",
+  "family": "B0",
+  "information_profile": "structured_only",
+  "matrix_version": 2,
+  "protocol_version": "v2",
+  "registry_sha256": "37b2591e226cd22ec81a51e6c944e72fa27518ea26f1dd9594433ac7b6ef7021",
+  "run_id": "c10aa9e1f0d4cf9f",
+  "seed": 42,
+  "split_evaluated": "valid",
+  "started_at": "2026-10-01T01:24:55.089329+00:00",
+  "status": "failed",
+  "study_id": "public-comparison-v2",
+  "track": "controlled",
+  "variant_id": "B0-LGBM"
+}

@@ -1,0 +1,23 @@
+{
+  "cpu_count": 12,
+  "device": "cpu",
+  "git": {
+    "dirty": false,
+    "sha": "d502149b944522bfd9e69505379609c4efbf59b3"
+  },
+  "machine": "arm64",
+  "packages": {
+    "lightgbm": "4.7.0",
+    "numpy": "2.4.6",
+    "pandas": "2.3.3",
+    "pyarrow": "21.0.0",
+    "pydantic": "2.13.5",
+    "scikit-learn": "1.9.1",
+    "scipy": "1.17.1",
+    "tokenizers": "0.22.2",
+    "transformers": "4.57.6"
+  },
+  "platform": "macOS-27.0-arm64-arm-64bit",
+  "python": "3.11.16",
+  "uv_lock_sha256": "c5d3af5f294bbfe3cac966b6e577b92d82d663a7daf2751795ef475edebae7ef"
+}

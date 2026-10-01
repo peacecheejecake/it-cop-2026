@@ -1,0 +1,144 @@
+{
+  "adapter_version": "jit-defects4j-adapter-v1",
+  "allowed_uses": [
+    "supervised_train",
+    "cpt_train",
+    "selection",
+    "evaluation_only"
+  ],
+  "artifact_kind": "dataset_snapshot",
+  "code_git_sha": "d502149b944522bfd9e69505379609c4efbf59b3",
+  "dataset_id": "jit-defects4j",
+  "excluded_upstream_content": {
+    "changes_complete_buggy_line_level.pkl": "line-level localisation ground truth; never imported",
+    "features.author_name/author_email": "personal data, not needed",
+    "features.classification": "commit category derived from message; not in feature allowlist",
+    "features.commit_message/fileschanged/author_date": "message duplicated in changes; others kept out of features"
+  },
+  "feature_schema": {
+    "feature_schema_id": "jit14-provided-v1",
+    "negative_value_counts": {
+      "age": 74,
+      "lt": 1580
+    },
+    "provenance": "provided_unverified"
+  },
+  "import_isolation": "macos-sandbox-exec-deny-network",
+  "imported_at": "2026-10-01T01:22:13.331494+00:00",
+  "privacy": "public",
+  "representation_kind": "preprocessed_lines",
+  "representation_notes": [
+    "upstream stores added/removed lines as Python sets: original order and duplicate lines are lost",
+    "edits.order is the rank in lexicographic sort (deterministic), not the patch order",
+    "file and hunk mapping of lines is not available (file_id/hunk_id null)",
+    "messages are upstream-tokenized text identical between changes and features pickles"
+  ],
+  "schema_version": 2,
+  "source": {
+    "approval_file_sha256": "31b840ab1482e846dd01ef1edba28410f7d51c983c67dfc7e36af8c2218b95c6",
+    "archive_bytes": 75326372,
+    "archive_sha256": "9e5ca1a393b70ee7e87c410b162005958775f3f3732f9f83da9dd24a7dfe2b47",
+    "license_status": "unverified: upstream repository declares no license; research analysis only, internal import requires separate policy check",
+    "members_sha256": {
+      "data/jitfine/changes_test.pkl": "23107219e63648b6516d74ff73b1e696c5e8eb368f6766c10e88d61dadb0809d",
+      "data/jitfine/changes_train.pkl": "088898f4c87a59dfeaaabdbc48488b7e224ea7109ee453d0e8d244146b715f85",
+      "data/jitfine/changes_valid.pkl": "dc9bb8f3390b74b5329a2186332466c22d78e71047521c56f1d8b598147c723b",
+      "data/jitfine/features_test.pkl": "136eebbb1c1719bffbfed8f0d686e3c015c5756a7b3c43d6f700a07687ab58fa",
+      "data/jitfine/features_train.pkl": "0b9992d77cd07f45a71bd327a3d408ed3f0ab7a907ffdc10f9916a8f226dc42a",
+      "data/jitfine/features_valid.pkl": "e2ee48d5cd9e7f59bea726d4f6a71ef58712ae58d3388d8195a798369cf0d2cf"
+    },
+    "origin_uri": "https://raw.githubusercontent.com/jacknichao/JIT-Fine/master/data.zip",
+    "source_id": "jit-defects4j",
+    "upstream_revision": "584799fdec6095ab75a45fd2a5f8db5b12163aa5"
+  },
+  "split_membership_sha256": "f79a4e70d3d407421b4bda1e313fa776528607232d399a17a084349979ec49d0",
+  "split_stats": {
+    "test": {
+      "language": {
+        "java": 5480
+      },
+      "n": 5480,
+      "positives": 475,
+      "projects": 21,
+      "unique_ids": 5480
+    },
+    "train": {
+      "language": {
+        "java": 16374
+      },
+      "n": 16374,
+      "positives": 1390,
+      "projects": 21,
+      "unique_ids": 16374
+    },
+    "valid": {
+      "language": {
+        "java": 5465
+      },
+      "n": 5465,
+      "positives": 467,
+      "projects": 21,
+      "unique_ids": 5465
+    }
+  },
+  "table_sha256": {
+    "changes": "e522068d63c324ca16c8a4a87716f8934a464738b35d165e8f869133ea3fee84",
+    "edits": "f1f454ca64676bca003ea4b29f1d90ff2ea7b7fa98f486e5bc1e7838f584751d",
+    "features": "38a32800ef478e4714afd7cd8067dd86ccc23f9bfcfe421e87a66a4cd76f1560",
+    "labels": "779173e20798e8590cc8e2272b608ffa5f15bd935e19ab0b278da6bfba575a6a",
+    "splits": "489c1258642f900ce8db1a120c2fc1bea10d110b8709503233a87e9095d7ab0e"
+  },
+  "time": {
+    "available": "author_date (unix)",
+    "committed_at": "not provided",
+    "provided_split_time_ordered": "no (M0 audit)"
+  },
+  "unpickle_globals": {
+    "test": {
+      "changes": [],
+      "features": [
+        "builtins.slice",
+        "numpy.core.multiarray._reconstruct",
+        "numpy.core.numeric._frombuffer",
+        "numpy.dtype",
+        "numpy.ndarray",
+        "pandas.core.frame.DataFrame",
+        "pandas.core.indexes.base.Index",
+        "pandas.core.indexes.base._new_Index",
+        "pandas.core.indexes.range.RangeIndex",
+        "pandas.core.internals.managers.BlockManager"
+      ]
+    },
+    "train": {
+      "changes": [],
+      "features": [
+        "builtins.slice",
+        "numpy.core.multiarray._reconstruct",
+        "numpy.core.numeric._frombuffer",
+        "numpy.dtype",
+        "numpy.ndarray",
+        "pandas.core.frame.DataFrame",
+        "pandas.core.indexes.base.Index",
+        "pandas.core.indexes.base._new_Index",
+        "pandas.core.indexes.range.RangeIndex",
+        "pandas.core.internals.managers.BlockManager"
+      ]
+    },
+    "valid": {
+      "changes": [],
+      "features": [
+        "builtins.slice",
+        "numpy.core.multiarray._reconstruct",
+        "numpy.core.numeric._frombuffer",
+        "numpy.dtype",
+        "numpy.ndarray",
+        "pandas.core.frame.DataFrame",
+        "pandas.core.indexes.base.Index",
+        "pandas.core.indexes.base._new_Index",
+        "pandas.core.indexes.range.RangeIndex",
+        "pandas.core.internals.managers.BlockManager"
+      ]
+    }
+  },
+  "visibility": "public"
+}

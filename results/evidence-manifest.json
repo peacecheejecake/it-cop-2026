@@ -1,0 +1,35 @@
+{
+  "artifact_kind": "evidence_view",
+  "cache_key": "f3cd51f06ebf98d33a13255b7a27d9ebfea2b2a97344ab47e60a93a9567512a5",
+  "coverage": {
+    "add_lines_kept_ratio": 0.30677006194860085,
+    "changes_with_all_code_kept": 17660,
+    "coverage_scope": "within preprocessed_lines package (not repository diff coverage)",
+    "del_lines_kept_ratio": 0.29766938099193213,
+    "encoder_tokens_median": 280.0,
+    "message_truncated": 1471,
+    "n": 27129,
+    "truncated": 10057
+  },
+  "evidence_parquet_sha256": "d24c807d8e2f9f417d92881eca55f59060f829ab4dc2ef26013df313616aa2e7",
+  "evidence_profile": "matched",
+  "max_length": 512,
+  "max_message_tokens": 64,
+  "query_hash_digest": "7d8774b4545993e08636d7a91310c851166bf6e6e0ecff7ef31bdc78207c7371",
+  "renderer": "message-add-del-text-v2",
+  "snapshot_manifest_sha256": "c958a2f4dc14e4172e490b34728f2a88b1fd2406e04239ff7292daf472b4c8ab",
+  "split_manifest_sha256": "b6b08555ea88a7c7800c63dc32ace75ef3e59ef2d7f27047a7bc911ab5e5841b",
+  "tokenizer": {
+    "added_tokens": [
+      "</s>",
+      "<mask>",
+      "<pad>",
+      "<s>",
+      "<unk>"
+    ],
+    "class": "RobertaTokenizerFast",
+    "files_sha256": "da3076d661e9e1b237f066695f03fe1467ee901acf71a85eaefce871cc7dc015",
+    "revision": "3b0952feddeffad0063f274080e3c23d75e7eb39",
+    "vocab_size": 50265
+  }
+}

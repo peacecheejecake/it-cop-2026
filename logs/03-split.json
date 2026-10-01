@@ -1,0 +1,40 @@
+{
+  "counts": {
+    "cpt_dev": 809,
+    "cpt_train": 15375,
+    "test": {
+      "n": 5480,
+      "positives": 475
+    },
+    "train": {
+      "n": 16184,
+      "positives": 1387
+    },
+    "valid": {
+      "n": 5465,
+      "positives": 467
+    }
+  },
+  "excluded": {
+    "code_identical_to_eval": 150,
+    "exact_duplicate_of_eval": 40
+  },
+  "excluded_positives": 3,
+  "membership_sha256": "f590443fc14cb856311358af6fdc6199264b0d53e401d1b9d5db79f0057f7ffc",
+  "parent_snapshot_manifest_sha256": "c958a2f4dc14e4172e490b34728f2a88b1fd2406e04239ff7292daf472b4c8ab",
+  "rules": {
+    "cpt_dev": {
+      "fraction": 0.05,
+      "salt": "cpt-dev-v1",
+      "selection": "sha256 rank, label-free"
+    },
+    "eval_membership": "provided valid/test kept unchanged",
+    "time_ordering": "not time-ordered (provided split); reported as upstream_holdout",
+    "train_exclusion": [
+      "exact_duplicate_of_eval",
+      "code_identical_to_eval"
+    ]
+  },
+  "split_id": "upstream-clean1",
+  "splits_parquet_sha256": "5442378a04cf3910573042b90caebd4445be38137f8c3b95849f56ff7b507f77"
+}

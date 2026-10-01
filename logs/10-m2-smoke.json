@@ -1,0 +1,16 @@
+[
+  {
+    "run_id": "2de31167bc4915ce",
+    "seed": 42,
+    "status": "completed",
+    "validation_ap": 0.3192886953697644,
+    "variant_id": "B0-LR"
+  },
+  {
+    "run_id": "1912ea338feda8a3",
+    "seed": 42,
+    "status": "completed",
+    "validation_ap": 0.5463648613877781,
+    "variant_id": "B1-TFIDF-S"
+  }
+]
