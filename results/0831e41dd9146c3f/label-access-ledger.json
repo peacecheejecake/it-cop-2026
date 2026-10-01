@@ -1,0 +1,11 @@
+{
+  "adaptation_mode": "mlm_cpt_then_supervised",
+  "cpt_label_count": 0,
+  "cpt_unlabeled_input_count": 15375,
+  "demo_unique_label_count": 0,
+  "gradient_label_count": 16184,
+  "index_labeled_count": 0,
+  "rmi_synthetic_target_count": 0,
+  "selection_label_count": 5465,
+  "selection_use": "threshold (max F1) and reporting on public validation"
+}

@@ -1,0 +1,23 @@
+{
+  "adaptation_mode": "mlm_cpt_then_supervised",
+  "attempt": 1,
+  "cpt_id": "8083463bfa4e5e0b",
+  "evidence_profile": "matched",
+  "family": "B4",
+  "finished_at": "2026-10-01T04:50:38.929154+00:00",
+  "information_profile": "text_and_structured",
+  "matrix_version": 2,
+  "protocol_version": "v2",
+  "registry_sha256": "37b2591e226cd22ec81a51e6c944e72fa27518ea26f1dd9594433ac7b6ef7021",
+  "run_id": "0831e41dd9146c3f",
+  "scoped_config_sha256": "f175da573bf127cddf3ac376f57c9669e40bd0a5e4f9bb18fbd47b5ebf8f1d50",
+  "seed": 42,
+  "split_evaluated": "valid",
+  "started_at": "2026-10-01T04:24:50.557492+00:00",
+  "status": "completed",
+  "study_id": "public-comparison-v2",
+  "study_sha256": "93aa9bbc9e7e236701c44903f4e6de7d0b81ef758ddc47d2d9f962f3624595f1",
+  "track": "controlled",
+  "validation_ap": 0.5596340614667308,
+  "variant_id": "B4-S"
+}

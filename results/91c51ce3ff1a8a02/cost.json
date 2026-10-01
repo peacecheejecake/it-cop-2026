@@ -1,0 +1,9 @@
+{
+  "device": "cuda",
+  "fit_seconds": 112.22727516014129,
+  "gpu_seconds": 112.22727516014129,
+  "note": "neural fit_seconds include per-epoch validation scoring",
+  "peak_cuda_bytes": 632767488,
+  "predict_seconds": 0.0,
+  "wall_seconds": 112.22727516014129
+}

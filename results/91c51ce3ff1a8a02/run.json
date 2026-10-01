@@ -1,0 +1,22 @@
+{
+  "adaptation_mode": "frozen_encoder_train_head",
+  "attempt": 1,
+  "evidence_profile": "matched",
+  "family": "B2",
+  "finished_at": "2026-10-01T04:22:39.221227+00:00",
+  "information_profile": "text_and_structured",
+  "matrix_version": 2,
+  "protocol_version": "v2-b2sens1",
+  "registry_sha256": "37b2591e226cd22ec81a51e6c944e72fa27518ea26f1dd9594433ac7b6ef7021",
+  "run_id": "91c51ce3ff1a8a02",
+  "scoped_config_sha256": "314bf6675fc9d7778e5e9a38729ac28ad5d221b518b6554a4232c9354ea31003",
+  "seed": 43,
+  "split_evaluated": "valid",
+  "started_at": "2026-10-01T04:20:46.839704+00:00",
+  "status": "completed",
+  "study_id": "b2-head-sensitivity-v1",
+  "study_sha256": "b3001f91ca9e39103669fc3e85f1f26ba1859eff530f4ca7166a78d6ad5027d0",
+  "track": "controlled",
+  "validation_ap": 0.60389988676387,
+  "variant_id": "B2-S"
+}

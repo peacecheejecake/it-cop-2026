@@ -1,0 +1,24 @@
+{
+  "budget": 10000000,
+  "budget_unit": "nonpadding_input_token_exposures",
+  "corpus_changes": 15375,
+  "corpus_tokens_per_pass": 4545793,
+  "cpt_id": "8083463bfa4e5e0b",
+  "dev_evals": 12,
+  "dev_forward_tokens_per_eval": 240335,
+  "excluded": {
+    "dev": {},
+    "train": {}
+  },
+  "forced_single_target_samples": 81,
+  "forward_tokens": 10034743,
+  "mlm_input_tokens": 10034743,
+  "mlm_target_tokens": 1319729,
+  "optimizer_updates": 265,
+  "passes": 2.207479091106876,
+  "planned_updates": 265,
+  "rmi_input_tokens": 0,
+  "train_seconds_this_attempt": 323.7505614720285,
+  "unique_changes_seen": 15375,
+  "warmup_updates": 16
+}
