@@ -445,7 +445,7 @@ def export_bundle(cfg: StudyConfig, raw: dict, artifacts_dir: Path, freeze_path:
         for e in rec["runs"]:
             d = artifacts_dir / "runs" / e["run_id"]
             for rel in ["run.json", "model/state.json", "resolved-config.json", "evidence-manifest.json", "metrics.json",
-                        *[r for r in e["checkpoint_files_sha256"] if not r.endswith("validation-scores.parquet")],
+                        *e["checkpoint_files_sha256"],  # whole best generation: its pointer verifies every listed file
                         *(["model/lightgbm.txt"] if (d / "model" / "lightgbm.txt").exists() else []),
                         *(["prompts/manifest.json"] if (d / "prompts" / "manifest.json").exists() else [])]:
                 add(d / rel, f"runs/{e['run_id']}/{rel}")
