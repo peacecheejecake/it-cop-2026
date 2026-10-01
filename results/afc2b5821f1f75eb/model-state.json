@@ -1,0 +1,149 @@
+{
+  "best_epoch": 3,
+  "best_validation_ap": 0.5086827056980375,
+  "device": "cuda",
+  "early_stopped": true,
+  "embedding_cache": null,
+  "encoder": {
+    "hidden_size": 768,
+    "missing_keys": [],
+    "revision": "3b0952feddeffad0063f274080e3c23d75e7eb39",
+    "unexpected_keys": [
+      "pooler.dense.bias",
+      "pooler.dense.weight"
+    ]
+  },
+  "encoder_init_state_sha256": "a010cf3a06a3cbae52c3abf1bfc361f85c88a24352704c4f51715499c623dc4d",
+  "frozen_encoder": false,
+  "head_init_state_sha256": "bc97818da03ad327ed96f60a864e0e76bd2f62a988a57a172c6991f2af01b262",
+  "history": [
+    {
+      "epoch": 1,
+      "optimizer_updates": 506,
+      "train_loss": 0.2451836063323549,
+      "validation_ap": 0.49652605844125874,
+      "validation_roc_auc": 0.8775111757765204
+    },
+    {
+      "epoch": 2,
+      "optimizer_updates": 506,
+      "train_loss": 0.19139903500027958,
+      "validation_ap": 0.47184758481390965,
+      "validation_roc_auc": 0.8749962511771304
+    },
+    {
+      "epoch": 3,
+      "optimizer_updates": 506,
+      "train_loss": 0.15999725497559308,
+      "validation_ap": 0.5086827056980375,
+      "validation_roc_auc": 0.879003849933978
+    },
+    {
+      "epoch": 4,
+      "optimizer_updates": 506,
+      "train_loss": 0.12738088613090134,
+      "validation_ap": 0.4616338354876446,
+      "validation_roc_auc": 0.8719736288519692
+    },
+    {
+      "epoch": 5,
+      "optimizer_updates": 506,
+      "train_loss": 0.09412797557068524,
+      "validation_ap": 0.43059879561749664,
+      "validation_roc_auc": 0.8597070519856767
+    },
+    {
+      "epoch": 6,
+      "optimizer_updates": 506,
+      "train_loss": 0.07070399977381189,
+      "validation_ap": 0.38580530963252596,
+      "validation_roc_auc": 0.8357839923978156
+    },
+    {
+      "epoch": 7,
+      "optimizer_updates": 506,
+      "train_loss": 0.05526914061792931,
+      "validation_ap": 0.38092281061825756,
+      "validation_roc_auc": 0.824676765781259
+    },
+    {
+      "epoch": 8,
+      "optimizer_updates": 506,
+      "train_loss": 0.037741050339447545,
+      "validation_ap": 0.38783701240839713,
+      "validation_roc_auc": 0.8312466314148786
+    }
+  ],
+  "peak_cuda_bytes": 4802982400,
+  "pipeline": {
+    "columns": [
+      "ns",
+      "nd",
+      "nf",
+      "entropy",
+      "la",
+      "ld",
+      "lt",
+      "fix",
+      "ndev",
+      "age",
+      "nuc",
+      "exp",
+      "rexp",
+      "sexp"
+    ],
+    "kind": "signed_log1p_median_impute_standardize",
+    "mean": [
+      0.7131182347318248,
+      0.9511118026280446,
+      1.1809216268267686,
+      0.4526937451640608,
+      3.3496284572000907,
+      2.2041510970380007,
+      4.380090687606959,
+      0.14981641359359174,
+      1.590211722108198,
+      2.403654492427178,
+      2.639508454193348,
+      4.509962906559988,
+      4.058907315901337,
+      4.372688964372267
+    ],
+    "median": [
+      0.6931471805599453,
+      0.6931471805599453,
+      1.0986122886681098,
+      0.20323764821322202,
+      3.258096538021482,
+      1.9459101490553132,
+      5.19295685089021,
+      0.0,
+      1.6094379124341003,
+      2.285531420727769,
+      2.6390573296152584,
+      4.762173934797756,
+      4.301709766528628,
+      4.61512051684126
+    ],
+    "scale": [
+      0.09913582668615355,
+      0.4098073954185475,
+      0.6868771495356838,
+      0.5160830298789935,
+      1.7544661949269291,
+      1.6861380600128741,
+      2.6740181024900225,
+      0.285306619099443,
+      0.6820023621077419,
+      1.958873859499787,
+      1.3472716763513946,
+      1.5390683521577648,
+      1.3280929519908147,
+      1.6078480066171663
+    ],
+    "sha256": "3609f7422f232c5603a97494cc584fcc4576eb05e8d8879a620d6a00e2cef0c3"
+  },
+  "stopped_epoch": 8,
+  "train_seconds": 1203.6610103690036,
+  "train_tokens_per_epoch": 4786128
+}

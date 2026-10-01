@@ -1,0 +1,41 @@
+{
+  "ap": 0.5086827056980375,
+  "at_threshold": {
+    "f1": 0.49329205366357065,
+    "precision": 0.4760956175298805,
+    "predicted_positive": 502,
+    "recall": 0.5117773019271948,
+    "threshold": 0.14379143714904785
+  },
+  "n": 5465,
+  "note": "threshold chosen on this same validation set (F1 is optimistic)",
+  "null_reason": null,
+  "positives": 467,
+  "prevalence": 0.08545288197621226,
+  "recall_at_10pct": {
+    "boundary_tie_size": 1,
+    "k": 547,
+    "null_reason": null,
+    "precision": 0.44972577696526506,
+    "recall": 0.5267665952890792,
+    "selection_rate": 0.1000914913083257,
+    "tp": 246
+  },
+  "recall_at_5pct": {
+    "boundary_tie_size": 1,
+    "k": 274,
+    "null_reason": null,
+    "precision": 0.6058394160583942,
+    "recall": 0.3554603854389722,
+    "selection_rate": 0.05013723696248856,
+    "tp": 166
+  },
+  "roc_auc": 0.879003849933978,
+  "split": "valid",
+  "threshold_selection": {
+    "f1": 0.49329205366357065,
+    "policy": "validation_max_f1_then_highest_threshold",
+    "threshold": 0.14379143714904785
+  },
+  "unique_scores": 5464
+}

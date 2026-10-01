@@ -1,0 +1,9 @@
+{
+  "adaptation_mode": "supervised_encoder_head",
+  "demo_unique_label_count": 0,
+  "gradient_label_count": 16184,
+  "index_labeled_count": 0,
+  "rmi_synthetic_target_count": 0,
+  "selection_label_count": 5465,
+  "selection_use": "threshold (max F1) and reporting on public validation"
+}

@@ -1,0 +1,20 @@
+{
+  "adaptation_mode": "supervised_encoder_head",
+  "attempt": 1,
+  "evidence_profile": "matched",
+  "family": "B3",
+  "finished_at": "2026-10-01T03:07:09.396427+00:00",
+  "information_profile": "text_and_structured",
+  "matrix_version": 2,
+  "protocol_version": "v2",
+  "registry_sha256": "37b2591e226cd22ec81a51e6c944e72fa27518ea26f1dd9594433ac7b6ef7021",
+  "run_id": "de409cca4a05571a",
+  "seed": 43,
+  "split_evaluated": "valid",
+  "started_at": "2026-10-01T02:49:38.700152+00:00",
+  "status": "completed",
+  "study_id": "public-comparison-v2",
+  "track": "controlled",
+  "validation_ap": 0.5193326083013394,
+  "variant_id": "B3-S"
+}

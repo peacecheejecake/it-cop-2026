@@ -1,0 +1,20 @@
+{
+  "adaptation_mode": "frozen_encoder_train_head",
+  "attempt": 1,
+  "evidence_profile": "matched",
+  "family": "B2",
+  "finished_at": "2026-10-01T02:28:13.498896+00:00",
+  "information_profile": "text_and_structured",
+  "matrix_version": 2,
+  "protocol_version": "v2",
+  "registry_sha256": "37b2591e226cd22ec81a51e6c944e72fa27518ea26f1dd9594433ac7b6ef7021",
+  "run_id": "01a8a93a163decbc",
+  "seed": 43,
+  "split_evaluated": "valid",
+  "started_at": "2026-10-01T02:26:56.797045+00:00",
+  "status": "completed",
+  "study_id": "public-comparison-v2",
+  "track": "controlled",
+  "validation_ap": 0.3802834826759601,
+  "variant_id": "B2-S"
+}
