@@ -23,6 +23,6 @@ study `public-comparison-v4-gitlines`: v3 variant를 누출 없는 snapshot `jit
 - 번들 `.cache/bundles/jit016-8db0d30.tar.gz`(코드 `8db0d30` + git1 snapshot/split/evidence + CodeBERT), sha256 `5af9eab1…43aa`, pod에서 일치.
 - `scripts/pod_setup.sh` → `scripts/pod_run.sh`(B3-S seed 42/43/44, 08:38 UTC 시작) → `scripts/pod_run2.sh`(B2-S, B4-S, B5-S).
 - 편차: 9개 variant 등록본(main `7a25603`)은 번들 뒤에 만들었다. pod에서는 B3-S 루프가 끝난 뒤 설정 파일만 교체한다. 코드는 `8db0d30` 그대로이고, B0/B1/B3의 scoped config hash가 등록 전후로 같은 것을 확인했다.
-- 013·014 pod는 09:0x UTC 무렵 사용자가 중단했다.
+- 013·014 pod는 08:50 UTC 무렵 사용자가 중단했다.
 
 (결과는 run이 끝나는 대로 이어서 적는다.)
