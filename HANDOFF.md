@@ -11,12 +11,19 @@
 ## 1. 새 Mac 준비
 
 1. 저장소 clone 후 `git fetch --all`. 원격: `origin` (peacecheejecake/it-cop-2026), `lvu` (kb-lvu/it-cop-experiments). 저장소 루트가 곧 이 프로젝트(`jit-zero-shot`)다. 이전 Mac에서는 `~/it-cop-2026/labs/jit-zero-shot`에 있었다.
-2. **git 밖의 데이터 옮기기:** 이전 Mac의 `experiments/.cache/handoff-2026-10-03/`(약 14 GB, tar 12개 + `SHA256SUMS` + `ITEMS.txt`)를 새 Mac으로 복사한다(외장 디스크, AirDrop, rsync 등). 그다음 새 Mac의 저장소 루트에서:
+2. **git 밖의 데이터 옮기기 (Google Drive, `gdrive:jit-zero-shot-weights/`, 모두 로컬과 해시 대조 완료):**
    ```bash
-   tools/handoff_transfer.sh restore <복사한 폴더>
+   # 새 Mac의 저장소 루트에서 (rclone에 같은 Google 계정의 gdrive: remote가 있어야 한다)
+   rclone copy gdrive:jit-zero-shot-weights/handoff-2026-10-03 ~/jit-handoff     # tar 9개 약 2.9 GB + SHA256SUMS
+   tools/handoff_transfer.sh restore ~/jit-handoff                                # 해시 검사 → worktree 5개 생성 → 풀기
+   rclone copy gdrive:jit-zero-shot-weights/016-dl-v4-gitlines/codebert-diff-lab/artifacts experiments/016-dl-v4-gitlines/codebert-diff-lab/artifacts   # v4 run·CPT 10.7 GB
+   rclone copy gdrive:jit-zero-shot-weights/diffllm-v1-186bfade85a4b2e6/artifacts/diffllm/cpt experiments/012-dl-diffllm/codebert-diff-lab/artifacts/diffllm/cpt   # Qwen 7B CPT adapter
    ```
-   - 해시를 검사한 뒤 worktree 5개(012, 015, 016, 017, 018)를 브랜치에서 만들고 데이터를 제자리에 푼다.
-   - 담긴 것은 `ITEMS.txt` 참고. 이전 study(v2/v3, 011 등)의 산출물은 누출된 입력으로 만든 것이라 옮기지 않았다(Google Drive `gdrive:jit-zero-shot-weights/`에 일부 백업이 있다).
+   - Drive의 `handoff-2026-10-03`에는 git 미러, CodeBERT, snapshot·split·evidence, v4 test 결과·report, 012 fulldiff·CPT 말뭉치, Study M 입력, 사내 패키지용 Python이 있다(`ITEMS.txt`).
+   - v4 run과 CPT 인코더, 012 CPT adapter는 Drive의 기존 백업을 그대로 쓴다. 2026-10-03에 `rclone check`로 로컬과 0 differences를 확인했다.
+   - rclone remote는 scope `drive.file`이라, 같은 rclone client로 올린 파일만 보인다. 새 Mac도 rclone 기본 client로 같은 계정에 연결해야 한다. rclone의 공유 client_id는 2026년 중 폐기 예정이라는 경고가 뜬다.
+   - 대안: 이전 Mac의 `experiments/.cache/handoff-2026-10-03/`(tar 12개, 14 GB, 위 Drive 분량 포함)를 디스크로 직접 옮겨 `restore`해도 된다.
+   - 이전 study(v2/v3, 011 등)의 산출물은 누출된 입력으로 만든 것이라 옮기지 않는다. Drive에 백업은 있다.
 3. 각 worktree의 `codebert-diff-lab/`에서 환경 구축(사내 TLS 프록시 때문에 `--system-certs`):
    ```bash
    uv python install 3.11 --system-certs
