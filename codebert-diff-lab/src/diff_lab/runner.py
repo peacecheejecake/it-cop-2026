@@ -92,6 +92,12 @@ def _installed(name: str) -> bool:
         return False
 
 
+def _keep_train(frame: pd.DataFrame, fraction: float, salt: str) -> pd.Series:
+    import hashlib
+    u = frame["change_id"].map(lambda c: int(hashlib.sha256(f"{salt}:{c}".encode()).hexdigest()[:15], 16) / 16**15)
+    return (frame["split"] != "train") | (u < fraction)
+
+
 def load_frames(cfg: StudyConfig, data_dir: Path, variant: str, test_unlock: dict | None = None) -> tuple[pd.DataFrame, pd.Series, dict]:
     """train+valid frames; test rows are added only with an unlocked study-freeze record (spec AT-17)."""
     p = paths(cfg, data_dir)
@@ -110,6 +116,8 @@ def load_frames(cfg: StudyConfig, data_dir: Path, variant: str, test_unlock: dic
     labels = pd.read_parquet(p["snapshot"] / "labels.parquet")[["change_id", "label"]]
     splits = ["train", "valid"] + (["test"] if test_unlock is not None and test_unlock.get("status") == "frozen" else [])
     frame = sp[sp["split"].isin(splits)].merge(feats, on="change_id", how="left", validate="1:1")
+    if cfg.dataset.train_fraction < 1.0:
+        frame = frame[_keep_train(frame, cfg.dataset.train_fraction, cfg.dataset.train_subsample_salt)].reset_index(drop=True)
     from .lineage import validate_lineage
     tok_digest = None
     if variant in NEEDS_EVIDENCE:
@@ -122,6 +130,9 @@ def load_frames(cfg: StudyConfig, data_dir: Path, variant: str, test_unlock: dic
                **approved,
                "snapshot_manifest_sha256": sha256_file(snap_m), "split_manifest_sha256": sha256_file(split_m),
                "feature_schema_id": snap["feature_schema"]["feature_schema_id"]}
+    if cfg.dataset.train_fraction < 1.0:
+        lineage["train_fraction"] = cfg.dataset.train_fraction
+        lineage["train_rows_after_subsample"] = int((frame["split"] == "train").sum())
     if variant in NEEDS_EVIDENCE:
         em = p["evidence"] / "manifest.json"
         if not em.exists():

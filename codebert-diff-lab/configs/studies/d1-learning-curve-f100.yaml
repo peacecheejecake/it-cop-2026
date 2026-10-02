@@ -1,0 +1,87 @@
+# Study D1 (docs/next-studies-plan.md §3): learning curve on `jitd4j-git1`, train fraction 100%.
+# Exploratory, validation only, registered 2026-10-03 after the v4 test was opened; no test access is planned.
+# Everything except `dataset.train_fraction` and the device (local MPS instead of the H100) equals v4.
+# The train subsets are nested (sha256 rank of change_id, label-free). Validation is the full v4 validation set.
+schema_version: 2
+matrix_version: 2
+study_id: d1-learning-curve-f100
+track: controlled
+protocol_version: d1-learning-curve
+
+dataset:
+  snapshot_id: jitd4j-git1
+  split_id: upstream-clean2
+  source_approval: configs/sources/jit-defects4j.yaml
+  train_visibility: public
+  feature_profile: jit14-gitextract-v1
+  train_fraction: 1.0
+
+model:
+  base: microsoft/codebert-base
+  revision: 3b0952feddeffad0063f274080e3c23d75e7eb39
+  local_path: cache:models/codebert-base
+  weights_file: pytorch_model.bin
+  weights_sha256: 28b61fd8fa069f6bc966f4cb9572a4026ab2a784fca8fb224020d91b744e32d6
+  renderer: message-add-del-text-v2
+  max_length: 512
+  max_message_tokens: 64
+  fusion_head: cls-feature-tanh-v1
+
+experiments: [B0-LR, B1-TFIDF-S, B2-S, B3-S]
+evidence_profile: matched
+information_profile: structured_fused
+
+structured:
+  features: [ns, nd, nf, entropy, la, ld, lt, fix, ndev, age, nuc, exp, rexp, sexp]
+  lr_transform: signed_log1p_median_impute_standardize
+  lr: {C: 1.0, max_iter: 1000}
+  lgbm: {num_leaves: 15, learning_rate: 0.05, n_estimators: 300, min_child_samples: 20, num_threads: 4}
+
+text_baseline:
+  classifier: logistic_regression
+  analyzer: char
+  ngram_range: [3, 5]
+  lowercase: false
+  min_df: 2
+  max_features_per_field: 50000
+  fit_role: supervised_train
+  lr: {C: 1.0, max_iter: 1000}
+
+seeds: [42, 43, 44]
+
+evaluation:
+  primary_metrics: [ap, recall_at_5pct, recall_at_10pct]
+  budget_unit: change_count
+  topk_rounding: ceil
+  tie_salt: topk-tie-v1
+  threshold_policy: validation_max_f1_then_highest_threshold
+  calibration: none
+  require_freeze_for_test: true
+
+policy:
+  allow_internal_training: false
+  allow_internal_demonstrations: false
+  allow_internal_index_members: false
+  allow_remote_llm: false
+  allow_test_selection: false
+  automatic_remote_logging: false
+
+# Shared downstream protocol for B2-S/B3-S/B4-S/B5-S (spec protocol §2.1); B2-S only freezes the encoder.
+# precision: fp32 until the CUDA 100-step profile (spec T14) shows bf16_encoder_autocast is equivalent; then re-pinned before formal runs.
+finetune:
+  max_epochs: 100
+  micro_batch_size: 8
+  gradient_accumulation_steps: 4
+  encoder_learning_rate: 0.00001
+  head_learning_rate: 0.001
+  weight_decay: 0.01
+  lr_schedule: constant
+  max_grad_norm: 1.0
+  head_dropout: 0.1
+  selection_metric: validation_ap
+  patience_epochs: 5
+  tie_rule: earlier_checkpoint
+  precision: fp32
+  device: mps
+  allow_cpu: false
+  eval_batch_size: 64

@@ -30,6 +30,10 @@ class DatasetCfg(Strict):
     source_approval: str
     train_visibility: Literal["public"]
     feature_profile: Literal["jit14-audited-v1", "jit14-gitextract-v1"]
+    # Learning-curve studies: keep the train rows whose sha256(salt:change_id) falls in the lowest `train_fraction` of the
+    # hash range (label-free, nested: the 25% set is inside the 50% set). Validation and test are never subsampled.
+    train_fraction: float = Field(default=1.0, gt=0.0, le=1.0)
+    train_subsample_salt: str = "train-subsample-v1"
 
 
 class ModelCfg(Strict):

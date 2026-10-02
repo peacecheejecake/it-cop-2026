@@ -155,3 +155,12 @@ def test_rebuild_snapshot_from_git_replaces_text_and_features_keeps_labels(repo,
     assert f.loc[ids[1], "la"] == 2 and (f["feature_schema_id"] == "jit14-gitextract-v1").all()
     assert pd.read_parquet(snap / "labels.parquet").set_index("change_id").loc[ids[1], "label"] == 1
     assert read_json(snap / "manifest.json")["source"] == {"source_id": "x"}
+
+
+def test_train_subsample_is_nested_label_free_and_keeps_eval_rows():
+    from diff_lab.runner import _keep_train
+    f = pd.DataFrame({"change_id": [f"c{i}" for i in range(4000)], "split": ["train"] * 3000 + ["valid"] * 1000})
+    k25, k50 = _keep_train(f, 0.25, "s"), _keep_train(f, 0.5, "s")
+    assert k25[f.split == "valid"].all() and k50[f.split == "valid"].all()
+    assert (k50 | ~k25).all()
+    assert 0.22 < k25[f.split == "train"].mean() < 0.28 and 0.46 < k50[f.split == "train"].mean() < 0.54
