@@ -1,4 +1,4 @@
-# Handoff — 2026-10-03 (다른 Mac에서 이어서 작업)
+# Handoff — 2026-10-03 (다른 Mac에서 이어서 작업: 외부 test set 평가부터)
 
 다른 세션·다른 기기에서 이어서 작업하기 위한 기록이다. 끝난 항목은 지우고 갱신한다.
 
@@ -46,26 +46,67 @@
   - 원인은 미확인이다. 추론은 장치와 무관하다. **인코더 계열 학습은 반드시 CUDA(H100)에서 한다.**
 - **diff CPT 점검** (`exp/018`): 012의 50M 토큰 CPT는 JD4J diff의 loss를 7% 낮췄다. 다만 버그·정상 커밋에 똑같이 작용했다(ROC-AUC 0.487).
 
-## 3. 다음 할 일 (우선순위 순)
+## 3. 다음 할 일 (사용자가 정한 순서)
 
-1. **Study M 1단계** (`exp/018-dl-study-m`, 설정 `codebert-diff-lab/configs/studies/study-m-stage1.yaml`).
-   - 내용: Qwen2.5-Coder-7B R-base와 R-diff(012 CPT adapter 재사용)를 seed 42/43/44로. v4와 같은 cohort, H100.
-   - 예상 약 15시간, 약 $52. **잔액이 $2.10이라 충전이 필요하다.**
-   - 입력 view(`data/diffllm-view/study-m-stage1`)와 CPT adapter(`012…/artifacts/diffllm/cpt/adapter` → pod에서 `artifacts/diffllm/cpt/qwen7b-apache50m/adapter`)는 준비돼 있다. pod 번들 만드는 법은 018 RUNLOG의 probe 단계를 따른다.
-   - 명령: `diff-lab diffllm arm --config … --arms R-base,R-diff --view …` → `diffllm freeze` → `diffllm test`. 그다음 v4 test 예측과 합친 report를 만든다(**report 스크립트는 아직 없음**).
-   - 결과에 따라: R-diff − R-base가 확실히 양수면 CPT 말뭉치 확대 arm, 아니면 학습 목표나 LoRA 용량을 다음 변수로(`next-studies-plan.md` §2).
-2. **Study M 2단계:** Qwen 14B, Gemma 4 12B(Apache-2.0, 승인 불필요), Llama 3.1 8B(라이선스 확인·토큰 필요). seed 수는 미정(권고: 선별 단계 1 seed, 상위 모델만 3 seed). Gemma 4는 고정된 transformers 4.57.6에서 로딩 확인이 먼저다.
-3. **완전히 다른 test set으로 모든 모델 평가** — 사용자 답변 대기. 제안 내용:
-   - ApacheJIT(Hadoop 제외)를 git에서 재구축하고, v4 freeze 모델과 Study M 모델을 재학습 없이 적용한다.
-   - ApacheJIT 저장소는 다시 받아야 한다(약 20 GB).
-   - **012 CPT 말뭉치 저장소 6개(activemq, cassandra, groovy, kafka, zeppelin, zookeeper)는 ApacheJIT와 겹치므로 빼거나 따로 보고한다.**
-4. **사내 반입 zip** (`exp/015-dl-internal-pack`) — 사용자 답변 대기:
-   - B2-S seed 44(run `d4987435844df076`)만 넣을지, B0-LR도 함께 넣을지.
-   - 사내 서버의 glibc 버전(2.28 이상 필요)과 GPU 유무.
-   - 할 일: `study export --variants B2-S[,B0-LR] --seeds 44`(016의 artifacts/freeze 사용), `pack/README.md`·`jit.sh`(`--variants`)·`build_pack.sh`·`PROVENANCE.json`을 v4 기준으로 수정.
-   - `scripts/fetch_wheels.py`의 `nvidia-nccl-cu12` 다운로드 실패도 고쳐야 한다. GPU 없이 가면 CPU용 torch로 바꾸면 되고 zip이 작아진다.
-5. 문서 정리: `codebert-diff-lab/docs/results-v4-<date>.md` 작성, `v4-correction-plan.md` §6의 정정 항목.
-6. B2-S 학습 플랫폼 차이: CUDA에서 `exp/017/scripts/b2_head_platform_check.py --seeds`를 돌려 확인한다(15분). Study M pod에서 함께 하면 된다.
+### 3.1 [지금 할 일] 외부 test set으로 모든 모델 평가 (모델 × 언어)
+
+사용자 지시(2026-10-03):
+1. ISSTA'21 데이터가 사전학습이나 다른 학습에 쓰이지 않았다면, 이 데이터로 예측한다. 모델 × 언어별로 결과를 낸다.
+2. 다음 단계는 그 결과를 보고 정한다.
+3. 추가로 JavaScript test set이 있으면 좋겠다. 가능하면 COBOL도.
+
+**학습 사용 여부 점검 결과:**
+- 우리 학습(JD4J fine-tuning, CPT 말뭉치 zookeeper/zeppelin/activemq/kafka/cassandra/groovy, Qwen LoRA)에는 ISSTA'21 프로젝트(Qt, OpenStack, Eclipse Platform, JDT, Gerrit, Go)가 없다.
+- 기반 모델(CodeBERT, Qwen2.5-Coder) 사전학습에 이 저장소들의 코드가 들어갔는지는 확인할 수 없다. JD4J도 같은 처지다. 결함 라벨이 사전학습에 들어갔을 가능성은 없다. 이 한계를 결과에 명시하고 진행한다.
+
+**ISSTA'21 데이터 받기** (이전 Mac에서는 사내 프록시가 Google Drive 다운로드를 막았다):
+- 저장소: https://github.com/ZZR0/ISSTA21-JIT-DP (MIT). 310k 커밋, 6개 프로젝트. 언어: Qt=C++, OpenStack=Python, Platform/JDT/Gerrit=Java, Go=Go.
+- 전처리 데이터: README "Retraining Evaluation"의 Google Drive `datasets.tar.gz`, file id `1XvrxRjWAYo3qQY4x75nbT4PoYqlTISLJ`. 브라우저나 `gdown`으로 받아 `experiments/.cache/raw/issta21/`에 두고 sha256을 `DATASETS.md`에 기록한다.
+- 대안: Qt·OpenStack만 Zenodo 3965246(DeepJIT, CC-BY-4.0)에 있다(`qt_{train,test}.pkl`, `openstack_{train,test}.pkl`). pickle은 허용 목록 방식으로 연다(`adapters/pickle_worker.py` 참고).
+- Docker 이미지 `zzr0/issta2021-jit-dp:v1.0`(약 30 GB)에도 데이터가 들어 있다.
+
+**처리 원칙:**
+- 패키지의 전처리 텍스트·지표는 쓰지 않는다(JD4J 누출 교훈). **커밋 ID와 라벨만** 가져오고, 텍스트와 jit14는 각 프로젝트 저장소를 clone해 `diff_lab.gitextract`로 다시 뽑는다.
+  - 저장소 URL은 데이터의 repo 필드나 `Data_Extraction/git_base/git_extraction.py`의 `-url`/`-repo` 인자로 확정한다.
+  - Platform과 OpenStack은 저장소가 여러 개일 수 있다.
+- 데이터를 만든 뒤 `tools/representation_leak_check.py`를 돌린다.
+- 모델은 재학습하지 않는다. v4 freeze `7340ee71c876c8b7`의 9개 variant를 그대로 적용한다:
+  - `study export`(전체 또는 `--variants`) → `predict` → `internal label-eval`. label-eval은 `project`·`primary_language`별 지표를 이미 낸다.
+  - B0~B5는 Mac에서 가능하다(추론은 장치 무관). L0/L1은 GPU가 필요하다.
+- 구현할 것:
+  - `internal extract`에 라벨된 커밋만 고르는 옵션(`extract_repo(only=...)`는 이미 있고 CLI 노출만 필요).
+  - 라벨 CSV 변환(ISSTA'21 라벨 → `change_id,label`).
+  - 언어 확장자: `gitextract.DEFAULT_EXTENSIONS`에 C++, Python, Go가 있다.
+- 보고: 모델 × 언어(프로젝트)별 AP, ROC-AUC, Recall@10%, 양성 비율 대비 향상 배수. 프로젝트마다 양성 비율이 달라 AP 절대값보다 향상 배수와 순위를 본다.
+
+**JavaScript:**
+- Ni, Xia, Lo, Yang, Hassan, "Just-In-Time Defect Prediction on JavaScript Projects: A Replication Study", TOSEM 31(4), 2022, doi 10.1145/3508479.
+- 인기 JS 프로젝트 20개, 176,902개 변경, MA-SZZ 라벨, "GitHub와 GitLab에 공개".
+- 정확한 저장소 링크를 아직 찾지 못했다. 논문 PDF(xin-xia.github.io/publication/tosem221.pdf)가 이전 Mac에서 접속되지 않았다. 새 Mac에서 PDF의 데이터 섹션부터 확인한다.
+
+**COBOL:**
+- 커밋 단위 결함 라벨이 있는 공개 데이터는 찾지 못했다.
+  - X-COBOL(https://zenodo.org/records/14269462): 저장소 168개, `commits_data.csv`, 라벨 없음.
+  - OpenCBS: 포럼 기반 결함 프로그램, 커밋 단위 아님.
+- 하려면 X-COBOL 저장소에 자체 SZZ 라벨을 붙이는 탐색적 실험만 가능하다.
+  - 규모가 작고 라벨이 노이즈가 많다.
+  - COBOL 주석 규칙(7열 `*`)에 맞게 `gitextract`를 고쳐야 한다.
+  - CodeBERT 사전학습 언어에도 없다.
+- 진행 여부는 사용자가 정한다.
+
+### 3.2 그 다음 (외부 test 결과를 보고 사용자가 정함)
+
+- **Study M 1단계** (`exp/018-dl-study-m`, `configs/studies/study-m-stage1.yaml`):
+  - 내용: Qwen 7B R-base와 R-diff를 seed 3개로, v4 cohort, H100. 약 15시간, 약 $52. 충전 필요(잔액 $2.10).
+  - 입력 view와 CPT adapter는 준비돼 있다. 명령: `diffllm arm` → `diffllm freeze` → `diffllm test`. v4와 합친 report 스크립트는 아직 없다.
+- **Study M 2단계:** Qwen 14B, Gemma 4 12B, Llama 3.1 8B. seed 수는 미정.
+- **diff CPT 말뭉치 확대:** 1단계에서 R-diff − R-base가 확실히 양수일 때만.
+- **사내 반입 zip** (`exp/015`) — 결정 대기:
+  - B2-S seed 44만 넣을지, B0-LR도 함께 넣을지.
+  - 사내 서버의 glibc 버전과 GPU 유무.
+  - `fetch_wheels.py`의 nccl 다운로드 실패 수정.
+- 문서: `docs/results-v4-<date>.md`, `v4-correction-plan.md` §6 정정.
+- B2-S 학습 플랫폼 차이 확인: CUDA에서 `exp/017/scripts/b2_head_platform_check.py --seeds`(15분).
 
 ## 4. 브랜치·기록 위치
 
@@ -79,7 +120,7 @@
 
 계획 문서: `codebert-diff-lab/docs/next-studies-plan.md`(Study M, Study D), `v4-correction-plan.md`.
 
-## 5. 비용·자원 상태 (2026-10-03 13:0x KST)
+## 5. 비용·자원 상태 (2026-10-03 14:30 KST)
 
 - Runpod 잔액 $2.10, 켜져 있는 pod 없음.
 - 측정값(H100):
