@@ -14,7 +14,7 @@ baseline 코드의 실제 버그를 고치는 경우가 아니면, 실험용 변
 - 실행 순서는 사양 implementation-plan §7/§12를 따른다: M0 감사 → M1 골격 → M2(B0-LR/B0-LGBM/B1-TFIDF-S, public validation) → M3(B2-S/B3-S) → M4(B4-S) → M5(B5-S) → M6L(L0-S/L1-S) → M6(freeze → public test → report).
 - **이전 study `public-comparison-v3`**(2026-10-01 등록). v2(인코더와 head가 같은 lr 1e-5)는 B2-S head가 덜 학습되는 문제 때문에 test를 열기 전에 대체했고, v2 결과(006~008)는 초기 프로토콜의 기록으로만 남긴다. v3은 encoder lr 1e-5 / head lr 1e-3을 분리하고, split `upstream-clean2`(CPT-dev를 중복 그룹 단위로 뽑음)를 쓴다.
 - **2026-10-02 정정: JIT-Defects4J 패키지의 텍스트는 라벨에 따라 다르게 만들어져 있다**(버그 커밋은 일부 파일만 담김). v2·v3의 텍스트 variant(B1~B5, L0, L1) 결과와 013의 EvidenceView arm, 014는 이 텍스트로 측정한 것이라 결론으로 쓸 수 없다. B0와 012(git full diff)는 영향이 없다. 근거는 `codebert-diff-lab/docs/leak-finding-2026-10-02.md`.
-- **현재 study는 `public-comparison-v4-gitlines`**(2026-10-02 등록)이다. snapshot `jitd4j-git1`(패키지의 ID·라벨·split + git에서 다시 뽑은 메시지·줄·jit14), 하이퍼파라미터는 v3 그대로. 실행 순서와 사전 규칙은 `codebert-diff-lab/docs/v4-correction-plan.md`를 따른다.
+- **현재 study는 `public-comparison-v4-gitlines`**(2026-10-02 등록, 같은 날 freeze `7340ee71c876c8b7` 후 public test 1회 평가)이다. 이후 test를 보고 바꾼 것은 새 study로 표기한다. snapshot `jitd4j-git1`(패키지의 ID·라벨·split + git에서 다시 뽑은 메시지·줄·jit14), 하이퍼파라미터는 v3 그대로. 실행 순서와 사전 규칙은 `codebert-diff-lab/docs/v4-correction-plan.md`를 따른다.
 - 새 snapshot이나 데이터셋을 쓰기 전에 `tools/representation_leak_check.py`로 텍스트 분량이 라벨을 예측하는지 확인한다.
 - **study v3는 freeze되었고 public test를 1회 평가했다**(2026-10-01, `exp/011`). 이후 공개 test를 보고 모델·설정·예산을 바꾸면 그 결과는 새 study/holdout으로 표기해야 하며 v3의 untouched 비교라고 주장할 수 없다(사양 §12).
 - **public test는 study freeze 전에는 열지 않는다**(코드가 거부한다). validation으로 고른 뒤 9개 primary variant를 모두 freeze하고 한 번에 평가한다.
@@ -133,7 +133,7 @@ legacy 001~005의 worktree는 2026-10-01에 정리했다(`git worktree remove`).
 | `001-baseline-smoke` | README 전체 파이프라인, 전체 ApacheJIT. B 우위가 Hadoop 라벨 이상에서 기인함을 발견 |
 | `002-no-hadoop` | 001과 동일 프로토콜, Hadoop 계열 3개 저장소만 제외 |
 | `003-seeds-cuda` | 002 데이터, Runpod CUDA에서 seed 42/43/44, 수렴까지(epoch 상한 100, patience 2). 정형 LR > B(−0.037±0.004), B 우위는 시간이 갈수록 소멸 |
-| `016-dl-v4-gitlines` | **[v4, 진행 중]** 누출 없는 snapshot `jitd4j-git1`로 v3 variant 재실행. validation AP: B0-LR 0.302, B0-LGBM 0.240, B1-TFIDF-S 0.345(v3 0.546). B3-S는 H100에서 실행 중 |
+| `016-dl-v4-gitlines` | **[v4, 최종]** 누출 없는 snapshot `jitd4j-git1`로 9개 variant 재실행 → freeze `7340ee71c876c8b7`(25 run) → public test 1회. test AP: B2-S 0.264 > B3-S 0.253 > B1 0.247 > B4-S 0.243 ≈ B5-S 0.243 > B0-LR 0.224 > B0-LGBM 0.182 > L1 0.157 > L0 0.126. 텍스트 모델 간 차이는 모두 구간이 0을 포함. v3의 "full FT가 최고"는 재현되지 않음. 사내 반입 모델은 규칙에 따라 B2-S seed 44. `RESULTS.md` |
 | `015-dl-internal-pack` | **[사내 반입 준비, 중단]** git 추출기·라벨 평가기·오프라인 패키지 스크립트. 추출기 검증 중 패키지 텍스트의 라벨 의존을 발견: v3 B3-S test AP 0.606 → git 텍스트 0.164. zip은 v4 모델로 만든다 |
 | `006-dl-m2-cpu-baselines` | **[diff-lab]** M0 감사 + M2 CPU 기준선(public validation): B1-TFIDF-S AP 0.546 > B0-LR 0.319 > B0-LGBM 0.211(시작 설정 과적합) |
 | `011-dl-m6-final` | **[diff-lab] 최종.** L0/L1(Qwen2.5-Coder-7B) → freeze `b6afa59f3a2a9550`(25 run) → public test 1회. test AP: B3-S 0.598 > B4-S 0.590 > B5-S 0.580 > B2-S 0.475 > B1 0.440 > B0-LR 0.215 > B0-LGBM 0.197 > L1 0.172 > L0 0.125. 10M 토큰 MLM CPT는 추가 개선 없음(구간이 0 포함), MLM:RMI 1:1은 MLM 단독보다 낮음. 제공 split은 프로젝트 안에서 대체로 시간순(2026-10-02 정정, `tools/split_time_order.py`). `codebert-diff-lab/docs/results-final-2026-10-01.md` |
