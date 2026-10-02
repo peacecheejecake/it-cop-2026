@@ -313,22 +313,34 @@ def diffllm_prepare_evidence(config: Path = typer.Option(...), evidence: Path = 
 
 @diffllm_app.command("cpt")
 @_guard
-def diffllm_cpt(config: Path = typer.Option(...), data_dir: Path = DATA, artifacts_dir: Path = ARTIFACTS) -> None:
+def diffllm_cpt(config: Path = typer.Option(...), name: str = typer.Option(None), data_dir: Path = DATA,
+                artifacts_dir: Path = ARTIFACTS) -> None:
     """LoRA diff continued pretraining on the registered disjoint-repository corpus."""
     from ..diffllm import load_cfg, run_cpt
     cfg, h = load_cfg(config)
-    _emit(run_cpt(cfg, h, data_dir, artifacts_dir / "diffllm"))
+    _emit(run_cpt(cfg, h, data_dir, artifacts_dir / "diffllm", name))
 
 
 @diffllm_app.command("arm")
 @_guard
 def diffllm_arm(config: Path = typer.Option(...), arms: str = typer.Option(...), view: Path = typer.Option(...),
-                artifacts_dir: Path = ARTIFACTS) -> None:
-    """Train/select one or more registered arms on public train/valid."""
-    from ..diffllm import load_cfg, run_arm
+                seeds: str = typer.Option(""), artifacts_dir: Path = ARTIFACTS) -> None:
+    """Train/select one or more registered arms on public train/valid (per seed when the study sets per_seed)."""
+    from ..diffllm import _seeds, load_cfg, run_arm
     cfg, h = load_cfg(config)
-    _emit([{k: r[k] for k in ("arm", "validation_ap")} for r in (run_arm(cfg, h, a.strip(), view, artifacts_dir / "diffllm")
-                                                                 for a in arms.split(","))])
+    sds = [int(x) for x in seeds.split(",") if x.strip()] or _seeds(cfg)
+    _emit([{k: r[k] for k in ("arm", "seed", "validation_ap")}
+           for r in (run_arm(cfg, h, a.strip(), view, artifacts_dir / "diffllm", s) for a in arms.split(",") for s in sds)])
+
+
+@diffllm_app.command("probe-cpt")
+@_guard
+def diffllm_probe_cpt(config: Path = typer.Option(...), view: Path = typer.Option(...), cpt: str = typer.Option(...),
+                      out: Path = typer.Option(...), rows: int = typer.Option(512), artifacts_dir: Path = ARTIFACTS) -> None:
+    """Label-free check of what diff CPT changed: next-token loss on public-train diffs, base vs base+CPT adapter."""
+    from ..diffllm import load_cfg, probe_cpt_loss
+    cfg, _ = load_cfg(config)
+    _emit(probe_cpt_loss(cfg, view, artifacts_dir / "diffllm", cpt, rows, out))
 
 
 @diffllm_app.command("freeze")

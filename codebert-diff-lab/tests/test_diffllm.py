@@ -294,3 +294,23 @@ def test_diffllm_v2_evidence_view_stage1_best_freeze_and_single_test(tmp_path, t
     rec = freeze(cfg, h, view, art, fz, check_rows=8)
     assert [e["arm"] for e in rec["arms"]] == ["R-ev", "R-ev-jit14", "R-14B"] and rec["cpt_json_sha256"] is None
     assert set(test_arms_once(cfg, h, view, snap, art, fz, tmp_path / "test")) == {"R-ev", "R-ev-jit14", "R-14B"}
+
+
+def test_study_m_per_seed_layout_and_named_cpt(tmp_path):
+    import yaml
+    from conftest import ROOT
+
+    from diff_lab.diffllm import _cpt_dir, _pairs, _run_dir, load_cfg
+    from diff_lab.util import ConfigError
+    p = ROOT / "configs" / "studies" / "study-m-stage1.yaml"
+    cfg, _ = load_cfg(p)
+    assert _pairs(cfg) == [(a, s) for a in ("R-base", "R-diff") for s in (42, 43, 44)]
+    assert _run_dir(cfg, tmp_path, "R-diff", 43) == tmp_path / "R-diff" / "seed-43"
+    assert _cpt_dir(cfg, tmp_path, "R-base") is None
+    assert _cpt_dir(cfg, tmp_path, "R-diff") == tmp_path / "cpt" / "qwen7b-apache50m" / "adapter"
+    raw = yaml.safe_load(p.read_text())
+    raw["arms"]["R-diff"]["cpt"] = "missing"
+    bad = tmp_path / "bad.yaml"
+    bad.write_text(yaml.safe_dump(raw))
+    with pytest.raises(ConfigError, match="unknown cpt"):
+        load_cfg(bad)

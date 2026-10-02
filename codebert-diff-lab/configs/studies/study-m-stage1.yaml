@@ -1,0 +1,115 @@
+# Study M, stage 1 (docs/next-studies-plan.md §2). Registered 2026-10-03, after the v4 test was opened (extension of v4).
+# Same cohort as study v4: snapshot jitd4j-git1, split upstream-clean2. Every SFT arm runs per seed (42/43/44) on an H100.
+# Recipe = diffllm-v1 R-base / R-diff unchanged (representation, CPT, SFT sections copied verbatim). The 50M-token CPT
+# adapter of exp 012 is reused for R-diff: its corpus is disjoint from JD4J and independent of the split.
+# Step 1 before any SFT: `diffllm probe-cpt` (label-free next-token loss on public-train diffs, base vs base + CPT).
+study_id: study-m-stage1
+status: exploratory extension of public-comparison-v4-gitlines (registered after its
+  test was opened)
+design_doc: docs/next-studies-plan.md
+dataset:
+  snapshot_id: jitd4j-git1
+  split_id: upstream-clean2
+  source_approval: configs/sources/jit-defects4j.yaml
+representation:
+  id: full-diff-v1
+  git_cmd: git show <sha> --format= -U3 --no-color --no-ext-diff --first-parent
+  max_message_tokens: 128
+  max_content_tokens: 2048
+  truncation: drop whole hunks from the end
+  text_only: true
+cpt_corpus:
+  id: apache-disjoint-diffs-v1
+  repos:
+  - zookeeper
+  - zeppelin
+  - activemq
+  - kafka
+  - cassandra
+  - groovy
+  salt: cpt-diff-v1
+  budget_tokens: 50000000
+  max_tokens_per_commit: 2048
+  exclude: duplicate diffs and diffs identical to any JD4J labeled diff
+models:
+  qwen7b:
+    id: Qwen/Qwen2.5-Coder-7B-Instruct
+    revision: c03e6d358207e414f1eca0bb1891e29f1db0e242
+    license: apache-2.0
+    local_path: cache:models/qwen2.5-coder-7b-instruct
+    files_sha256:
+      config.json: c0242402ad6a13b331ea320feea8c7e3776ffb7a4eff0757b9cd667e116d9a28
+      generation_config.json: 1a628a5775bc69cde01c6749a531150ca4d3189652c618a174f7077923acf3b1
+      merges.txt: 599bab54075088774b1733fde865d5bd747cbcc7a547c5bc12610e874e26f5e3
+      tokenizer.json: c0382117ea329cdf097041132f6d735924b697924d6f6fc3945713e96ce87539
+      tokenizer_config.json: 959e7f1d9a1b7641a6d6ce05ca97b75c7894fcb66cbe5a040406458fb1128ee4
+      vocab.json: ca10d7e9fb3ed18575dd1e277a2579c16d108e32f27439684afa0e10b1440910
+      model-00001-of-00004.safetensors: 0b6f069918b07c064cbba8ae4f00f529aa9bbf84b7cdfcb7fc2694a40f6aa8ef
+      model-00002-of-00004.safetensors: c3d46733e7aa054ea7b063fbccd0a5a08446e7bd1814bef26936c5aa1331da62
+      model-00003-of-00004.safetensors: 9fe45dacee087385b3d2d6dd27a7413a8a56d95f145772facc148fa86fc73446
+      model-00004-of-00004.safetensors: 5aa6e5cbe642377fd441fb4e60e83cca96b2bcd9820e245b9ea06d94653f17f2
+cpts:
+  qwen7b-apache50m:
+    model: qwen7b
+    corpus: apache-disjoint-diffs-v1
+    source: exp 012 artifacts/diffllm/cpt (reused)
+arms:
+  R-base:
+    model: qwen7b
+    cpt: false
+    head: risk_sft
+  R-diff:
+    model: qwen7b
+    cpt: qwen7b-apache50m
+    head: risk_sft
+arm_order:
+- R-base
+- R-diff
+cpt:
+  seq_len: 2048
+  micro_batch: 4
+  accumulation: 16
+  learning_rate: 0.0001
+  warmup_fraction: 0.03
+  lora_r: 64
+  lora_alpha: 128
+  lora_dropout: 0.05
+  target_modules:
+  - q_proj
+  - k_proj
+  - v_proj
+  - o_proj
+  - gate_proj
+  - up_proj
+  - down_proj
+  checkpoint_every: 50
+  gradient_checkpointing: true
+sft:
+  max_prompt_tokens: 2304
+  micro_batch: 1
+  accumulation: 16
+  learning_rate: 0.0001
+  max_epochs: 2
+  evals_per_epoch: 2
+  patience_evals: 2
+  selection_subset: 2000
+  lora_r: 16
+  lora_alpha: 32
+  lora_dropout: 0.05
+  target_modules:
+  - q_proj
+  - k_proj
+  - v_proj
+  - o_proj
+  - gate_proj
+  - up_proj
+  - down_proj
+  gradient_checkpointing: true
+  eval_token_budget: 32768
+per_seed: true
+seeds:
+- 42
+- 43
+- 44
+tie_salt: topk-tie-v1
+device: cuda

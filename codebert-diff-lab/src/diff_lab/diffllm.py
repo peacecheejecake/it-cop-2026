@@ -27,14 +27,16 @@ from .util import ConfigError, IntegrityError, PolicyError, atomic_write_json, r
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 STUDIES = ("diffllm-v1", "diffllm-v2")
+STUDY_PREFIXES = ("study-m",)
 STAGE1_BEST = "stage1-best"
 V1_ARMS = ("R-base", "E-base", "R-diff", "E-diff")
 
 
 def load_cfg(path: Path) -> tuple[dict, str]:
     raw = yaml.safe_load(path.read_text())
-    if raw.get("study_id") not in STUDIES:
-        raise ConfigError(f"not a diffllm study config ({STUDIES})")
+    sid = raw.get("study_id") or ""
+    if sid not in STUDIES and not sid.startswith(STUDY_PREFIXES):
+        raise ConfigError(f"not a diffllm study config ({STUDIES}, {STUDY_PREFIXES})")
     from .llm_train import CptLoraCfg, MlpCfg, SftCfg
     SftCfg.model_validate(raw["sft"])
     if any(s["cpt"] for s in raw["arms"].values()):
@@ -50,8 +52,34 @@ def load_cfg(path: Path) -> tuple[dict, str]:
             raise ConfigError(f"{arm}: prompt representations are only implemented for risk_sft")
         if r == STAGE1_BEST and not raw.get("stage1_arms"):
             raise ConfigError(f"{arm}: {STAGE1_BEST} needs stage1_arms")
+    for arm, spec in raw["arms"].items():
+        if isinstance(spec["cpt"], str) and spec["cpt"] not in (raw.get("cpts") or {}):
+            raise ConfigError(f"{arm}: unknown cpt {spec['cpt']}")
+        if isinstance(spec["cpt"], str) and raw["cpts"][spec["cpt"]]["model"] != spec["model"]:
+            raise ConfigError(f"{arm}: cpt {spec['cpt']} was trained for another model")
     _arms(raw)
     return raw, sha256_json(raw)
+
+
+def _seeds(cfg: dict) -> list[int]:
+    """Study M trains every arm per seed (`per_seed: true`); diffllm-v1/v2 used seeds[0] only."""
+    return list(cfg["seeds"]) if cfg.get("per_seed") else [cfg["seeds"][0]]
+
+
+def _run_dir(cfg: dict, art: Path, arm: str, seed: int) -> Path:
+    return art / arm / f"seed-{seed}" if cfg.get("per_seed") else art / arm
+
+
+def _cpt_dir(cfg: dict, art: Path, arm: str) -> Path | None:
+    """`cpt: true` is the single v1 CPT (art/cpt); `cpt: <name>` is a per-model CPT registered under `cpts` (art/cpt/<name>)."""
+    c = cfg["arms"][arm]["cpt"]
+    if not c:
+        return None
+    return (art / "cpt" / c if isinstance(c, str) else art / "cpt") / "adapter"
+
+
+def _pairs(cfg: dict) -> list[tuple[str, int]]:
+    return [(arm, seed) for arm in _arms(cfg) for seed in _seeds(cfg)]
 
 
 def _arms(cfg: dict) -> list[str]:
@@ -197,39 +225,43 @@ def _git_sha() -> str:
     return g["sha"]
 
 
-def run_cpt(cfg: dict, cfg_hash: str, data_dir: Path, art: Path) -> dict:
+def run_cpt(cfg: dict, cfg_hash: str, data_dir: Path, art: Path, name: str | None = None) -> dict:
     from .llm_train import CptLoraCfg, cpt_lora
-    out = art / "cpt"
+    out = art / "cpt" / name if name else art / "cpt"
     if (out / "cpt.json").exists():
         return read_json(out / "cpt.json")
-    corpus = data_dir / "cpt" / cfg["cpt_corpus"]["id"]
+    spec = cfg["cpts"][name] if name else {"model": "qwen7b", "corpus": cfg["cpt_corpus"]["id"]}
+    corpus = data_dir / "cpt" / spec["corpus"]
     if read_json(corpus / "manifest.json")["corpus_parquet_sha256"] != sha256_file(corpus / "corpus.parquet"):
         raise IntegrityError("CPT corpus hash mismatch")
-    res = cpt_lora(_model_path(cfg), corpus / "corpus.parquet", out, CptLoraCfg.model_validate(cfg["cpt"]), cfg["seeds"][0], cfg["device"])
+    res = cpt_lora(_model_path(cfg, spec["model"]), corpus / "corpus.parquet", out, CptLoraCfg.model_validate(cfg["cpt"]),
+                   cfg["seeds"][0], cfg["device"])
     atomic_write_json(out / "cpt.json", {**read_json(out / "cpt.json"), "config_sha256": cfg_hash, "code_git_sha": _git_sha(),
                                          "corpus_manifest_sha256": sha256_file(corpus / "manifest.json")})
     return res
 
 
-def run_arm(cfg: dict, cfg_hash: str, arm: str, view_dir: Path, art: Path) -> dict:
+def run_arm(cfg: dict, cfg_hash: str, arm: str, view_dir: Path, art: Path, seed: int | None = None) -> dict:
     from .llm_train import MlpCfg, SftCfg, embed, encode_frame, label_ids_for, load_base, load_sft, mlp_predict, mlp_train, score, sft_risk
     from .neural import _torch
     torch = _torch()
     if arm not in cfg["arms"]:
         raise ConfigError(f"unknown arm {arm}")
-    out = art / arm
+    seed = cfg["seeds"][0] if seed is None else seed
+    if seed not in _seeds(cfg):
+        raise ConfigError(f"seed {seed} is not registered for {arm}")
+    out = _run_dir(cfg, art, arm, seed)
     if (out / "run.json").exists() and read_json(out / "run.json")["status"] == "completed":
         return read_json(out / "run.json")
     spec = cfg["arms"][arm]
     tr, va, _ = _frames(view_dir)
     base = _model_path(cfg, spec["model"])
-    cpt = (art / "cpt" / "adapter") if spec["cpt"] else None
+    cpt = _cpt_dir(cfg, art, arm)
     if cpt is not None and not (cpt / "adapter_config.json").exists():
         raise ConfigError(f"{arm} needs the CPT adapter; run cpt first")
     dev = torch.device(cfg["device"])
     out.mkdir(parents=True, exist_ok=True)
     started = datetime.now(UTC).isoformat()
-    seed = cfg["seeds"][0]
     rep = _rep(cfg, arm, art)
     if spec["head"] == "risk_sft":
         info = sft_risk(base, cpt, tr, va, out, SftCfg.model_validate(cfg["sft"]), seed, cfg["device"], cfg["tie_salt"], rep)
@@ -262,11 +294,11 @@ def run_arm(cfg: dict, cfg_hash: str, arm: str, view_dir: Path, art: Path) -> di
            "validation_ap": metrics["ap"], "artifacts_sha256": files, "cpt_adapter": str(cpt) if cpt else None,
            "model": cfg["models"][spec["model"]]["id"], "representation": rep}
     atomic_write_json(out / "run.json", run)
-    print(f"{arm}: validation AP {metrics['ap']:.4f}", flush=True)
+    print(f"{arm} seed {seed}: validation AP {metrics['ap']:.4f}", flush=True)
     return run
 
 
-def _scores(cfg: dict, arm: str, frame: pd.DataFrame, art: Path) -> np.ndarray:
+def _scores(cfg: dict, arm: str, frame: pd.DataFrame, art: Path, seed: int | None = None) -> np.ndarray:
     from transformers import AutoTokenizer
 
     from .llm_train import MlpCfg, embed, encode_frame, label_ids_for, load_base, load_sft, mlp_predict, score
@@ -274,16 +306,17 @@ def _scores(cfg: dict, arm: str, frame: pd.DataFrame, art: Path) -> np.ndarray:
     torch = _torch()
     spec = cfg["arms"][arm]
     base = _model_path(cfg, spec["model"])
-    cpt = (art / "cpt" / "adapter") if spec["cpt"] else None
+    cpt = _cpt_dir(cfg, art, arm)
+    run_dir = _run_dir(cfg, art, arm, cfg["seeds"][0] if seed is None else seed)
     dev = torch.device(cfg["device"])
     tok = AutoTokenizer.from_pretrained(str(base), local_files_only=True)
     if spec["head"] == "risk_sft":
         lids = label_ids_for(tok)
-        m = load_sft(base, cpt, art / arm, dev)
+        m = load_sft(base, cpt, run_dir, dev)
         return score(m, encode_frame(tok, frame, lids, _rep(cfg, arm, art)), lids, tok.pad_token_id, dev, cfg["sft"]["eval_token_budget"])
     m = load_base(base, dev, cpt)
     x = embed(m, tok, frame, dev, cfg["embed_token_budget"])
-    return mlp_predict(read_json(art / arm / "mlp.json"), x, MlpCfg.model_validate(cfg["mlp"]))
+    return mlp_predict(read_json(run_dir / "mlp.json"), x, MlpCfg.model_validate(cfg["mlp"]))
 
 
 def freeze(cfg: dict, cfg_hash: str, view_dir: Path, art: Path, out: Path, check_rows: int = 64) -> dict:
@@ -291,32 +324,35 @@ def freeze(cfg: dict, cfg_hash: str, view_dir: Path, art: Path, out: Path, check
         raise PolicyError(f"{out} exists; a study freeze is immutable")
     _, va, _ = _frames(view_dir)
     entries = []
-    for arm in _arms(cfg):
-        run = read_json(art / arm / "run.json")
+    for arm, seed in _pairs(cfg):
+        d = _run_dir(cfg, art, arm, seed)
+        run = read_json(d / "run.json")
         if run["status"] != "completed" or run["config_sha256"] != cfg_hash:
-            raise IntegrityError(f"{arm} is not a completed run of this config")
+            raise IntegrityError(f"{arm} seed {seed} is not a completed run of this config")
         for rel, digest in run["artifacts_sha256"].items():
-            if sha256_file(art / arm / rel) != digest:
-                raise IntegrityError(f"{arm}: {rel} changed")
+            if sha256_file(d / rel) != digest:
+                raise IntegrityError(f"{arm} seed {seed}: {rel} changed")
         # Embeddings are batched by length over the whole frame; a subsample changes bf16 batch composition, which the
         # standardize+MLP head amplifies (0.109 on 64 rows, Spearman 0.997), so embedding arms re-embed all of validation.
         if cfg["arms"][arm]["head"] == "risk_sft":
-            rows = np.sort(np.random.default_rng([cfg["seeds"][0], 919]).choice(len(va), size=check_rows, replace=False))
+            rows = np.sort(np.random.default_rng([seed, 919]).choice(len(va), size=check_rows, replace=False))
         else:
             rows = np.arange(len(va))
-        again = _scores(cfg, arm, va.iloc[rows].reset_index(drop=True), art)
-        ref = pd.read_parquet(art / arm / "validation.parquet")["score"].to_numpy()[rows]
+        again = _scores(cfg, arm, va.iloc[rows].reset_index(drop=True), art, seed)
+        ref = pd.read_parquet(d / "validation.parquet")["score"].to_numpy()[rows]
         from scipy.stats import spearmanr
         diff, rho = float(np.abs(again - ref).max()), float(spearmanr(again, ref).correlation)
         if diff > 0.05 or rho < 0.99:
-            raise IntegrityError(f"{arm}: frozen artifacts reproduce validation only to {diff:.3f} (Spearman {rho:.3f})")
-        entries.append({"arm": arm, "run_json_sha256": sha256_file(art / arm / "run.json"), "artifacts_sha256": run["artifacts_sha256"],
-                        "threshold": read_json(art / arm / "metrics.json")["threshold_selection"]["threshold"],
+            raise IntegrityError(f"{arm} seed {seed}: frozen artifacts reproduce validation only to {diff:.3f} (Spearman {rho:.3f})")
+        entries.append({"arm": arm, "seed": seed, "run_json_sha256": sha256_file(d / "run.json"),
+                        "artifacts_sha256": run["artifacts_sha256"],
+                        "threshold": read_json(d / "metrics.json")["threshold_selection"]["threshold"],
                         "validation_ap": run["validation_ap"], "validation_reproduction_max_abs_diff": diff, "spearman": rho})
-        print(f"freeze: {arm} reproduced validation (max |diff| {diff:.1e}, Spearman {rho:.4f})", flush=True)
+        print(f"freeze: {arm} seed {seed} reproduced validation (max |diff| {diff:.1e}, Spearman {rho:.4f})", flush=True)
     rec = {"status": "frozen", "study_id": cfg["study_id"], "config_sha256": cfg_hash, "frozen_at": datetime.now(UTC).isoformat(),
            "code_git_sha": _git_sha(), "arms": entries,
-           "cpt_json_sha256": sha256_file(art / "cpt" / "cpt.json") if any(s["cpt"] for s in cfg["arms"].values()) else None}
+           "cpt_json_sha256": {str(p.parent.relative_to(art)): sha256_file(p.parent / "cpt.json")
+                               for p in sorted({_cpt_dir(cfg, art, a) for a in cfg["arms"] if cfg["arms"][a]["cpt"]})} or None}
     rec["freeze_id"] = sha256_json({"config": cfg_hash, "arms": entries})[:16]
     atomic_write_json(out, rec)
     return rec
@@ -331,32 +367,89 @@ def test_arms_once(cfg: dict, cfg_hash: str, view_dir: Path, snapshot: Path, art
     y = te[["change_id"]].merge(lab, on="change_id", how="left", validate="1:1")["label"].to_numpy().astype(int)
     done = {}
     for e in rec["arms"]:
-        d = out_dir / e["arm"]
+        seed = e.get("seed", cfg["seeds"][0])
+        d = _run_dir(cfg, out_dir, e["arm"], seed)
         if (d / "metrics.json").exists():
-            raise PolicyError(f"public test already evaluated for {e['arm']}; never overwritten")
+            raise PolicyError(f"public test already evaluated for {e['arm']} seed {seed}; never overwritten")
         for rel, digest in e["artifacts_sha256"].items():
-            if sha256_file(art / e["arm"] / rel) != digest:
-                raise IntegrityError(f"{e['arm']}: {rel} changed after freeze")
-        s = _scores(cfg, e["arm"], te, art)
+            if sha256_file(_run_dir(cfg, art, e["arm"], seed) / rel) != digest:
+                raise IntegrityError(f"{e['arm']} seed {seed}: {rel} changed after freeze")
+        s = _scores(cfg, e["arm"], te, art, seed)
         d.mkdir(parents=True, exist_ok=True)
         pd.DataFrame({"change_id": te["change_id"], "project": te["change_id"].str.split(":").str[1], "score": s}).to_parquet(
             d / "predictions.parquet", index=False)
         m = {"split": "test", "evaluation_role": "frozen_final_test", "study_id": cfg["study_id"], "freeze_id": rec["freeze_id"],
-             "arm": e["arm"], **evaluate(te["change_id"].tolist(), y, s, cfg["tie_salt"], e["threshold"]),
+             "arm": e["arm"], "seed": seed, **evaluate(te["change_id"].tolist(), y, s, cfg["tie_salt"], e["threshold"]),
              "evaluated_at": datetime.now(UTC).isoformat()}
         atomic_write_json(d / "metrics.json", m)
-        done[e["arm"]] = m["ap"]
-        print(f"test: {e['arm']} AP {m['ap']:.4f}", flush=True)
+        done[f"{e['arm']}:{seed}" if cfg.get("per_seed") else e["arm"]] = m["ap"]
+        print(f"test: {e['arm']} seed {seed} AP {m['ap']:.4f}", flush=True)
     atomic_write_json(out_dir / "evaluation.json", {"freeze_id": rec["freeze_id"], "test_ap": done})
     return done
 
 
 def summarize(cfg: dict, art: Path, test_dir: Path) -> str:
     rows = []
-    for arm in _arms(cfg):
-        v = read_json(art / arm / "metrics.json")
-        t = read_json(test_dir / arm / "metrics.json") if (test_dir / arm / "metrics.json").exists() else {}
-        rows.append({"arm": arm, "valid_ap": v["ap"], "test_ap": t.get("ap"),
+    for arm, seed in _pairs(cfg):
+        v = read_json(_run_dir(cfg, art, arm, seed) / "metrics.json")
+        tp = _run_dir(cfg, test_dir, arm, seed) / "metrics.json"
+        t = read_json(tp) if tp.exists() else {}
+        rows.append({"arm": arm, "seed": seed, "valid_ap": v["ap"], "test_ap": t.get("ap"),
                      "test_recall_at_5pct": (t.get("recall_at_5pct") or {}).get("recall"),
                      "test_recall_at_10pct": (t.get("recall_at_10pct") or {}).get("recall")})
     return json.dumps(rows, indent=1)
+
+
+def probe_cpt_loss(cfg: dict, view_dir: Path, art: Path, cpt: str, rows: int, out: Path) -> dict:
+    """Mean next-token loss on public-train full diffs in the CPT text format, for the base model and base + CPT adapter.
+
+    Only train rows are used; the sample is a salted sha256 rank of change_id (label-free). Labels are read afterwards to
+    split the loss by class, which is allowed for train. A CPT that barely moves this loss changed little about how the
+    model reads these diffs, so scaling its corpus is the less likely fix.
+    """
+    import hashlib
+
+    from transformers import AutoTokenizer
+
+    from .llm_train import load_base
+    from .neural import _torch
+    torch = _torch()
+    if out.exists():
+        raise PolicyError(f"{out} exists")
+    spec = cfg["cpts"][cpt] if cpt in (cfg.get("cpts") or {}) else {"model": "qwen7b"}
+    adapter = (art / "cpt" / cpt if cpt in (cfg.get("cpts") or {}) else art / "cpt") / "adapter"
+    if not (adapter / "adapter_config.json").exists():
+        raise ConfigError(f"no CPT adapter at {adapter}")
+    tr, _, _ = _frames(view_dir)
+    rank = tr["change_id"].map(lambda c: hashlib.sha256(f"probe-cpt-v1:{c}".encode()).hexdigest())
+    sample = tr.assign(_r=rank).sort_values("_r").head(rows).reset_index(drop=True)
+    base = _model_path(cfg, spec["model"])
+    tok = AutoTokenizer.from_pretrained(str(base), local_files_only=True)
+    texts = [f"Commit message:\n{m}\n\nDiff:\n{d}" for m, d in zip(sample["message"], sample["diff"], strict=True)]
+    ids = [tok(t, add_special_tokens=False)["input_ids"][: cfg["cpt"]["seq_len"]] for t in texts]
+    dev = torch.device(cfg["device"])
+    res = {}
+    for name, adp in (("base", None), ("cpt", adapter)):
+        model = load_base(base, dev, adp).eval()
+        losses = []
+        with torch.no_grad():
+            for x in ids:
+                t = torch.tensor([x], device=dev)
+                losses.append(float(model(input_ids=t, labels=t).loss))
+        res[name] = np.asarray(losses)
+        del model
+        if dev.type == "cuda":
+            torch.cuda.empty_cache()
+    y = sample["label"].to_numpy()
+    d = res["base"] - res["cpt"]
+    summary = {"rows": int(len(sample)), "cpt": cpt, "adapter": str(adapter),
+               "mean_loss": {k: float(v.mean()) for k, v in res.items()},
+               "mean_reduction": float(d.mean()), "share_rows_improved": float((d > 0).mean()),
+               "by_label": {str(k): {"rows": int((y == k).sum()), "base": float(res["base"][y == k].mean()),
+                                     "cpt": float(res["cpt"][y == k].mean())} for k in (0, 1)},
+               "tokens_mean": float(np.mean([len(x) for x in ids]))}
+    out.parent.mkdir(parents=True, exist_ok=True)
+    pd.DataFrame({"change_id": sample["change_id"], "label": y, "loss_base": res["base"], "loss_cpt": res["cpt"]}).to_parquet(
+        out.with_suffix(".parquet"), index=False)
+    atomic_write_json(out, summary)
+    return summary
