@@ -1,4 +1,9 @@
-"""Orchestration for study diffllm-v1 (docs/diffllm-study-v1.md): prepare -> arms -> freeze -> one test evaluation.
+"""Orchestration for studies diffllm-v1/v2 (docs/diffllm-study-v1.md, docs/diffllm-study-v2.md): prepare -> arms -> freeze ->
+one test evaluation.
+
+v1 views hold message/diff (full-diff-v1). v2 views (`prepare_evidence`) hold pre-rendered prompts per representation in
+`system:<rep>`/`user:<rep>` columns over the v3 EvidenceView; an arm with representation `stage1-best` takes whichever of the
+registered stage-1 arms has the higher full-validation AP (ties: the first listed), recorded in its run.json.
 
 Prepared views carry labels only for public train/valid; test rows are label-free and their labels are
 joined only in `test_arms` after this study's own freeze record exists. Arms write run folders under
@@ -21,18 +26,108 @@ from .policy import require_test_unlocked
 from .util import ConfigError, IntegrityError, PolicyError, atomic_write_json, read_json, sha256_file, sha256_json
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-ARMS = ("R-base", "E-base", "R-diff", "E-diff")
+STUDIES = ("diffllm-v1", "diffllm-v2")
+STAGE1_BEST = "stage1-best"
+V1_ARMS = ("R-base", "E-base", "R-diff", "E-diff")
 
 
 def load_cfg(path: Path) -> tuple[dict, str]:
     raw = yaml.safe_load(path.read_text())
-    if raw.get("study_id") != "diffllm-v1":
-        raise ConfigError("not a diffllm-v1 study config")
+    if raw.get("study_id") not in STUDIES:
+        raise ConfigError(f"not a diffllm study config ({STUDIES})")
     from .llm_train import CptLoraCfg, MlpCfg, SftCfg
-    CptLoraCfg.model_validate(raw["cpt"])
     SftCfg.model_validate(raw["sft"])
-    MlpCfg.model_validate(raw["mlp"])
+    if any(s["cpt"] for s in raw["arms"].values()):
+        CptLoraCfg.model_validate(raw["cpt"])
+    if any(s["head"] == "mlp" for s in raw["arms"].values()):
+        MlpCfg.model_validate(raw["mlp"])
+    reps = set(raw["representation"].get("prompts") or {})
+    for arm, spec in raw["arms"].items():
+        r = spec.get("representation")
+        if r is not None and r != STAGE1_BEST and r not in reps:
+            raise ConfigError(f"{arm}: unknown representation {r}")
+        if r is not None and spec["head"] != "risk_sft":
+            raise ConfigError(f"{arm}: prompt representations are only implemented for risk_sft")
+        if r == STAGE1_BEST and not raw.get("stage1_arms"):
+            raise ConfigError(f"{arm}: {STAGE1_BEST} needs stage1_arms")
+    _arms(raw)
     return raw, sha256_json(raw)
+
+
+def _arms(cfg: dict) -> list[str]:
+    """Run/freeze order: `arm_order` from the config (v2+); diffllm-v1 predates it."""
+    order = cfg.get("arm_order", V1_ARMS)
+    if sorted(order) != sorted(cfg["arms"]):
+        raise ConfigError("arm_order must list every arm exactly once")
+    return list(order)
+
+
+def prepare_evidence(cfg: dict, snapshot: Path, split_dir: Path, evidence_dir: Path, tokenizer_path: Path, out: Path) -> dict:
+    """v2 view: the v3 EvidenceView text (already budgeted; never truncated here) rendered by each registered prompt."""
+    from transformers import AutoTokenizer
+
+    from .llm import serialize_features
+    if out.exists():
+        raise IntegrityError(f"{out} exists; prepared views are immutable")
+    rep = cfg["representation"]
+    man_ev = read_json(evidence_dir / "manifest.json")
+    if sha256_file(evidence_dir / "evidence.parquet") != man_ev["evidence_parquet_sha256"]:
+        raise IntegrityError("evidence parquet hash mismatch")
+    if man_ev["evidence_parquet_sha256"] != rep["evidence_parquet_sha256"]:
+        raise IntegrityError("evidence view is not the registered one")
+    tok = AutoTokenizer.from_pretrained(str(tokenizer_path), local_files_only=True)
+    ev = pd.read_parquet(evidence_dir / "evidence.parquet")[["change_id", "query_text"]]
+    feat = pd.read_parquet(snapshot / "features.parquet")
+    sp = pd.read_parquet(split_dir / "splits.parquet")[["change_id", "split"]]
+    lab = pd.read_parquet(snapshot / "labels.parquet")[["change_id", "label"]]
+    df = sp.merge(ev, on="change_id", how="left", validate="1:1").merge(feat, on="change_id", how="left", validate="1:1")
+    if df["query_text"].isna().any():
+        raise IntegrityError(f"{int(df['query_text'].isna().sum())} changes lack an EvidenceView")
+    view = df[["change_id", "split"]].copy()
+    lengths = {}
+    for name, p in rep["prompts"].items():
+        users = [p["user"].format(evidence=r.query_text, features=serialize_features(pd.Series(r._asdict())) if "{features}" in p["user"]
+                                  else "") for r in df.itertuples(index=False)]
+        view[f"system:{name}"] = p["system"]
+        view[f"user:{name}"] = users
+        n = np.array([len(tok(tok.apply_chat_template([{"role": "system", "content": p["system"]}, {"role": "user", "content": u}],
+                                                      tokenize=False, add_generation_prompt=True), add_special_tokens=False)["input_ids"])
+                      for u in users])
+        if n.max() > cfg["sft"]["max_prompt_tokens"]:
+            raise IntegrityError(f"{name}: {int((n > cfg['sft']['max_prompt_tokens']).sum())} prompts exceed max_prompt_tokens")
+        lengths[name] = {"mean": float(n.mean()), "p99": float(np.percentile(n, 99)), "max": int(n.max())}
+    out.mkdir(parents=True)
+    view.to_parquet(out / "view.parquet", index=False)
+    tv = view[view["split"].isin(["train", "valid"])][["change_id"]].merge(lab, on="change_id", how="left", validate="1:1")
+    if tv["label"].isna().any():
+        raise IntegrityError("unlabelled train/valid rows")
+    tv.to_parquet(out / "labels-train-valid.parquet", index=False)
+    man = {"artifact_kind": "diffllm_view", "representation": rep, "rows": int(len(view)),
+           "by_split": view["split"].value_counts().to_dict(), "prompt_tokens": lengths,
+           "evidence_manifest_sha256": sha256_file(evidence_dir / "manifest.json"),
+           "split_manifest_sha256": sha256_file(split_dir / "manifest.json"),
+           "view_sha256": sha256_file(out / "view.parquet"), "labels_sha256": sha256_file(out / "labels-train-valid.parquet"),
+           "test_labels": "not included (joined only after freeze)"}
+    atomic_write_json(out / "manifest.json", man)
+    return man
+
+
+def _rep(cfg: dict, arm: str, art: Path) -> str | None:
+    r = cfg["arms"][arm].get("representation")
+    if r != STAGE1_BEST:
+        return r
+    run = art / arm / "run.json"
+    if run.exists():
+        return read_json(run)["representation"]
+    aps = []
+    for a in cfg["stage1_arms"]:
+        rr = read_json(art / a / "run.json")
+        if rr["status"] != "completed":
+            raise ConfigError(f"{arm} needs completed stage-1 arm {a}")
+        aps.append((read_json(art / a / "metrics.json")["ap"], a))
+    best = max(aps, key=lambda t: t[0])
+    winner = next(a for ap, a in aps if ap == best[0])
+    return cfg["arms"][winner]["representation"]
 
 
 def prepare(cfg: dict, snapshot: Path, split_dir: Path, fulldiff: Path, tokenizer_path: Path, out: Path) -> dict:
@@ -117,10 +212,10 @@ def run_cpt(cfg: dict, cfg_hash: str, data_dir: Path, art: Path) -> dict:
 
 
 def run_arm(cfg: dict, cfg_hash: str, arm: str, view_dir: Path, art: Path) -> dict:
-    from .llm_train import MlpCfg, SftCfg, embed, encode_risk, label_ids_for, load_base, load_sft, mlp_predict, mlp_train, score, sft_risk
+    from .llm_train import MlpCfg, SftCfg, embed, encode_frame, label_ids_for, load_base, load_sft, mlp_predict, mlp_train, score, sft_risk
     from .neural import _torch
     torch = _torch()
-    if arm not in ARMS:
+    if arm not in cfg["arms"]:
         raise ConfigError(f"unknown arm {arm}")
     out = art / arm
     if (out / "run.json").exists() and read_json(out / "run.json")["status"] == "completed":
@@ -135,14 +230,14 @@ def run_arm(cfg: dict, cfg_hash: str, arm: str, view_dir: Path, art: Path) -> di
     out.mkdir(parents=True, exist_ok=True)
     started = datetime.now(UTC).isoformat()
     seed = cfg["seeds"][0]
+    rep = _rep(cfg, arm, art)
     if spec["head"] == "risk_sft":
-        info = sft_risk(base, cpt, tr, va, out, SftCfg.model_validate(cfg["sft"]), seed, cfg["device"], cfg["tie_salt"])
+        info = sft_risk(base, cpt, tr, va, out, SftCfg.model_validate(cfg["sft"]), seed, cfg["device"], cfg["tie_salt"], rep)
         from transformers import AutoTokenizer
         tok = AutoTokenizer.from_pretrained(str(base), local_files_only=True)
         lids = label_ids_for(tok)
         model = load_sft(base, cpt, out, dev)
-        s = score(model, [encode_risk(tok, m, d, lids) for m, d in zip(va["message"], va["diff"], strict=True)], lids,
-                  tok.pad_token_id, dev, cfg["sft"]["eval_token_budget"])
+        s = score(model, encode_frame(tok, va, lids, rep), lids, tok.pad_token_id, dev, cfg["sft"]["eval_token_budget"])
     else:
         from transformers import AutoTokenizer
         tok = AutoTokenizer.from_pretrained(str(base), local_files_only=True)
@@ -164,7 +259,8 @@ def run_arm(cfg: dict, cfg_hash: str, arm: str, view_dir: Path, art: Path) -> di
     files = {p.relative_to(out).as_posix(): sha256_file(p) for p in sorted(out.rglob("*")) if p.is_file() and p.name != "run.json"}
     run = {"study_id": cfg["study_id"], "arm": arm, "seed": seed, "status": "completed", "config_sha256": cfg_hash,
            "code_git_sha": _git_sha(), "started_at": started, "finished_at": datetime.now(UTC).isoformat(),
-           "validation_ap": metrics["ap"], "artifacts_sha256": files, "cpt_adapter": str(cpt) if cpt else None}
+           "validation_ap": metrics["ap"], "artifacts_sha256": files, "cpt_adapter": str(cpt) if cpt else None,
+           "model": cfg["models"][spec["model"]]["id"], "representation": rep}
     atomic_write_json(out / "run.json", run)
     print(f"{arm}: validation AP {metrics['ap']:.4f}", flush=True)
     return run
@@ -173,7 +269,7 @@ def run_arm(cfg: dict, cfg_hash: str, arm: str, view_dir: Path, art: Path) -> di
 def _scores(cfg: dict, arm: str, frame: pd.DataFrame, art: Path) -> np.ndarray:
     from transformers import AutoTokenizer
 
-    from .llm_train import MlpCfg, embed, encode_risk, label_ids_for, load_base, load_sft, mlp_predict, score
+    from .llm_train import MlpCfg, embed, encode_frame, label_ids_for, load_base, load_sft, mlp_predict, score
     from .neural import _torch
     torch = _torch()
     spec = cfg["arms"][arm]
@@ -184,8 +280,7 @@ def _scores(cfg: dict, arm: str, frame: pd.DataFrame, art: Path) -> np.ndarray:
     if spec["head"] == "risk_sft":
         lids = label_ids_for(tok)
         m = load_sft(base, cpt, art / arm, dev)
-        return score(m, [encode_risk(tok, a, b, lids) for a, b in zip(frame["message"], frame["diff"], strict=True)], lids,
-                     tok.pad_token_id, dev, cfg["sft"]["eval_token_budget"])
+        return score(m, encode_frame(tok, frame, lids, _rep(cfg, arm, art)), lids, tok.pad_token_id, dev, cfg["sft"]["eval_token_budget"])
     m = load_base(base, dev, cpt)
     x = embed(m, tok, frame, dev, cfg["embed_token_budget"])
     return mlp_predict(read_json(art / arm / "mlp.json"), x, MlpCfg.model_validate(cfg["mlp"]))
@@ -196,7 +291,7 @@ def freeze(cfg: dict, cfg_hash: str, view_dir: Path, art: Path, out: Path, check
         raise PolicyError(f"{out} exists; a study freeze is immutable")
     _, va, _ = _frames(view_dir)
     entries = []
-    for arm in ARMS:
+    for arm in _arms(cfg):
         run = read_json(art / arm / "run.json")
         if run["status"] != "completed" or run["config_sha256"] != cfg_hash:
             raise IntegrityError(f"{arm} is not a completed run of this config")
@@ -220,7 +315,8 @@ def freeze(cfg: dict, cfg_hash: str, view_dir: Path, art: Path, out: Path, check
                         "validation_ap": run["validation_ap"], "validation_reproduction_max_abs_diff": diff, "spearman": rho})
         print(f"freeze: {arm} reproduced validation (max |diff| {diff:.1e}, Spearman {rho:.4f})", flush=True)
     rec = {"status": "frozen", "study_id": cfg["study_id"], "config_sha256": cfg_hash, "frozen_at": datetime.now(UTC).isoformat(),
-           "code_git_sha": _git_sha(), "cpt_json_sha256": sha256_file(art / "cpt" / "cpt.json"), "arms": entries}
+           "code_git_sha": _git_sha(), "arms": entries,
+           "cpt_json_sha256": sha256_file(art / "cpt" / "cpt.json") if any(s["cpt"] for s in cfg["arms"].values()) else None}
     rec["freeze_id"] = sha256_json({"config": cfg_hash, "arms": entries})[:16]
     atomic_write_json(out, rec)
     return rec
@@ -255,9 +351,9 @@ def test_arms_once(cfg: dict, cfg_hash: str, view_dir: Path, snapshot: Path, art
     return done
 
 
-def summarize(art: Path, test_dir: Path) -> str:
+def summarize(cfg: dict, art: Path, test_dir: Path) -> str:
     rows = []
-    for arm in ARMS:
+    for arm in _arms(cfg):
         v = read_json(art / arm / "metrics.json")
         t = read_json(test_dir / arm / "metrics.json") if (test_dir / arm / "metrics.json").exists() else {}
         rows.append({"arm": arm, "valid_ap": v["ap"], "test_ap": t.get("ap"),

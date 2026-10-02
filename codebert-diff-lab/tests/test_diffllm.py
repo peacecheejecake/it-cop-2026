@@ -225,3 +225,72 @@ def test_right_padded_training_logits_match_unpadded(tiny_qwen):
     for i, r in enumerate(rows):
         single = m(input_ids=torch.tensor([r])).logits[0, -1].float()
         assert torch.allclose(batched[i], single, atol=1e-4)
+
+
+def test_even_eval_points_end_each_epoch_once():
+    from diff_lab.llm_train import eval_points
+    assert eval_points(1011, 2) == {506, 1011}
+    assert eval_points(3, 5) == {1, 2, 3}
+
+
+def test_v2_ev_jit14_prompt_is_the_l0_prompt():
+    import yaml
+    from conftest import ROOT
+
+    from diff_lab.llm import SYSTEM_PROMPT, USER_TEMPLATE
+    p = yaml.safe_load((ROOT / "configs" / "studies" / "diffllm-v2.yaml").read_text())["representation"]["prompts"]
+    assert p["ev-jit14"] == {"system": SYSTEM_PROMPT, "user": USER_TEMPLATE}
+    assert "{features}" not in p["ev"]["user"] and "metrics" not in p["ev"]["system"]
+
+
+def test_diffllm_v2_evidence_view_stage1_best_freeze_and_single_test(tmp_path, tiny_qwen):
+    import yaml
+    from conftest import ROOT
+
+    from diff_lab.config import FEATURE_PROFILE_JIT14
+    from diff_lab.diffllm import freeze, load_cfg, prepare_evidence, run_arm, test_arms_once
+    from diff_lab.util import atomic_write_json, read_json, sha256_file
+    raw = yaml.safe_load((ROOT / "configs" / "studies" / "diffllm-v2.yaml").read_text())
+    files = {p.name: sha256_file(p) for p in sorted(tiny_qwen.iterdir()) if p.is_file()}
+    for k in ("qwen7b", "qwen14b"):
+        raw["models"][k] = {"id": k, "revision": "tiny", "license": "test", "local_path": str(tiny_qwen), "files_sha256": files}
+    raw["device"] = "cpu"
+    raw["sft"] = {**raw["sft"], "micro_batch": 4, "accumulation": 2, "lora_r": 4, "lora_alpha": 8, "gradient_checkpointing": False,
+                  "selection_subset": 100, "eval_token_budget": 4096}
+    n = 72
+    ids = [f"jitd4j:p{i % 3}:c{i}" for i in range(n)]
+    split = ["train"] * 24 + ["valid"] * 24 + ["test"] * 24
+    ev_dir, snap, sp = tmp_path / "ev", tmp_path / "snap", tmp_path / "split"
+    for d in (ev_dir, snap, sp):
+        d.mkdir()
+    pd.DataFrame({"change_id": ids, "query_text": [f"fix {i}\n+ if (x == null) return {i};" if i % 2 else f"add {i}\n+ log({i});"
+                                                   for i in range(n)]}).to_parquet(ev_dir / "evidence.parquet")
+    raw["representation"]["evidence_parquet_sha256"] = sha256_file(ev_dir / "evidence.parquet")
+    atomic_write_json(ev_dir / "manifest.json", {"evidence_parquet_sha256": sha256_file(ev_dir / "evidence.parquet")})
+    feat = pd.DataFrame({"change_id": ids, **{f: [float(i % 5) for i in range(n)] for f in FEATURE_PROFILE_JIT14}})
+    feat.loc[0, "la"] = np.nan
+    feat.to_parquet(snap / "features.parquet")
+    pd.DataFrame({"change_id": ids, "label": [i % 2 for i in range(n)]}).to_parquet(snap / "labels.parquet")
+    pd.DataFrame({"change_id": ids, "split": split}).to_parquet(sp / "splits.parquet")
+    atomic_write_json(sp / "manifest.json", {})
+    cfgp = tmp_path / "cfg.yaml"
+    cfgp.write_text(yaml.safe_dump(raw))
+    cfg, h = load_cfg(cfgp)
+    view = tmp_path / "view"
+    man = prepare_evidence(cfg, snap, sp, ev_dir, tiny_qwen, view)
+    assert set(man["prompt_tokens"]) == {"ev", "ev-jit14"}
+    v = pd.read_parquet(view / "view.parquet")
+    assert "label" not in v.columns and "la (lines added): unknown" in v.loc[0, "user:ev-jit14"]
+    assert "Change metrics" not in v.loc[0, "user:ev"]
+    art = tmp_path / "art"
+    with pytest.raises(Exception, match="stage-1|run.json|No such file"):
+        run_arm(cfg, h, "R-14B", view, art)
+    for arm in ("R-ev", "R-ev-jit14", "R-14B"):
+        assert run_arm(cfg, h, arm, view, art)["status"] == "completed"
+    aps = {a: read_json(art / a / "metrics.json")["ap"] for a in ("R-ev-jit14", "R-ev")}
+    winner = max(("R-ev-jit14", "R-ev"), key=lambda a: (aps[a], a == "R-ev-jit14"))
+    assert read_json(art / "R-14B" / "run.json")["representation"] == cfg["arms"][winner]["representation"]
+    fz = tmp_path / "freeze.json"
+    rec = freeze(cfg, h, view, art, fz, check_rows=8)
+    assert [e["arm"] for e in rec["arms"]] == ["R-ev", "R-ev-jit14", "R-14B"] and rec["cpt_json_sha256"] is None
+    assert set(test_arms_once(cfg, h, view, snap, art, fz, tmp_path / "test")) == {"R-ev", "R-ev-jit14", "R-14B"}

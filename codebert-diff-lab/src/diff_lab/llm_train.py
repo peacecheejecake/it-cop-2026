@@ -73,6 +73,9 @@ class SftCfg(_Strict):
     target_modules: list[str]
     gradient_checkpointing: bool
     eval_token_budget: int = Field(ge=1024)
+    # "legacy" (diffllm-v1): every eval_every updates plus end of epoch, so the end-of-epoch evaluation can follow
+    # one update after a periodic one and count twice against patience. "even": evals_per_epoch evenly spaced points.
+    eval_schedule: Literal["legacy", "even"] = "legacy"
 
 
 class MlpCfg(_Strict):
@@ -93,6 +96,25 @@ def risk_messages(message: str, diff: str) -> list[dict]:
 def encode_risk(tok, message: str, diff: str, label_ids: list[int]) -> list[int]:  # noqa: ANN001
     from .llm import encode_prompt
     return encode_prompt(tok, risk_messages(message, diff), label_ids)
+
+
+def frame_messages(frame: pd.DataFrame, rep: str | None = None) -> list[list[dict]]:
+    """Chat messages per row: diffllm-v1 renders message/diff; later views carry pre-rendered `system:<rep>`/`user:<rep>`."""
+    if rep is None:
+        return [risk_messages(m, d) for m, d in zip(frame["message"], frame["diff"], strict=True)]
+    return [[{"role": "system", "content": s}, {"role": "user", "content": u}]
+            for s, u in zip(frame[f"system:{rep}"], frame[f"user:{rep}"], strict=True)]
+
+
+def encode_frame(tok, frame: pd.DataFrame, label_ids: list[int], rep: str | None = None) -> list[list[int]]:  # noqa: ANN001
+    from .llm import encode_prompt
+    return [encode_prompt(tok, m, label_ids) for m in frame_messages(frame, rep)]
+
+
+def eval_points(updates_per_epoch: int, evals_per_epoch: int) -> set[int]:
+    """1-based update indices within an epoch at which "even" evaluates; always includes the last update."""
+    n = min(evals_per_epoch, updates_per_epoch)
+    return {math.ceil(k * updates_per_epoch / n) for k in range(1, n + 1)}
 
 
 def _lora(model, r: int, alpha: int, dropout: float, targets: list[str]):  # noqa: ANN001, ANN202
@@ -238,16 +260,16 @@ def selection_subset(ids: list[str], n: int) -> np.ndarray:
 
 
 def sft_risk(base: Path, cpt_adapter: Path | None, train: pd.DataFrame, valid: pd.DataFrame, out: Path, cfg: SftCfg,
-             seed: int, device: str, salt: str) -> dict:
-    """Train/valid frames: change_id, message, diff (rendered), label (train/valid only; never test)."""
+             seed: int, device: str, salt: str, rep: str | None = None) -> dict:
+    """Train/valid frames: change_id, label (train/valid only; never test) and the prompt columns of `rep` (see frame_messages)."""
     torch = _torch()
     from transformers import AutoTokenizer
     tok = AutoTokenizer.from_pretrained(str(base), local_files_only=True)
     lids = label_ids_for(tok)
     dev = torch.device(device)
     seed_everything(seed)
-    tr_p = [encode_risk(tok, m, d, lids) for m, d in zip(train["message"], train["diff"], strict=True)]
-    va_p = [encode_risk(tok, m, d, lids) for m, d in zip(valid["message"], valid["diff"], strict=True)]
+    tr_p = encode_frame(tok, train, lids, rep)
+    va_p = encode_frame(tok, valid, lids, rep)
     over = sum(len(p) > cfg.max_prompt_tokens for p in tr_p + va_p)
     if over:
         raise IntegrityError(f"{over} prompts exceed max_prompt_tokens; render with the registered budget")
@@ -264,6 +286,7 @@ def sft_risk(base: Path, cpt_adapter: Path | None, train: pd.DataFrame, valid: p
     per_update = cfg.micro_batch * cfg.accumulation
     updates_per_epoch = len(tr_p) // per_update
     eval_every = max(1, updates_per_epoch // cfg.evals_per_epoch)
+    even = eval_points(updates_per_epoch, cfg.evals_per_epoch)
     pad = tok.pad_token_id if tok.pad_token_id is not None else tok.eos_token_id
     target = {0: lids[0], 1: lids[1]}
     hist, best, stale, step = [], -1.0, 0, 0
@@ -287,7 +310,8 @@ def sft_risk(base: Path, cpt_adapter: Path | None, train: pd.DataFrame, valid: p
                 raise ExecutionError(f"non-finite SFT loss/grad at step {step + 1} (loss {loss_sum}, grad norm {gn})")
             opt.step()
             step += 1
-            if step % eval_every == 0 or u + 1 == updates_per_epoch:
+            due = (u + 1 in even) if cfg.eval_schedule == "even" else (step % eval_every == 0 or u + 1 == updates_per_epoch)
+            if due:
                 s = score(model, [va_p[i] for i in sel], lids, pad, dev, cfg.eval_token_budget)
                 ap = evaluate([valid["change_id"].iloc[i] for i in sel], y_va[sel], s, salt)["ap"]
                 hist.append({"epoch": epoch + 1, "step": step, "train_loss": loss_sum / cfg.accumulation, "selection_ap": ap,

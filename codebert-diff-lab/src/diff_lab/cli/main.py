@@ -250,6 +250,19 @@ def diffllm_prepare(config: Path = typer.Option(...), fulldiff: Path = typer.Opt
     _emit({k: m[k] for k in ("rows", "by_split", "truncated_share", "content_tokens_mean")})
 
 
+@diffllm_app.command("prepare-evidence")
+@_guard
+def diffllm_prepare_evidence(config: Path = typer.Option(...), evidence: Path = typer.Option(...), tokenizer: Path = typer.Option(...),
+                             out: Path = typer.Option(...), data_dir: Path = DATA) -> None:
+    """Render the registered EvidenceView prompts (v2); test rows stay label-free."""
+    from ..diffllm import load_cfg, prepare_evidence
+    cfg, _ = load_cfg(config)
+    d = cfg["dataset"]
+    m = prepare_evidence(cfg, data_dir / "snapshots" / d["snapshot_id"], data_dir / "splits" / d["snapshot_id"] / d["split_id"],
+                         evidence, tokenizer, out)
+    _emit({k: m[k] for k in ("rows", "by_split", "prompt_tokens")})
+
+
 @diffllm_app.command("cpt")
 @_guard
 def diffllm_cpt(config: Path = typer.Option(...), data_dir: Path = DATA, artifacts_dir: Path = ARTIFACTS) -> None:
@@ -263,7 +276,7 @@ def diffllm_cpt(config: Path = typer.Option(...), data_dir: Path = DATA, artifac
 @_guard
 def diffllm_arm(config: Path = typer.Option(...), arms: str = typer.Option(...), view: Path = typer.Option(...),
                 artifacts_dir: Path = ARTIFACTS) -> None:
-    """Train/select one or more arms (R-base, E-base, R-diff, E-diff) on public train/valid."""
+    """Train/select one or more registered arms on public train/valid."""
     from ..diffllm import load_cfg, run_arm
     cfg, h = load_cfg(config)
     _emit([{k: r[k] for k in ("arm", "validation_ap")} for r in (run_arm(cfg, h, a.strip(), view, artifacts_dir / "diffllm")
