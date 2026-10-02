@@ -10,8 +10,8 @@
 
 ## 1. 새 Mac 준비
 
-1. 저장소 clone 후 `git fetch --all`. 원격: `origin` (peacecheejecake/it-cop-2026), `lvu` (kb-lvu/it-cop-experiments). 이 프로젝트는 `labs/jit-zero-shot/` 아래다.
-2. **git 밖의 데이터 옮기기:** 이전 Mac의 `experiments/.cache/handoff-2026-10-03/`(약 14 GB, tar 12개 + `SHA256SUMS` + `ITEMS.txt`)를 새 Mac으로 복사한다(외장 디스크, AirDrop, rsync 등). 그다음 저장소 루트(`labs/jit-zero-shot`)에서:
+1. 저장소 clone 후 `git fetch --all`. 원격: `origin` (peacecheejecake/it-cop-2026), `lvu` (kb-lvu/it-cop-experiments). 저장소 루트가 곧 이 프로젝트(`jit-zero-shot`)다. 이전 Mac에서는 `~/it-cop-2026/labs/jit-zero-shot`에 있었다.
+2. **git 밖의 데이터 옮기기:** 이전 Mac의 `experiments/.cache/handoff-2026-10-03/`(약 14 GB, tar 12개 + `SHA256SUMS` + `ITEMS.txt`)를 새 Mac으로 복사한다(외장 디스크, AirDrop, rsync 등). 그다음 새 Mac의 저장소 루트에서:
    ```bash
    tools/handoff_transfer.sh restore <복사한 폴더>
    ```
