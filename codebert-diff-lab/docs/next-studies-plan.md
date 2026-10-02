@@ -6,7 +6,7 @@ Drafted 2026-10-02. Nothing here is registered or approved yet; each study needs
 
 | document | covers | state |
 |---|---|---|
-| `diffllm-study-v1.md` (exp 012) | Qwen2.5-Coder-7B LoRA on git full diffs | done; leak-free; test AP 0.283 (R-diff), 0.274 (R-base) |
+| `diffllm-study-v1.md` (exp 012) | Qwen2.5-Coder-7B LoRA on git full diffs, with and without diff CPT | done; leak-free; test AP 0.283 (R-diff), 0.274 (R-base); one seed, package-split cohort, so not directly comparable with v4 |
 | `diffllm-study-v2.md` (exp 013) | EvidenceView prompts, then Qwen2.5-Coder-14B | stopped; its EvidenceView input was the package text, so it must be re-registered on `jitd4j-git1` |
 | `cpt100m-study.md` (exp 014) | CodeBERT CPT at 100M tokens | stopped; same reason |
 | `DATASETS.md` §3 | candidate datasets (ISSTA'21, JITLine, ReDef, SmartSHARK) | not acquired |
@@ -32,48 +32,69 @@ Not covered anywhere before this document: other model families (Llama, Gemma), 
 - What does reduce cost: a cheaper GPU per run (this model uses 8 GB), and one pod per lane when wall-clock time matters. Cost per run on a smaller GPU must be measured with a short real run first (AGENTS.md §5).
 - The cost estimates below assume sequential runs on one GPU.
 
-## 2. Study M — model family and size (LLM risk SFT)
+## 2. Study M — LLM family and size, with and without diff CPT, directly comparable with v4
 
-**Question:** with the same leak-free input and training recipe, does a larger or different LLM beat Qwen2.5-Coder-7B?
+Revised 2026-10-03 at the user's request: (1) results must be directly comparable with study v4; (2) diff CPT stays in.
 
-- **Protocol = exp 012 `R-base`, unchanged** (`docs/diffllm-study-v1.md`): git full diff (`git show -U3`, 2,048 content tokens), no jit14, LoRA r=16 on all linear layers, label-token loss, lr 1e-4, at most 2 epochs, micro-batch 1 × accumulation 16, bf16, seed 42, selection on the fixed 2,000-change validation subset.
-  - This makes the existing 012 `R-base` run (validation AP 0.322, test AP 0.274) the 7B baseline at no cost. Its text never came from the package, so it is not affected by the finding.
-  - A separate input-form stage (EvidenceView + jit14, the 013 design) is dropped from this study to keep one variable. It can be added later on `jitd4j-git1`.
-- **No diff CPT:** exp 012 found no established gain from it.
+**Questions:**
 
-Candidates, checked on the Hugging Face API on 2026-10-03 (revision = current `main` head; file hashes are pinned at registration):
+- M1: does a larger or different LLM beat Qwen2.5-Coder-7B under the same recipe?
+- M2: does diff CPT help, per model (R-diff − R-base)?
+- M3: how does the best LLM arm compare with the v4 variants (B0-LR, B2-S, B3-S) on the same test commits?
 
-| arm | model | revision | license | gated | parameters | VRAM (bf16) |
-|---|---|---|---|---|---|---|
-| M-Q7 (exists) | `Qwen/Qwen2.5-Coder-7B-Instruct` | `c03e6d35` | Apache-2.0 | no | 7.6B | 16 GB |
-| M-Q14 | `Qwen/Qwen2.5-Coder-14B-Instruct` | `aedcc2d4` | Apache-2.0 | no | 14.8B | 30 GB |
-| M-G12 | `google/gemma-4-12B-it` | `707f0a3b` | Apache-2.0 | no | 12.0B | 24 GB |
-| M-L8 | `meta-llama/Llama-3.1-8B-Instruct` | `0e9e39f2` | Llama 3.1 Community License | yes (manual approval) | 8.0B | 16 GB |
+### 2.1 What makes the comparison with v4 direct
 
-- Gemma 4 is listed as Apache-2.0 and ungated, unlike Gemma 2/3 (Gemma terms, gated). So Qwen and Gemma 4 raise no license question for internal import; Llama needs a policy check and a Hugging Face token whose account accepted the license.
-- Llama 4 exists only as 17B-expert mixture models (Scout/Maverick, about 109B parameters and up), too large for this setup. Llama 3.1 8B is the practical Llama candidate.
-- M-Q14 was already pre-registered in `diffllm-study-v1.md` as the 14B arm of `R-base`.
+| issue in exp 012 vs v4 | fix in Study M |
+|---|---|
+| cohort: 012 used the package split (train 16,184 / valid 5,465 / test 5,480); v4 uses `jitd4j-git1` (110 commits missing from the mirrors dropped) | train, select and test on **`jitd4j-git1`, split `upstream-clean2`, exactly v4's membership**. 012 runs are not reused for M3. |
+| one seed | **3 seeds (42/43/44)** for every SFT arm, paired with v4 seeds as in the v4 report |
+| hardware: exp 017 showed that training on a Mac and on the H100 gives systematically different B2-S results | **all training on H100 80GB SXM**, the GPU of v4 |
+| separate freeze/test/report code paths | one combined report: Study M test predictions and v4 test predictions joined on change_id, seed-paired differences and the same project bootstrap (2,000 resamples) |
+| test access | Study M arms are frozen on validation before their test is scored once. The cohort was already opened for v4, so Study M is labelled an extension of v4 made after the v4 test was opened. |
 
-**Engineering before any paid run (risks):**
+- **Input stays text-only** (git full diff, 012 form). v4 variants also use jit14, so the LLM arms have less information. M3 therefore reports both "best LLM arm − B2-S" and "best LLM arm − B0-LR", and states the difference in inputs.
+- An LLM arm with jit14 in the prompt (the 013 design) is not included. It can be registered as a separate arm if wanted.
 
-- `google/gemma-4-12B-it` was released in 2026-06; the lock pins `transformers==4.57.6`. If it does not load, the study needs its own environment, recorded as a deviation.
-- The prompt uses a system message and scores the label tokens `0`/`1`. Chat templates, the presence of a system role and the label-token ids differ per family, so each model gets a tiny end-to-end check (a few updates and a few scored rows) before the real run.
-- LoRA "all linear layers" must resolve to the right module names per architecture.
+### 2.2 Arms
 
-**Time and cost** (from exp 012: the 7B `R-base` took 2 h on an H100; evaluation of full validation is included):
+| model (checked on Hugging Face 2026-10-03) | revision | license | R-base (SFT only) | R-diff (diff CPT → SFT) |
+|---|---|---|---|---|
+| `Qwen/Qwen2.5-Coder-7B-Instruct` | `c03e6d35` | Apache-2.0 | 3 seeds | 3 seeds; **CPT adapter reused from exp 012** (corpus is disjoint from JD4J and independent of the split) |
+| `Qwen/Qwen2.5-Coder-14B-Instruct` | `aedcc2d4` | Apache-2.0 | 3 seeds | 3 seeds; new CPT |
+| `google/gemma-4-12B-it` | `707f0a3b` | Apache-2.0, ungated | 3 seeds | 3 seeds; new CPT |
+| `meta-llama/Llama-3.1-8B-Instruct` | `0e9e39f2` | Llama 3.1 Community License, gated | 3 seeds | 3 seeds; new CPT |
 
-| arm | est. GPU time | at $2.09/h (RTX PRO 6000 96 GB) | at $3.49/h (H100) |
-|---|---|---|---|
-| per-model smoke checks | 0.5 h | $1 | $2 |
-| M-L8 | 2–2.5 h | $5 | $8 |
-| M-G12 | 3–3.5 h | $7 | $12 |
-| M-Q14 | 3.5–4 h | $8 | $14 |
-| freeze + one test evaluation of the new arms | 1 h | $2 | $3.5 |
-| **total** | **10–11.5 h** | **about $23** | **about $40** |
+- Recipe = exp 012 unchanged. CPT: 50M tokens of `apache-disjoint-diffs-v1`, causal-LM loss, LoRA r=64 merged into the base. SFT: LoRA r=16 on all linear layers, label-token loss, lr 1e-4, at most 2 epochs, micro-batch 1 × accumulation 16, bf16.
+- **One CPT per model** (seed 42), shared by the three R-diff seeds. CPT seed variance is therefore not measured, as in v4 B4/B5, whose CPT also had one seed per run.
+- The CPT corpus is tokenized per model, so "50M tokens" means 50M tokens of each model's tokenizer.
+- E-arms (embeddings + MLP) are dropped: exp 012 showed risk SFT is better by +0.07 to +0.10.
 
-- One GPU runs one arm at a time (section 1a). Three pods in parallel finish in about 4 h for the same total cost.
-- **Comparisons fixed in advance:** each new arm − M-Q7 on test AP with the project bootstrap; best arm − v4 B2-S and − B0-LR as descriptive references (cohorts differ by 21 test commits). One seed per arm, stated as such.
-- **Test access:** the diffllm-v1 test cohort was opened once for the four v1 arms. New arms are selected on validation, frozen, and scored once; the result is labelled an extension made after that test was opened.
+### 2.3 Engineering before any paid run
+
+- `diffllm.py` uses only `seeds[0]`; it needs per-seed arm runs, run ids that include the seed, and freeze over arms × seeds.
+- New config `study-m.yaml`: snapshot `jitd4j-git1`, model registry with pinned files, arms × seeds.
+- Full-diff prompts for `jitd4j-git1` (reuse 012's `fulldiff` extraction, filtered to the git1 membership; re-render per tokenizer).
+- Combined v4 + Study M report script.
+- `transformers==4.57.6` may not load Gemma 4 (released 2026-06). Each model gets a smoke check (a few CPT and SFT updates, a few scored rows; chat template, system role, label-token ids, LoRA target names) before its real run.
+
+### 2.4 Time and cost (H100 SXM $3.49/h; measured in exp 012: 7B SFT 2.0–2.6 h per seed, 7B CPT 50M tokens 2.9 h)
+
+Other sizes scaled by parameter count (an assumption; to be replaced by the smoke-check throughput).
+
+| model | CPT | 6 SFT runs (2 arms × 3 seeds) | eval/freeze/test | total | cost |
+|---|---|---|---|---|---|
+| Qwen 7B | 0 (reused) | 14 h | 1 h | 15 h | $52 |
+| Llama 8B | 3.2 h | 15 h | 1 h | 19 h | $66 |
+| Gemma 4 12B | 4.6 h | 22 h | 1.5 h | 28 h | $98 |
+| Qwen 14B | 5.4 h | 26 h | 1.5 h | 33 h | $115 |
+| smoke checks | | | | 2 h | $7 |
+| **all four** | | | | **about 97 h** | **about $340** |
+
+- GPU time does not shrink by sharing one GPU (section 1a). Several H100 pods in parallel shorten wall-clock time (four pods: about 1.5 days) for the same total cost.
+- **Staged option:**
+  - Stage 1: Qwen 7B, both arms × 3 seeds, plus the combined report with v4. About $55, about 15 h on one pod (or 5 h on three).
+  - Stage 2: the other models after Stage 1 shows whether the LLM route is worth it.
+- Smaller option: 1 seed for the larger models (2 runs per model instead of 6) cuts Stage 2 to about $110. Their single-seed results would then not be paired with v4 seeds in the same way.
 
 ## 3. Study D — more training data
 
@@ -98,8 +119,8 @@ Candidates, checked on the Hugging Face API on 2026-10-03 (revision = current `m
 
 1. Finish v4 (freeze, test, internal package).
 2. D1 learning curve (cheap, decides whether D2 is worth it).
-3. Study M: per-model smoke checks, then M-Q14 and M-G12 (Apache-2.0, ungated).
-4. M-L8 after the license check and a token; D2/D3 if the D1 gate passes.
+3. Study M stage 1 (Qwen 7B, R-base and R-diff × 3 seeds on `jitd4j-git1`, combined report with v4).
+4. Study M stage 2 (Qwen 14B, Gemma 4 12B, Llama 3.1 8B after its license check); D2/D3 if the D1 gate passes.
 5. D4 after the internal trial.
 
 ## 5. Open points for the user
