@@ -1,5 +1,7 @@
 # CodeBERT Diff Lab — 최종 결과 (spec v0.2, M0~M6) — 2026-10-01
 
+> **정정 (2026-10-02):** 이 문서의 텍스트 variant(B1~B5, L0, L1) 수치는 라벨에 따라 다르게 만들어진 패키지 텍스트로 측정했다. 버그 커밋은 커밋의 일부 파일만 담고 있어, 모델이 텍스트 분량으로 라벨을 읽을 수 있다. 같은 B3-S에 git diff 텍스트를 넣으면 test AP가 0.606에서 0.164로 떨어진다. B0-LR, B0-LGBM은 영향이 없다. 근거는 [`leak-finding-2026-10-02.md`](leak-finding-2026-10-02.md), 재측정 계획은 [`v4-correction-plan.md`](v4-correction-plan.md).
+
 study `public-comparison-v3`(freeze `b6afa59f3a2a9550`)의 최종 결과다. primary variant 9개를 모두 freeze한 뒤 public test를 **한 번만** 평가했다. 실험별 상세 기록은 각 브랜치(`exp/006`~`exp/011`)의 RUNLOG/RESULTS에 있다. validation 단계만 다룬 중간 문서 `results-2026-10-01.md`는 이 문서로 대체되었다.
 
 ## 요약

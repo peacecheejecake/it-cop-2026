@@ -12,7 +12,10 @@ baseline 코드의 실제 버그를 고치는 경우가 아니면, 실험용 변
 - `baseline/`(riskbench)과 실험 001~005는 **이전 방향의 기록**이다. 결과를 새 study에 섞지 않는다(사양 v0.2는 matrix_version·renderer가 다르다).
 - 코드는 `main`의 `codebert-diff-lab/`에서 개발하고, **각 단계의 실제 실행은 `experiments/<NNN>-dl-<slug>/` worktree**에서 그 커밋의 코드로 돌려 RUNLOG/RESULTS를 남긴다. 데이터 snapshot·split·evidence·run은 worktree 안 `codebert-diff-lab/{data,artifacts}`(git-ignored)에 생기며 내용 hash로 고정된다.
 - 실행 순서는 사양 implementation-plan §7/§12를 따른다: M0 감사 → M1 골격 → M2(B0-LR/B0-LGBM/B1-TFIDF-S, public validation) → M3(B2-S/B3-S) → M4(B4-S) → M5(B5-S) → M6L(L0-S/L1-S) → M6(freeze → public test → report).
-- **현재 study는 `public-comparison-v3`**(2026-10-01 등록)이다. v2(인코더와 head가 같은 lr 1e-5)는 B2-S head가 덜 학습되는 문제 때문에 test를 열기 전에 대체했고, v2 결과(006~008)는 초기 프로토콜의 기록으로만 남긴다. v3은 encoder lr 1e-5 / head lr 1e-3을 분리하고, split `upstream-clean2`(CPT-dev를 중복 그룹 단위로 뽑음)를 쓴다.
+- **이전 study `public-comparison-v3`**(2026-10-01 등록). v2(인코더와 head가 같은 lr 1e-5)는 B2-S head가 덜 학습되는 문제 때문에 test를 열기 전에 대체했고, v2 결과(006~008)는 초기 프로토콜의 기록으로만 남긴다. v3은 encoder lr 1e-5 / head lr 1e-3을 분리하고, split `upstream-clean2`(CPT-dev를 중복 그룹 단위로 뽑음)를 쓴다.
+- **2026-10-02 정정: JIT-Defects4J 패키지의 텍스트는 라벨에 따라 다르게 만들어져 있다**(버그 커밋은 일부 파일만 담김). v2·v3의 텍스트 variant(B1~B5, L0, L1) 결과와 013의 EvidenceView arm, 014는 이 텍스트로 측정한 것이라 결론으로 쓸 수 없다. B0와 012(git full diff)는 영향이 없다. 근거는 `codebert-diff-lab/docs/leak-finding-2026-10-02.md`.
+- **현재 study는 `public-comparison-v4-gitlines`**(2026-10-02 등록)이다. snapshot `jitd4j-git1`(패키지의 ID·라벨·split + git에서 다시 뽑은 메시지·줄·jit14), 하이퍼파라미터는 v3 그대로. 실행 순서와 사전 규칙은 `codebert-diff-lab/docs/v4-correction-plan.md`를 따른다.
+- 새 snapshot이나 데이터셋을 쓰기 전에 `tools/representation_leak_check.py`로 텍스트 분량이 라벨을 예측하는지 확인한다.
 - **study v3는 freeze되었고 public test를 1회 평가했다**(2026-10-01, `exp/011`). 이후 공개 test를 보고 모델·설정·예산을 바꾸면 그 결과는 새 study/holdout으로 표기해야 하며 v3의 untouched 비교라고 주장할 수 없다(사양 §12).
 - **public test는 study freeze 전에는 열지 않는다**(코드가 거부한다). validation으로 고른 뒤 9개 primary variant를 모두 freeze하고 한 번에 평가한다.
 - **사내 데이터 평가는 `diff-lab predict`(evaluation-only)로만 한다**(`codebert-diff-lab/docs/internal-offline-eval.md`). 사내 데이터로 학습·보정·demo/index 변경을 하는 코드 경로는 없고 만들지 않는다. 실제 사내 평가(M7)는 데이터 반입 승인 후 별도 실험으로 진행한다.
@@ -118,6 +121,7 @@ python scripts/smoke.py --out runs/smoke-core   # neural이면 --neural 추가
 | `leak_check.py <splits> [--write-exclusions out]` | split 간 near-duplicate(diff 내용/메시지) 검사 |
 | `sensitivity.py <eval> <splits> <dups> <out>` | 전체/Hadoop 제외/중복 제외/프로젝트별 AP |
 | `paired_bootstrap_subset.py <eval> <test> <a> <b>` | 부분집합 week-cluster paired bootstrap |
+| `representation_leak_check.py <snapshot_dir>` | 텍스트 줄 수 ÷ (la+ld)가 라벨을 예측하는지 검사(라벨 의존 전처리 탐지) |
 | `fetch_apache_relaxed_tls.py` | 사내 TLS 프록시 환경의 fetch-apache(사용자 승인 필요, 001 RUNLOG 참고) |
 
 ## 5. 실험 목록
@@ -129,6 +133,8 @@ legacy 001~005의 worktree는 2026-10-01에 정리했다(`git worktree remove`).
 | `001-baseline-smoke` | README 전체 파이프라인, 전체 ApacheJIT. B 우위가 Hadoop 라벨 이상에서 기인함을 발견 |
 | `002-no-hadoop` | 001과 동일 프로토콜, Hadoop 계열 3개 저장소만 제외 |
 | `003-seeds-cuda` | 002 데이터, Runpod CUDA에서 seed 42/43/44, 수렴까지(epoch 상한 100, patience 2). 정형 LR > B(−0.037±0.004), B 우위는 시간이 갈수록 소멸 |
+| `016-dl-v4-gitlines` | **[v4, 진행 중]** 누출 없는 snapshot `jitd4j-git1`로 v3 variant 재실행. validation AP: B0-LR 0.302, B0-LGBM 0.240, B1-TFIDF-S 0.345(v3 0.546). B3-S는 H100에서 실행 중 |
+| `015-dl-internal-pack` | **[사내 반입 준비, 중단]** git 추출기·라벨 평가기·오프라인 패키지 스크립트. 추출기 검증 중 패키지 텍스트의 라벨 의존을 발견: v3 B3-S test AP 0.606 → git 텍스트 0.164. zip은 v4 모델로 만든다 |
 | `006-dl-m2-cpu-baselines` | **[diff-lab]** M0 감사 + M2 CPU 기준선(public validation): B1-TFIDF-S AP 0.546 > B0-LR 0.319 > B0-LGBM 0.211(시작 설정 과적합) |
 | `011-dl-m6-final` | **[diff-lab] 최종.** L0/L1(Qwen2.5-Coder-7B) → freeze `b6afa59f3a2a9550`(25 run) → public test 1회. test AP: B3-S 0.598 > B4-S 0.590 > B5-S 0.580 > B2-S 0.475 > B1 0.440 > B0-LR 0.215 > B0-LGBM 0.197 > L1 0.172 > L0 0.125. 10M 토큰 MLM CPT는 추가 개선 없음(구간이 0 포함), MLM:RMI 1:1은 MLM 단독보다 낮음. 제공 split은 프로젝트 안에서 대체로 시간순(2026-10-02 정정, `tools/split_time_order.py`). `codebert-diff-lab/docs/results-final-2026-10-01.md` |
 | `014-dl-cpt100m` | **[v3 확장, 탐색적·준비됨, 미실행]** CodeBERT CPT를 100M 토큰으로(MLM 단독 / MLM:RMI 2:1). validation 기준, test는 사전등록한 규칙을 넘을 때만. `codebert-diff-lab/docs/cpt100m-study.md` |

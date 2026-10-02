@@ -37,6 +37,14 @@
 - repo, commit, label, 원래 split, timestamp만 내보낸다. 작성자 이름과 이메일은 버린다.
 - diff는 pickle에서 가져오지 않고, riskbench `build-apache`가 원본 git에서 다시 추출한다. 그래야 입력 형식이 ApacheJIT과 같아진다.
 
+### 알려진 문제: 패키지의 줄 집합이 라벨에 따라 다르다 (2026-10-02 발견)
+
+- 버그 커밋은 `added_code/removed_code`에 커밋의 일부 파일만 들어 있다(버그 커밋의 70%에서 줄의 20% 이상이 빠짐). 정상 커밋은 거의 전부 들어 있다(0.8%만 빠짐).
+- 그래서 "텍스트가 커밋을 얼마나 덮는가"만으로 test AP 0.324가 나온다(기저율 0.087). 실제 git diff에는 이 신호가 없다.
+- 패키지 텍스트로 학습·평가한 결과(study v2, v3의 텍스트 variant, 013의 EvidenceView arm, 014)는 이 영향을 받는다.
+- 대신 쓰는 snapshot: `jitd4j-git1`(패키지의 ID·라벨·split은 그대로, 메시지·줄·jit14는 `.cache/git/jd4j`에서 다시 추출).
+- 점검 도구: `tools/representation_leak_check.py <snapshot_dir>`. 상세: `codebert-diff-lab/docs/leak-finding-2026-10-02.md`.
+
 ## 3. 후보 (미확보, 외부 대화에서 제시됨 — 수치는 미검증)
 
 | 후보 | 내용 | 용도 |
