@@ -20,7 +20,7 @@ CPT-train change drawn uniformly, rejecting the same change, the same normalized
 and the same exact-duplicate group (no fallback to any other pool). A change with an empty
 message or no code is rmi_ineligible. The swapped input is rendered like the evidence
 (message + "\n" + own code lines) and code lines are dropped from the end until it fits.
-One optimizer update is one task; updates alternate MLM, RMI, MLM, ... and the budget counts
+One optimizer update is one task; updates cycle MLM, RMI (1:1) or MLM, MLM, RMI (2:1) per `b5_task_schedule` and the budget counts
 both tasks' non-padding input tokens together.
 """
 from __future__ import annotations
@@ -253,17 +253,20 @@ def rmi_examples(tok, pool: RmiPool, anchors: np.ndarray, rng: np.random.Generat
     return out, np.asarray(targets, dtype=np.float32), truncated, partners
 
 
+MLM_PER_RMI = {"alternating_1_to_1": 1, "alternating_2_to_1": 2}
+
+
 def plan_mlm_rmi(mlm_lengths: np.ndarray, tok, pool: RmiPool, seed: int, window: int, budget: int,  # noqa: ANN001
-                 p_replace: float, max_length: int) -> dict:
-    """Alternating MLM/RMI update plan (u even -> MLM, odd -> RMI) fixed before the first step."""
-    if window < 1 or budget < 1 or len(mlm_lengths) == 0:
+                 p_replace: float, max_length: int, mlm_per_rmi: int = 1) -> dict:
+    """MLM/RMI update plan fixed before the first step: every cycle is `mlm_per_rmi` MLM updates, then one RMI update."""
+    if window < 1 or budget < 1 or len(mlm_lengths) == 0 or mlm_per_rmi < 1:
         raise ExecutionError("empty CPT plan")
     steps, total, digests = [], 0, []
     streams = {"mlm": [np.array([], dtype=np.int64), 0, len(mlm_lengths), PLAN_STREAM],
                "rmi": [np.array([], dtype=np.int64), 0, len(pool), RMI_PLAN_STREAM]}
     rmi_k = 0
     while total < budget:
-        task = "mlm" if len(steps) % 2 == 0 else "rmi"
+        task = "rmi" if len(steps) % (mlm_per_rmi + 1) == mlm_per_rmi else "mlm"
         st = streams[task]
         while len(st[0]) < window:
             st[0] = np.concatenate([st[0], np.random.default_rng([seed, st[3], st[1]]).permutation(st[2])])
@@ -417,7 +420,8 @@ class CptRun:
         window = cc.micro_batch_size * cc.gradient_accumulation_steps
         if rmi:
             pool, dev_pool = build_rmi_pool(train), build_rmi_pool(dev)
-            plan = plan_mlm_rmi(tr.lengths, self.tok, pool, self.seed, window, cc.budget, cc.rmi_replacement_probability, max_len)
+            plan = plan_mlm_rmi(tr.lengths, self.tok, pool, self.seed, window, cc.budget, cc.rmi_replacement_probability, max_len,
+                                MLM_PER_RMI[cc.b5_task_schedule])
             dev_rmi_ids, dev_rmi_y, _, _ = rmi_examples(self.tok, dev_pool, np.arange(len(dev_pool)),
                                                      np.random.default_rng([cc.dev_mask_seed, DEV_RMI_STREAM]),
                                                      cc.rmi_replacement_probability, max_len)

@@ -171,7 +171,7 @@ class CptCfg(Strict):
     random_replace_fraction: float = Field(ge=0, le=1)
     protect_renderer_structure: Literal[True]
     zero_selection_rule: Literal["force_one_uniform"]
-    b5_task_schedule: Literal["alternating_1_to_1"]
+    b5_task_schedule: Literal["alternating_1_to_1", "alternating_2_to_1"]
     rmi_replacement_probability: float = Field(gt=0, lt=1)
     dev_eval_every_updates: int = Field(ge=1)
     dev_mask_seed: int

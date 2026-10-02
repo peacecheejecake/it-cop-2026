@@ -1,0 +1,155 @@
+# Extension study CPT-100M (docs/cpt100m-study.md), registered 2026-10-02 AFTER the v3 public test was opened
+# (freeze b6afa59f3a2a9550). Exploratory; not part of the untouched v3 matrix.
+# Identical to public-comparison-v3 except the cpt section:
+# - budget 100M non-padding input tokens (v3: 10M), about 22 passes over CPT-train
+# - b5_task_schedule alternating_2_to_1 (v3: 1:1): updates cycle MLM, MLM, RMI (BiCC-BERT's final ratio)
+# - dev_eval_every_updates 250 and checkpoint_every_updates 500 (v3: 25/50), i.e. the same number of dev points per run
+# Here B4-S = MLM 100M and B5-S = MLM+RMI 2:1 at 100M. Fine-tuning, data, seeds and evaluation are v3's.
+schema_version: 2
+matrix_version: 2
+study_id: public-comparison-v3-cpt100m
+track: controlled
+protocol_version: v3-cpt100m
+
+dataset:
+  snapshot_id: jitd4j-audit1
+  split_id: upstream-clean2
+  source_approval: configs/sources/jit-defects4j.yaml
+  train_visibility: public
+  feature_profile: jit14-audited-v1
+
+model:
+  base: microsoft/codebert-base
+  revision: 3b0952feddeffad0063f274080e3c23d75e7eb39
+  local_path: cache:models/codebert-base
+  weights_file: pytorch_model.bin
+  weights_sha256: 28b61fd8fa069f6bc966f4cb9572a4026ab2a784fca8fb224020d91b744e32d6
+  renderer: message-add-del-text-v2
+  max_length: 512
+  max_message_tokens: 64
+  fusion_head: cls-feature-tanh-v1
+
+experiments: [B4-S, B5-S]
+evidence_profile: matched
+information_profile: structured_fused
+
+structured:
+  features: [ns, nd, nf, entropy, la, ld, lt, fix, ndev, age, nuc, exp, rexp, sexp]
+  lr_transform: signed_log1p_median_impute_standardize
+  lr: {C: 1.0, max_iter: 1000}
+  lgbm: {num_leaves: 15, learning_rate: 0.05, n_estimators: 300, min_child_samples: 20, num_threads: 4}
+
+text_baseline:
+  classifier: logistic_regression
+  analyzer: char
+  ngram_range: [3, 5]
+  lowercase: false
+  min_df: 2
+  max_features_per_field: 50000
+  fit_role: supervised_train
+  lr: {C: 1.0, max_iter: 1000}
+
+seeds: [42, 43, 44]
+
+evaluation:
+  primary_metrics: [ap, recall_at_5pct, recall_at_10pct]
+  budget_unit: change_count
+  topk_rounding: ceil
+  tie_salt: topk-tie-v1
+  threshold_policy: validation_max_f1_then_highest_threshold
+  calibration: none
+  require_freeze_for_test: true
+
+policy:
+  allow_internal_training: false
+  allow_internal_demonstrations: false
+  allow_internal_index_members: false
+  allow_remote_llm: false
+  allow_test_selection: false
+  automatic_remote_logging: false
+
+# Shared downstream protocol for B2-S/B3-S/B4-S/B5-S (spec protocol §2.1); B2-S only freezes the encoder.
+# precision: fp32 until the CUDA 100-step profile (spec T14) shows bf16_encoder_autocast is equivalent; then re-pinned before formal runs.
+finetune:
+  max_epochs: 100
+  micro_batch_size: 8
+  gradient_accumulation_steps: 4
+  encoder_learning_rate: 0.00001
+  head_learning_rate: 0.001
+  weight_decay: 0.01
+  lr_schedule: constant
+  max_grad_norm: 1.0
+  head_dropout: 0.1
+  selection_metric: validation_ap
+  patience_epochs: 5
+  tie_rule: earlier_checkpoint
+  precision: fp32
+  device: cuda
+  allow_cpu: false
+  eval_batch_size: 64
+cpt:
+  permitted_role: cpt_train
+  corpus: evidence_query_text
+  budget_unit: nonpadding_input_token_exposures
+  budget: 100000000
+  micro_batch_size: 8
+  gradient_accumulation_steps: 16
+  learning_rate: 0.00002
+  weight_decay: 0.01
+  lr_schedule: linear_warmup_linear_decay
+  warmup_fraction: 0.06
+  max_grad_norm: 1.0
+  mlm_probability: 0.15
+  mask_replace_fraction: 0.8
+  random_replace_fraction: 0.1
+  protect_renderer_structure: true
+  zero_selection_rule: force_one_uniform
+  b5_task_schedule: alternating_2_to_1
+  rmi_replacement_probability: 0.5
+  dev_eval_every_updates: 250
+  dev_mask_seed: 20261001
+  checkpoint_every_updates: 500
+  precision: fp32
+  device: cuda
+  allow_cpu: false
+  eval_batch_size: 64
+llm:
+  # Pinned 2026-10-01 before any L0/L1 run or test access (user choice: Qwen2.5-Coder-7B-Instruct).
+  backend: local_hf
+  model_id: Qwen/Qwen2.5-Coder-7B-Instruct
+  revision: c03e6d358207e414f1eca0bb1891e29f1db0e242
+  tokenizer_revision: c03e6d358207e414f1eca0bb1891e29f1db0e242
+  license: apache-2.0
+  local_path: cache:models/qwen2.5-coder-7b-instruct
+  files_sha256:
+    config.json: c0242402ad6a13b331ea320feea8c7e3776ffb7a4eff0757b9cd667e116d9a28
+    generation_config.json: 1a628a5775bc69cde01c6749a531150ca4d3189652c618a174f7077923acf3b1
+    merges.txt: 599bab54075088774b1733fde865d5bd747cbcc7a547c5bc12610e874e26f5e3
+    tokenizer.json: c0382117ea329cdf097041132f6d735924b697924d6f6fc3945713e96ce87539
+    tokenizer_config.json: 959e7f1d9a1b7641a6d6ce05ca97b75c7894fcb66cbe5a040406458fb1128ee4
+    vocab.json: ca10d7e9fb3ed18575dd1e277a2579c16d108e32f27439684afa0e10b1440910
+    model-00001-of-00004.safetensors: 0b6f069918b07c064cbba8ae4f00f529aa9bbf84b7cdfcb7fc2694a40f6aa8ef
+    model-00002-of-00004.safetensors: c3d46733e7aa054ea7b063fbccd0a5a08446e7bd1814bef26936c5aa1331da62
+    model-00003-of-00004.safetensors: 9fe45dacee087385b3d2d6dd27a7413a8a56d95f145772facc148fa86fc73446
+    model-00004-of-00004.safetensors: 5aa6e5cbe642377fd441fb4e60e83cca96b2bcd9820e245b9ea06d94653f17f2
+  precision_profile: bf16
+  chat_template_hash: cd8e9439f0570856fd70470bf8889ebd8b5d1107207f67a5efb46e342330527f
+  task_prompt_id: jit-defect-binary-v1
+  task_prompt_hash: 64262bc533eb503a725a3f6b840ced81ee78fee0e04296ebf335b33c90d1f017
+  feature_serializer: jit14-named-raw-v1
+  scorer: candidate_loglikelihood
+  labels: ["0", "1"]
+  max_context_tokens: 8192
+  query_truncation: forbidden_after_evidence_freeze
+  train_weights: false
+  examples:
+    source_role: supervised_train
+    visibility: public
+    k: 4
+    class_counts: {negative: 2, positive: 2}
+    seeds: [42, 43, 44]
+    index_write_from_query: false
+  retrieval_enabled: false
+  device: cuda
+  allow_cpu: false
+  batch_token_budget: 32768

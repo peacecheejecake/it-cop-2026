@@ -270,6 +270,10 @@ def test_mlm_rmi_plan_alternates_and_meets_budget(tok):
     toks = [int(lengths[s["items"]].sum()) if s["task"] == "mlm" else sum(len(x) for x in s["ids"]) for s in a["steps"]]
     assert sum(toks) == a["planned_tokens"] >= 900 > sum(toks[:-1])
     assert plan_mlm_rmi(lengths, tok, pool, 7, 4, 900, 0.5, 512)["plan_sha256"] == a["plan_sha256"]
+    b = plan_mlm_rmi(lengths, tok, pool, 7, 4, 900, 0.5, 512, mlm_per_rmi=2)
+    tb = [s["task"] for s in b["steps"]]
+    assert tb == (["mlm", "mlm", "rmi"] * len(tb))[: len(tb)] and b["planned_tokens"] >= 900
+    assert b["plan_sha256"] != a["plan_sha256"]
 
 
 def test_b5_cpt_end_to_end_resume_and_transfer(tmp_path, tok, tiny_encoder, monkeypatch):
