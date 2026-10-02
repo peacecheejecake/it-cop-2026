@@ -203,7 +203,12 @@ def freeze(cfg: dict, cfg_hash: str, view_dir: Path, art: Path, out: Path, check
         for rel, digest in run["artifacts_sha256"].items():
             if sha256_file(art / arm / rel) != digest:
                 raise IntegrityError(f"{arm}: {rel} changed")
-        rows = np.sort(np.random.default_rng([cfg["seeds"][0], 919]).choice(len(va), size=check_rows, replace=False))
+        # Embeddings are batched by length over the whole frame; a subsample changes bf16 batch composition, which the
+        # standardize+MLP head amplifies (0.109 on 64 rows, Spearman 0.997), so embedding arms re-embed all of validation.
+        if cfg["arms"][arm]["head"] == "risk_sft":
+            rows = np.sort(np.random.default_rng([cfg["seeds"][0], 919]).choice(len(va), size=check_rows, replace=False))
+        else:
+            rows = np.arange(len(va))
         again = _scores(cfg, arm, va.iloc[rows].reset_index(drop=True), art)
         ref = pd.read_parquet(art / arm / "validation.parquet")["score"].to_numpy()[rows]
         from scipy.stats import spearmanr
