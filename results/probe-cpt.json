@@ -1,0 +1,24 @@
+{
+  "adapter": "artifacts/diffllm/cpt/qwen7b-apache50m/adapter",
+  "by_label": {
+    "0": {
+      "base": 0.9189817873953745,
+      "cpt": 0.8545425099095908,
+      "rows": 464
+    },
+    "1": {
+      "base": 0.9695352781563997,
+      "cpt": 0.9037945537517468,
+      "rows": 48
+    }
+  },
+  "cpt": "qwen7b-apache50m",
+  "mean_loss": {
+    "base": 0.9237211771542206,
+    "cpt": 0.8591598890197929
+  },
+  "mean_reduction": 0.06456128813442774,
+  "rows": 512,
+  "share_rows_improved": 0.98828125,
+  "tokens_mean": 1080.380859375
+}
