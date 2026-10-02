@@ -26,3 +26,17 @@ study `public-comparison-v4-gitlines`: v3 variant를 누출 없는 snapshot `jit
 - 013·014 pod는 08:50 UTC 무렵 사용자가 중단했다.
 
 (결과는 run이 끝나는 대로 이어서 적는다.)
+
+## Pod 실행 결과 (2026-10-02, 시각은 UTC)
+
+- B3-S: seed 42(09:03), 43(09:27) 완료. **seed 44는 09:35에 조용히 죽었다.** `/workspace` 볼륨(20 GB)이 quota에 걸렸다(run당 체크포인트 3.7 GB). 10:53에 발견해 `artifacts/`를 컨테이너 디스크로 옮기고(심링크) `scripts/pod_run1b.sh`로 재개, 11:17 완료. 약 1시간 20분($5) 동안 pod가 비어 있었다.
+- B2-S: 11:21~11:29. B4-S seed 42: 11:59, seed 43: 12:36.
+- 병렬 시험(12:21~12:45): 같은 GPU에 3개(time-slicing) 또는 4개(MPS)를 동시에 돌려도 전체 처리량은 순차와 같았다(`docs/next-studies-plan.md` §1a). B4-S seed 44와 B5-S seed 42는 시험 중 한 번 중단 후 재시작했다(run은 체크포인트에서 이어짐). 이후 `scripts/pod_lane.sh` 4개 lane(MPS)으로 B4-S 44, B5-S 42/43/44를 실행, 13:52~14:05 완료.
+- 9개 variant 등록본(main `7a25603`)의 설정 파일은 B3-S가 끝난 뒤 pod에 적용했다.
+- Qwen2.5-Coder-7B-Instruct `c03e6d35…`: `scripts/pod_qwen.sh`로 받아 고정된 10개 파일 해시 일치. 처음에는 해시가 등록된 파일만 받아 `model.safetensors.index.json`이 없어 L0-S가 실패했다(14:07). 나머지 파일을 받아 재실행.
+- L0-S 14:12, L1-S 14:39(`scripts/pod_run3.sh`).
+- freeze 1차 거부(14:40): B0-LR, B0-LGBM, B1-TFIDF-S에 seed 43/44 run이 없었다(로컬에서 seed 42만 실행). pod에서 seed 43/44 실행(CPU) 후 `scripts/pod_run4.sh`로 재시도.
+- **freeze `7340ee71c876c8b7`**(14:50, 25 run), **public test 1회**(14:50~15:24): `diff-lab experiment test --study … --freeze freeze/freeze.json --out-dir test-results --device cuda`.
+- 회수: `scripts/pull.sh all` + freeze/test-results. pod에서 계산한 sha256 512개 파일이 로컬과 모두 일치(`logs/pod-sha256.txt`). resume 상태(`last-*`, `state.pt`)는 받지 않았다.
+- `diff-lab study report`는 로컬에서 실행 → `results/report.json`.
+- Pod 삭제 15:3x. 잔액 약 $29.6 → $2.32. 이 pod 사용분은 약 7.4시간, 약 $26(같은 시간대 013/014 pod 지출 별도).
