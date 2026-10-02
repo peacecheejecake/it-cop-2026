@@ -34,23 +34,46 @@ Not covered anywhere before this document: other model families (Llama, Gemma), 
 
 ## 2. Study M — model family and size (LLM risk SFT)
 
-**Question:** on leak-free input, does a larger or different LLM beat Qwen2.5-Coder-7B, and does any of them beat the CodeBERT variants of v4?
+**Question:** with the same leak-free input and training recipe, does a larger or different LLM beat Qwen2.5-Coder-7B?
 
-- **Data:** `jitd4j-git1`, split `upstream-clean2`.
-- **Input:** stage 1 decides between the two leak-free forms with the 7B model: full diff (exp 012 form) and git EvidenceView + jit14 (the 013 design on the new snapshot). Later arms use the winner.
-- **Training:** the exp 012 `R-base` recipe unchanged (LoRA r=16 on all linear layers, label-token loss, lr 1e-4, at most 2 epochs, bf16, one seed). No diff CPT: exp 012 found no established gain from it.
+- **Protocol = exp 012 `R-base`, unchanged** (`docs/diffllm-study-v1.md`): git full diff (`git show -U3`, 2,048 content tokens), no jit14, LoRA r=16 on all linear layers, label-token loss, lr 1e-4, at most 2 epochs, micro-batch 1 × accumulation 16, bf16, seed 42, selection on the fixed 2,000-change validation subset.
+  - This makes the existing 012 `R-base` run (validation AP 0.322, test AP 0.274) the 7B baseline at no cost. Its text never came from the package, so it is not affected by the finding.
+  - A separate input-form stage (EvidenceView + jit14, the 013 design) is dropped from this study to keep one variable. It can be added later on `jitd4j-git1`.
+- **No diff CPT:** exp 012 found no established gain from it.
 
-| arm | model (candidate; pin revision at registration) | license to verify | VRAM (bf16) | est. time on one 80–96 GB GPU |
-|---|---|---|---|---|
-| M-Q7 | Qwen2.5-Coder-7B-Instruct | Apache-2.0 | 16 GB | 1.2 h (reuse the 012 run if the input form is full diff) |
-| M-Q14 | Qwen2.5-Coder-14B-Instruct | Apache-2.0 | 30 GB | 2–2.5 h |
-| M-L8 | a Llama instruct model of about 8B | Meta community license, gated | 16 GB | 1.2 h |
-| M-G | a Gemma instruct model of 9–12B, or CodeGemma 7B | Gemma terms, gated | 18–24 GB | 1.5 h |
+Candidates, checked on the Hugging Face API on 2026-10-03 (revision = current `main` head; file hashes are pinned at registration):
 
-- **Order:** stage 1 (input form, 7B) → M-Q14 → M-L8, M-G. The two gated families need a Hugging Face token with accepted terms, and a policy check before any internal use.
-- **Parallelism:** memory would allow two 7–9B arms on one 80–96 GB GPU, but see section 1a: sharing one GPU did not raise throughput for CodeBERT. Measure before relying on it; otherwise use one pod per arm.
-- **Cost estimate:** stage 1 about $5, the three new arms about $10–12 at $2.1–3.5/h. Total **about $15–17**.
-- **Comparisons fixed in advance:** each arm − M-Q7 (same input), best arm − best v4 CodeBERT variant, best arm − B0-LR. One seed per arm, so differences are judged by the project bootstrap interval only, and stated as single-seed results.
+| arm | model | revision | license | gated | parameters | VRAM (bf16) |
+|---|---|---|---|---|---|---|
+| M-Q7 (exists) | `Qwen/Qwen2.5-Coder-7B-Instruct` | `c03e6d35` | Apache-2.0 | no | 7.6B | 16 GB |
+| M-Q14 | `Qwen/Qwen2.5-Coder-14B-Instruct` | `aedcc2d4` | Apache-2.0 | no | 14.8B | 30 GB |
+| M-G12 | `google/gemma-4-12B-it` | `707f0a3b` | Apache-2.0 | no | 12.0B | 24 GB |
+| M-L8 | `meta-llama/Llama-3.1-8B-Instruct` | `0e9e39f2` | Llama 3.1 Community License | yes (manual approval) | 8.0B | 16 GB |
+
+- Gemma 4 is listed as Apache-2.0 and ungated, unlike Gemma 2/3 (Gemma terms, gated). So Qwen and Gemma 4 raise no license question for internal import; Llama needs a policy check and a Hugging Face token whose account accepted the license.
+- Llama 4 exists only as 17B-expert mixture models (Scout/Maverick, about 109B parameters and up), too large for this setup. Llama 3.1 8B is the practical Llama candidate.
+- M-Q14 was already pre-registered in `diffllm-study-v1.md` as the 14B arm of `R-base`.
+
+**Engineering before any paid run (risks):**
+
+- `google/gemma-4-12B-it` was released in 2026-06; the lock pins `transformers==4.57.6`. If it does not load, the study needs its own environment, recorded as a deviation.
+- The prompt uses a system message and scores the label tokens `0`/`1`. Chat templates, the presence of a system role and the label-token ids differ per family, so each model gets a tiny end-to-end check (a few updates and a few scored rows) before the real run.
+- LoRA "all linear layers" must resolve to the right module names per architecture.
+
+**Time and cost** (from exp 012: the 7B `R-base` took 2 h on an H100; evaluation of full validation is included):
+
+| arm | est. GPU time | at $2.09/h (RTX PRO 6000 96 GB) | at $3.49/h (H100) |
+|---|---|---|---|
+| per-model smoke checks | 0.5 h | $1 | $2 |
+| M-L8 | 2–2.5 h | $5 | $8 |
+| M-G12 | 3–3.5 h | $7 | $12 |
+| M-Q14 | 3.5–4 h | $8 | $14 |
+| freeze + one test evaluation of the new arms | 1 h | $2 | $3.5 |
+| **total** | **10–11.5 h** | **about $23** | **about $40** |
+
+- One GPU runs one arm at a time (section 1a). Three pods in parallel finish in about 4 h for the same total cost.
+- **Comparisons fixed in advance:** each new arm − M-Q7 on test AP with the project bootstrap; best arm − v4 B2-S and − B0-LR as descriptive references (cohorts differ by 21 test commits). One seed per arm, stated as such.
+- **Test access:** the diffllm-v1 test cohort was opened once for the four v1 arms. New arms are selected on validation, frozen, and scored once; the result is labelled an extension made after that test was opened.
 
 ## 3. Study D — more training data
 
@@ -75,12 +98,12 @@ Not covered anywhere before this document: other model families (Llama, Gemma), 
 
 1. Finish v4 (freeze, test, internal package).
 2. D1 learning curve (cheap, decides whether D2 is worth it).
-3. Study M stage 1 and M-Q14 (Apache-2.0 models, no license question).
-4. M-L8 and M-G after the license check; D2/D3 if the D1 gate passes.
+3. Study M: per-model smoke checks, then M-Q14 and M-G12 (Apache-2.0, ungated).
+4. M-L8 after the license check and a token; D2/D3 if the D1 gate passes.
 5. D4 after the internal trial.
 
 ## 5. Open points for the user
 
-- Which Llama and Gemma versions are acceptable for internal import (license terms).
+- Whether Llama 3.1 8B is wanted at all (license check, gated download).
 - Whether exp 014 (CPT-100M) is still wanted on leak-free text; v4 will show whether 10M-token CPT does anything there.
 - Budget per study; the estimates above assume sequential runs on one H100-class pod.
