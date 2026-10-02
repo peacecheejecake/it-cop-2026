@@ -25,7 +25,7 @@
   1. `/workspace/pod_run.sh`: B3-S seed 42/43/44. 08:38 UTC 시작. 끝나면 `done`.
   2. `/workspace/pod_run2.sh`: `done`을 기다렸다가 설정 파일을 9개 variant 등록본(`/workspace/v4.yaml`, main `7a25603`)으로 바꾸고 B2-S, B4-S, B5-S를 seed 42/43/44로 실행. 끝나면 `done2`.
 - 번들: `experiments/.cache/bundles/jit016-8db0d30.tar.gz`, sha256 `5af9eab1…43aa`(pod에서 일치 확인). pod의 `CODE_SHA`는 `8db0d30`이고, 설정 파일만 `7a25603`의 것으로 바뀐다(코드는 같다).
-- 잔액: 09:1x UTC에 $25.08. 남은 작업 추정 5~6시간, $18~22. **여유가 $5 안팎이다.**
+- 잔액: 08:55 UTC 무렵 $25.08. 남은 작업 추정 5~6시간, $18~22. **여유가 $5 안팎이다.**
 
 ## 다음 순서
 
@@ -52,7 +52,3 @@
 | B0-LGBM | 0.211 | 0.240 |
 | B1-TFIDF-S | 0.546 | 0.345 |
 | B3-S | 0.687 | 실행 중 |
-
-## 푸시 상태
-
-- `origin`, `lvu`의 `main`은 `8db0d30`까지 올라가 있다. 그 뒤 커밋(`4ae6d51`, `7a25603`, 이 handoff)과 `exp/015-dl-internal-pack`, `exp/016-dl-v4-gitlines`는 **아직 푸시하지 못했다**(세션의 자동 권한 검사가 push를 막았다). 사용자가 직접 푸시하거나 권한을 허용해야 한다.
