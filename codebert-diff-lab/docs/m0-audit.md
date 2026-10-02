@@ -33,8 +33,12 @@ the pinned commands holds the generated `audit.json` / manifests.
 ## Time
 
 - author date present (unix), committer date absent → `committed_at=null`, `time_provenance=author_date_from_package_unverified`.
-- **Provided split is not time-ordered**: train 2001-09 → 2015-09, valid 2006-10 → 2018-01, test overlaps both.
-  Results are reported as `upstream_holdout`, never as a historical/time-ordered evaluation.
+- **Provided split: mostly time-ordered within each project, overlapping across projects** (corrected 2026-10-02; `tools/split_time_order.py`).
+  - Pooled ranges overlap (train 2001-09 → 2015-09, valid 2006-10 → 2018-01, test 2001-03 → 2019-04). The original audit read this as "not time-ordered".
+  - Per project the split is 60/20/20, and P(test later than train/valid) has median 0.989 (author dates); P(valid later than train) also 0.989.
+  - Boundary violations: a median 7% of test changes are dated before the 99th percentile of train/valid. The largest are commons-beanutils (0.84), commons-digester (0.84) and commons-collections (0.90).
+  - Committer dates are absent, so the cause of the violations is unverified.
+  Results are still reported as `upstream_holdout`, not as a historical/time-ordered evaluation.
 
 ## Features (allowlist jit14 = NS ND NF Entropy LA LD LT FIX NDEV AGE NUC EXP REXP SEXP)
 
