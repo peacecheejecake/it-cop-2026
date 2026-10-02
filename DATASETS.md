@@ -45,6 +45,27 @@
 - 대신 쓰는 snapshot: `jitd4j-git1`(패키지의 ID·라벨·split은 그대로, 메시지·줄·jit14는 `.cache/git/jd4j`에서 다시 추출).
 - 점검 도구: `tools/representation_leak_check.py <snapshot_dir>`. 상세: `codebert-diff-lab/docs/leak-finding-2026-10-02.md`.
 
+## 2a. 외부 test set (2026-10-03 확보, 평가 전용 — 학습·선택에 쓰지 않는다)
+
+공통 원칙:
+- 커밋 ID와 라벨만 쓴다. 텍스트와 jit14는 각 저장소를 clone해 `gitextract`로 다시 뽑는다(JD4J 누출 교훈).
+- 원본 패키지의 전처리 텍스트·지표는 쓰지 않는다.
+- 우리 학습(JD4J fine-tuning, CPT 말뭉치 Apache 6개, Qwen LoRA)에는 이 프로젝트들이 없다.
+- 기반 모델(CodeBERT, Qwen2.5-Coder) 사전학습에 이 저장소들의 코드가 들어갔는지는 확인할 수 없다(JD4J와 같은 한계).
+
+| 데이터 | 출처 / 무결성 | 규모(버그 비율) | 언어 | 캐시 / Drive |
+|---|---|---|---|---|
+| ISSTA'21 JIT-DP | github.com/ZZR0/ISSTA21-JIT-DP(MIT). README의 Google Drive 묶음은 사내 프록시가 막아, Docker Hub `zzr0/issta2021-jit-dp:v1.0`의 층 `sha256:bc21eef8…3ec0`(digest 일치)에서 `JIT_Baseline/data/<p>/<p>_k_feature.csv`만 추출 | qt 23,912(15%), openstack 22,757(26%), jdt 3,279(49%), platform 11,034(37%), gerrit 14,927(12%), go 19,009(43%) | C++, Python, Java, Java, Java, Go | `raw/issta21/` (`SOURCE.md`, `SHA256SUMS`) / `gdrive:…/raw/issta21` |
+| DeepJIT Qt·OpenStack | Zenodo 3965246(CC-BY-4.0), md5 일치. 코드는 빠져 있고 커밋 ID·라벨·메시지만 있음 | qt 25,704(7.1%), openstack 13,304(12.2%) | C++, Python | `raw/deepjit-zenodo-3965246/` / `gdrive:…/raw/deepjit-zenodo-3965246` |
+| JavaScript (Ni et al., TOSEM 2022) | github.com/jacknichao/JIT-on-JavaScript-projects `3e63ec42`, **라이선스 없음**(연구 분석용으로만). MA-SZZ 라벨 | 20개 프로젝트 176,902개(24.3%). jquery 56%, yarn 40% 등 프로젝트별 편차가 크다 | JavaScript | `raw/jit-js-ni2022/` / `gdrive:…/raw/jit-js-ni2022` |
+
+주의:
+- ISSTA'21과 DeepJIT의 qt·openstack은 서로 다른 버전이다(규모·버그 비율이 다름). 하나만 쓰거나, 따로 보고한다.
+- Qt·OpenStack은 프로젝트 하나가 여러 저장소에 걸쳐 있다. 표본 확인 결과 qtbase, qtdeclarative, qtquickcontrols, qtenginio, qtsensors / nova, glance, neutron, cinder 등이다. 커밋별 저장소를 먼저 확정한다.
+- 버그 비율이 JD4J(8.5%)와 크게 다르므로, AP 절대값보다 양성 비율 대비 향상 배수와 순위로 비교한다.
+- 사용자가 준 Kamei et al. EMSE 2016(cross-project JIT, 11개 프로젝트) PDF는 JS 주력 프로젝트가 없고, 공개 페이지에 데이터가 없어 쓰지 않는다.
+- COBOL: 커밋 단위 결함 라벨이 있는 공개 데이터 없음. 사용자 결정으로 진행하지 않는다.
+
 ## 3. 후보 (미확보, 외부 대화에서 제시됨 — 수치는 미검증)
 
 | 후보 | 내용 | 용도 |

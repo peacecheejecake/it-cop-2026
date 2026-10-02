@@ -59,11 +59,15 @@
 - 우리 학습(JD4J fine-tuning, CPT 말뭉치 zookeeper/zeppelin/activemq/kafka/cassandra/groovy, Qwen LoRA)에는 ISSTA'21 프로젝트(Qt, OpenStack, Eclipse Platform, JDT, Gerrit, Go)가 없다.
 - 기반 모델(CodeBERT, Qwen2.5-Coder) 사전학습에 이 저장소들의 코드가 들어갔는지는 확인할 수 없다. JD4J도 같은 처지다. 결함 라벨이 사전학습에 들어갔을 가능성은 없다. 이 한계를 결과에 명시하고 진행한다.
 
-**ISSTA'21 데이터 받기** (이전 Mac에서는 사내 프록시가 Google Drive 다운로드를 막았다):
-- 저장소: https://github.com/ZZR0/ISSTA21-JIT-DP (MIT). 310k 커밋, 6개 프로젝트. 언어: Qt=C++, OpenStack=Python, Platform/JDT/Gerrit=Java, Go=Go.
-- 전처리 데이터: README "Retraining Evaluation"의 Google Drive `datasets.tar.gz`, file id `1XvrxRjWAYo3qQY4x75nbT4PoYqlTISLJ`. 브라우저나 `gdown`으로 받아 `experiments/.cache/raw/issta21/`에 두고 sha256을 `DATASETS.md`에 기록한다.
-- 대안: Qt·OpenStack만 Zenodo 3965246(DeepJIT, CC-BY-4.0)에 있다(`qt_{train,test}.pkl`, `openstack_{train,test}.pkl`). pickle은 허용 목록 방식으로 연다(`adapters/pickle_worker.py` 참고).
-- Docker 이미지 `zzr0/issta2021-jit-dp:v1.0`(약 30 GB)에도 데이터가 들어 있다.
+**데이터 확보 완료 (2026-10-03, `DATASETS.md` §2a).** 새 Mac에서는 Drive에서 받는다:
+```bash
+for d in issta21 deepjit-zenodo-3965246 jit-js-ni2022; do rclone copy gdrive:jit-zero-shot-weights/raw/$d experiments/.cache/raw/$d; done
+```
+- ISSTA'21 6개 프로젝트 전부: Docker Hub 이미지 층에서 추출했다. Java = jdt, platform, gerrit.
+- DeepJIT Qt·OpenStack(Zenodo).
+- JavaScript 20개 프로젝트(`jacknichao/JIT-on-JavaScript-projects`).
+- COBOL은 하지 않는다(사용자 결정).
+- 사용자 지시: Zenodo(Qt·OpenStack)로 먼저 시작한다. Java 데이터도 원했고, ISSTA'21의 jdt·platform·gerrit으로 확보됐다.
 
 **처리 원칙:**
 - 패키지의 전처리 텍스트·지표는 쓰지 않는다(JD4J 누출 교훈). **커밋 ID와 라벨만** 가져오고, 텍스트와 jit14는 각 프로젝트 저장소를 clone해 `diff_lab.gitextract`로 다시 뽑는다.
@@ -78,21 +82,6 @@
   - 라벨 CSV 변환(ISSTA'21 라벨 → `change_id,label`).
   - 언어 확장자: `gitextract.DEFAULT_EXTENSIONS`에 C++, Python, Go가 있다.
 - 보고: 모델 × 언어(프로젝트)별 AP, ROC-AUC, Recall@10%, 양성 비율 대비 향상 배수. 프로젝트마다 양성 비율이 달라 AP 절대값보다 향상 배수와 순위를 본다.
-
-**JavaScript:**
-- Ni, Xia, Lo, Yang, Hassan, "Just-In-Time Defect Prediction on JavaScript Projects: A Replication Study", TOSEM 31(4), 2022, doi 10.1145/3508479.
-- 인기 JS 프로젝트 20개, 176,902개 변경, MA-SZZ 라벨, "GitHub와 GitLab에 공개".
-- 정확한 저장소 링크를 아직 찾지 못했다. 논문 PDF(xin-xia.github.io/publication/tosem221.pdf)가 이전 Mac에서 접속되지 않았다. 새 Mac에서 PDF의 데이터 섹션부터 확인한다.
-
-**COBOL:**
-- 커밋 단위 결함 라벨이 있는 공개 데이터는 찾지 못했다.
-  - X-COBOL(https://zenodo.org/records/14269462): 저장소 168개, `commits_data.csv`, 라벨 없음.
-  - OpenCBS: 포럼 기반 결함 프로그램, 커밋 단위 아님.
-- 하려면 X-COBOL 저장소에 자체 SZZ 라벨을 붙이는 탐색적 실험만 가능하다.
-  - 규모가 작고 라벨이 노이즈가 많다.
-  - COBOL 주석 규칙(7열 `*`)에 맞게 `gitextract`를 고쳐야 한다.
-  - CodeBERT 사전학습 언어에도 없다.
-- 진행 여부는 사용자가 정한다.
 
 ### 3.2 그 다음 (외부 test 결과를 보고 사용자가 정함)
 
