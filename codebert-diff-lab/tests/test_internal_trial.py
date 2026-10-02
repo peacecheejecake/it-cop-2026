@@ -122,3 +122,36 @@ def test_subset_export_and_label_eval(bundle, repo, tmp_path):  # noqa: F811
     pd.DataFrame({"change_id": ["other:1"], "label": ["1"]}).to_csv(tmp_path / "unknown.csv", index=False)
     with pytest.raises(IntegrityError, match="no prediction"):
         evaluate_labels(tmp_path / "pred" / "predictions.parquet", tmp_path / "unknown.csv", ex / "meta.parquet", sub, tmp_path / "e3")
+
+
+def test_rebuild_snapshot_from_git_replaces_text_and_features_keeps_labels(repo, tmp_path):
+    from diff_lab.adapters.jit_defects4j_git import rebuild_from_git
+    from diff_lab.util import atomic_write_json
+    shas = subprocess.run(["git", "-C", str(repo), "log", "--reverse", "--format=%H"], capture_output=True, text=True,
+                          check=True).stdout.split()
+    parent, mirrors = tmp_path / "parent", tmp_path / "mirrors"
+    parent.mkdir()
+    mirrors.mkdir()
+    (mirrors / "svc.git").symlink_to(repo)
+    ids = [f"jitd4j:svc:{s}" for s in shas[:2]] + ["jitd4j:svc:" + "0" * 40]
+    pd.DataFrame({"change_id": ids, "project_id": "svc", "commit_sha": [*shas[:2], "0" * 40], "message": "pkg msg",
+                  "representation_kind": "preprocessed_lines"}).to_parquet(parent / "changes.parquet")
+    pd.DataFrame({"change_id": [ids[1]], "file_id": [None], "hunk_id": [None], "order": [0], "op": ["add"],
+                  "text": ["only one"]}).to_parquet(parent / "edits.parquet")
+    feats = pd.DataFrame({"change_id": ids, "feature_schema_id": "jit14-provided-v1", "provenance": "provided_unverified",
+                          **{k: 99.0 for k in FEATURE_PROFILE_JIT14}})
+    feats.to_parquet(parent / "features.parquet")
+    pd.DataFrame({"change_id": ids, "label": [0, 1, 1]}).to_parquet(parent / "labels.parquet")
+    pd.DataFrame({"change_id": ids, "split": ["train", "valid", "test"]}).to_parquet(parent / "splits.parquet")
+    atomic_write_json(parent / "manifest.json", {"artifact_kind": "dataset_snapshot", "schema_version": 2, "dataset_id": "jit-defects4j",
+                                                 "visibility": "public", "privacy": "public", "source": {"source_id": "x"},
+                                                 "allowed_uses": ["supervised_train"], "adapter_version": "v1"})
+    res = rebuild_from_git(parent, mirrors, tmp_path / "git1")
+    assert res["rows"] == 2 and res["dropped"]["by_split_label"] == {"test/1": 1}
+    snap = tmp_path / "git1"
+    e = pd.read_parquet(snap / "edits.parquet")
+    assert sorted(e.loc[(e.change_id == ids[1]) & (e.op == "add"), "text"]) == ["int x = 2 ;", "int y ;"]
+    f = pd.read_parquet(snap / "features.parquet").set_index("change_id")
+    assert f.loc[ids[1], "la"] == 2 and (f["feature_schema_id"] == "jit14-gitextract-v1").all()
+    assert pd.read_parquet(snap / "labels.parquet").set_index("change_id").loc[ids[1], "label"] == 1
+    assert read_json(snap / "manifest.json")["source"] == {"source_id": "x"}

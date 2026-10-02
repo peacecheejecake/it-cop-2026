@@ -83,6 +83,15 @@ def data_import(source: str = typer.Option(...), archive: Path = typer.Option(..
     _emit({"snapshot": snapshot_id, "split_stats": m["split_stats"], "isolation": m["import_isolation"]})
 
 
+@data_app.command("rebuild-git")
+@_guard
+def data_rebuild_git(snapshot_id: str = typer.Option(...), mirrors: Path = typer.Option(...), out_snapshot_id: str = typer.Option(...),
+                     data_dir: Path = DATA) -> None:
+    """Derived snapshot: package IDs/labels/split, message + lines + jit14 re-extracted from the public git mirrors."""
+    from ..adapters.jit_defects4j_git import rebuild_from_git
+    _emit(rebuild_from_git(data_dir / "snapshots" / snapshot_id, mirrors, data_dir / "snapshots" / out_snapshot_id))
+
+
 @data_app.command("audit")
 @_guard
 def data_audit(snapshot_id: str = typer.Option(...), data_dir: Path = DATA) -> None:

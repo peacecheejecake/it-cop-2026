@@ -29,7 +29,7 @@ class DatasetCfg(Strict):
     split_id: Literal["upstream-clean1", "upstream-clean2"]
     source_approval: str
     train_visibility: Literal["public"]
-    feature_profile: Literal["jit14-audited-v1"]
+    feature_profile: Literal["jit14-audited-v1", "jit14-gitextract-v1"]
 
 
 class ModelCfg(Strict):
