@@ -427,12 +427,17 @@ def write_report_tables(r: dict, md: Path, csv: Path) -> None:
     md.write_text("\n".join(lines) + "\n")
 
 
-def export_bundle(cfg: StudyConfig, raw: dict, artifacts_dir: Path, freeze_path: Path, out: Path, data_dir: Path | None = None) -> dict:
+def export_bundle(cfg: StudyConfig, raw: dict, artifacts_dir: Path, freeze_path: Path, out: Path, data_dir: Path | None = None,
+                  variants: tuple[str, ...] | None = None, seeds: tuple[int, ...] | None = None) -> dict:
     """Inference-only bundle: frozen run states, best checkpoints, prompt manifests, study config and freeze record.
 
     Excludes optimizer/resume state, CPT heads, training data and base model weights (referenced by pinned revision/sha256).
+    `variants`/`seeds` export a subset of the frozen runs; the freeze record itself is bundled whole and unchanged.
     """
     rec = verify_freeze(freeze_path, artifacts_dir)
+    selected = [e for e in rec["runs"] if (variants is None or e["variant_id"] in variants) and (seeds is None or e["seed"] in seeds)]
+    if not selected:
+        raise ConfigError(f"no frozen run matches variants={variants} seeds={seeds}")
     if out.exists():
         raise PolicyError(f"{out} exists")
     files: dict[str, str] = {}
@@ -442,7 +447,7 @@ def export_bundle(cfg: StudyConfig, raw: dict, artifacts_dir: Path, freeze_path:
             files[arc] = sha256_file(path)
             tar.add(path, arcname=arc, recursive=False)
         add(freeze_path, "freeze.json")
-        for e in rec["runs"]:
+        for e in selected:
             d = artifacts_dir / "runs" / e["run_id"]
             for rel in ["run.json", "model/state.json", "resolved-config.json", "evidence-manifest.json", "metrics.json",
                         *e["checkpoint_files_sha256"],  # whole best generation: its pointer verifies every listed file
@@ -451,6 +456,7 @@ def export_bundle(cfg: StudyConfig, raw: dict, artifacts_dir: Path, freeze_path:
                         *([f"index/{f}" for f in ("index.json", "items.parquet")] if (d / "index" / "index.json").exists() else [])]:
                 add(d / rel, f"runs/{e['run_id']}/{rel}")
         manifest = {"freeze_id": rec["freeze_id"], "study_id": cfg.study_id, "files_sha256": files,
+                    "exported_runs": [e["run_id"] for e in selected],
                     "base_models": {"encoder": {"id": cfg.model.base, "revision": cfg.model.revision,
                                                 "weights_sha256": cfg.model.weights_sha256},
                                     "llm": None if not hasattr(cfg.llm, "model_id") else
@@ -458,7 +464,7 @@ def export_bundle(cfg: StudyConfig, raw: dict, artifacts_dir: Path, freeze_path:
                     "public_demos": "L1 frozen 4-shot public-train demos (approved public source) for offline in-context use",
                     "excluded": ["optimizer/resume state", "CPT MLM/RMI heads", "training data", "base model weights"],
                     "use": "offline inference only; internal data must not be used for training, selection or calibration"}
-        l1 = [e for e in rec["runs"] if e["variant_id"] == "L1-S"]
+        l1 = [e for e in selected if e["variant_id"] == "L1-S"]
         if l1:
             if data_dir is None:
                 raise ConfigError("exporting L1 needs --data-dir to bundle its frozen public demos")

@@ -203,11 +203,14 @@ def study_report(study: Path = typer.Option(...), freeze: Path = typer.Option(..
 @study_app.command("export")
 @_guard
 def study_export(study: Path = typer.Option(...), freeze: Path = typer.Option(...), out: Path = typer.Option(...),
-                 artifacts_dir: Path = ARTIFACTS, data_dir: Path = DATA) -> None:
+                 artifacts_dir: Path = ARTIFACTS, data_dir: Path = DATA, variants: str = typer.Option(""),
+                 seeds: str = typer.Option("")) -> None:
     """Inference-only export bundle of the frozen study (no optimizer state, CPT heads or training data)."""
     from ..study import export_bundle
     cfg, raw, _ = load_study(study)
-    _emit(export_bundle(cfg, raw, artifacts_dir, freeze, out, data_dir))
+    sel = tuple(v.strip() for v in variants.split(",") if v.strip()) or None
+    sds = tuple(int(x) for x in seeds.split(",") if x.strip()) or None
+    _emit(export_bundle(cfg, raw, artifacts_dir, freeze, out, data_dir, sel, sds))
 
 
 @bundle_app.command("unpack")
@@ -235,6 +238,42 @@ def internal_evaluate(protocol: Path = typer.Option(...), predictions: Path = ty
     """Deployment-level evaluation of label-free offline predictions under a pre-registered protocol (prints counts only)."""
     from ..internal_eval import evaluate_internal
     _emit(evaluate_internal(protocol, predictions, mapping, deployments, out))
+
+
+@internal_app.command("extract")
+@_guard
+def internal_extract(repo: list[Path] = typer.Option(...), project: list[str] = typer.Option(None), out: Path = typer.Option(...),
+                     rev: str = typer.Option("HEAD"), since: str = typer.Option(None), until: str = typer.Option(None),
+                     max_commits: int = typer.Option(None), extensions: str = typer.Option(""),
+                     author_key: str = typer.Option("name")) -> None:
+    """Label-free dataset (predict input) + metadata from local git history, in the public package's representation."""
+    from ..gitextract import DEFAULT_EXTENSIONS, extract
+    names = project or [r.resolve().name.removesuffix(".git") for r in repo]
+    if len(names) != len(repo):
+        raise typer.BadParameter("give one --project per --repo, or none")
+    if author_key not in ("name", "email"):
+        raise typer.BadParameter("--author-key must be name or email")
+    exts = tuple(e.strip() if e.strip().startswith(".") else f".{e.strip()}" for e in extensions.split(",") if e.strip())
+    _emit(extract(list(zip(repo, names, strict=True)), out, rev, since, until, max_commits, exts or DEFAULT_EXTENSIONS, author_key))
+
+
+@internal_app.command("label-sheet")
+@_guard
+def internal_label_sheet(extract_dir: Path = typer.Option(...), out: Path = typer.Option(...), sample: int = typer.Option(None),
+                         salt: str = typer.Option("label-sheet-v1")) -> None:
+    """Score-blind labeling CSV (empty label column); --sample N picks a salted-hash random subset."""
+    from ..label_eval import label_sheet
+    _emit(label_sheet(extract_dir, out, sample, salt))
+
+
+@internal_app.command("label-eval")
+@_guard
+def internal_label_eval(predictions: Path = typer.Option(...), labels: Path = typer.Option(...), meta: Path = typer.Option(...),
+                        bundle_dir: Path = typer.Option(...), out_dir: Path = typer.Option(...), bootstrap: int = typer.Option(2000),
+                        min_group: int = typer.Option(30)) -> None:
+    """Commit-level AP / ROC-AUC / Recall@q / F1@frozen threshold of offline predictions against hand labels."""
+    from ..label_eval import evaluate_labels
+    _emit(evaluate_labels(predictions, labels, meta, bundle_dir, out_dir, n_boot=bootstrap, min_group=min_group))
 
 
 @diffllm_app.command("prepare")

@@ -124,7 +124,8 @@ def predict(bundle_dir: Path, dataset: Path, out_dir: Path, device: str, variant
         info = verify_bundle(bundle_dir)
         cfg = study_from_bundle(bundle_dir)
         df, coverage = load_internal(dataset)
-        entries = [e for e in info["freeze"]["runs"] if variants is None or e["variant_id"] in variants]
+        exported = set(info["manifest"].get("exported_runs", [e["run_id"] for e in info["freeze"]["runs"]]))
+        entries = [e for e in info["freeze"]["runs"] if e["run_id"] in exported and (variants is None or e["variant_id"] in variants)]
         status: dict[str, str] = {}
         frame = None
         if coverage["absent_feature_columns"]:
