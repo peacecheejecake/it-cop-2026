@@ -18,37 +18,22 @@
 | `exp/015-dl-internal-pack` | 반입 패키지 스크립트(`pack/`, `scripts/build_pack.sh`, `scripts/fetch_wheels.py`, `scripts/validate_extract.py`), RUNLOG/RESULTS |
 | `exp/016-dl-v4-gitlines` | v4 실행 기록(RUNLOG), pod 스크립트 |
 
-## 지금 돌고 있는 것 (과금 중)
+## 현재 상태 (2026-10-03 00:45 KST)
 
-- **Pod `jit016-v4-gitlines`** (`2spnrcaqwyaa55`), H100 80GB, $3.49/h, 2026-10-02 08:09 UTC 생성. 접속 정보는 `runpodctl ssh info 2spnrcaqwyaa55`.
-- 작업 디렉토리 `/workspace/jit016/codebert-diff-lab`. 진행 표시는 `logs/steps`(variant·seed가 끝날 때마다 한 줄).
-  1. `/workspace/pod_run.sh`: B3-S seed 42/43/44. 08:38 UTC 시작. 끝나면 `done`.
-  2. `/workspace/pod_run2.sh`: `done`을 기다렸다가 설정 파일을 9개 variant 등록본(`/workspace/v4.yaml`, main `7a25603`)으로 바꾸고 B2-S, B4-S, B5-S를 seed 42/43/44로 실행. 끝나면 `done2`.
-- 번들: `experiments/.cache/bundles/jit016-8db0d30.tar.gz`, sha256 `5af9eab1…43aa`(pod에서 일치 확인). pod의 `CODE_SHA`는 `8db0d30`이고, 설정 파일만 `7a25603`의 것으로 바뀐다(코드는 같다).
-- 잔액: 08:55 UTC 무렵 $25.08. 남은 작업 추정 5~6시간, $18~22. **여유가 $5 안팎이다.**
+- **v4 재측정 완료.** freeze `7340ee71c876c8b7`(25 run), public test 1회. 결과는 `exp/016-dl-v4-gitlines`의 `RESULTS.md`, `results/report.json`.
+  - test AP: B2-S 0.264, B3-S 0.253, B1 0.247, B4-S 0.243, B5-S 0.243, B0-LR 0.224, B0-LGBM 0.182, L1 0.157, L0 0.126.
+- **Pod는 삭제했다.** 켜져 있는 pod 없음. 잔액 $2.32.
+- run·가중치·freeze·test 결과는 `experiments/016-dl-v4-gitlines/codebert-diff-lab/{artifacts,freeze,test-results,report}`에 있다(git-ignore, pod와 sha256 일치 확인).
 
 ## 다음 순서
 
-1. run이 끝날 때마다 작은 파일부터 회수한다(run.json, metrics, predictions, logs). 가중치(`checkpoints/best-*`)는 마지막에 받는다. 회수 위치는 `experiments/016-dl-v4-gitlines/codebert-diff-lab/artifacts/runs/`.
-   - 로컬에는 이미 B0-LR(`4e86a5d1925642fa`), B0-LGBM(`85cfc20d82768ea6`), B1-TFIDF-S(`d08b71b35fbaf0c4`) run이 있다. pod의 run과 합쳐서 freeze한다.
-2. `done2` 뒤에 L0-S, L1-S를 실행한다(사용자 승인됨).
-   - Qwen2.5-Coder-7B-Instruct revision `c03e6d35…`를 pod의 `experiments/.cache/models/qwen2.5-coder-7b-instruct`에 받고(약 15 GB), 설정에 고정된 파일 sha256과 맞는지 확인한다. 011 RUNLOG에 같은 절차가 있다.
-   - 시작 전에 잔액이 $9 이상인지 확인한다. 모자라면 사용자에게 알린다.
-3. `study freeze` → `experiment test`(1회) → `study report`. 로컬 MPS에서도 된다(neural 재현 허용 오차 2e-3).
-4. 결과 문서 `codebert-diff-lab/docs/results-v4-<date>.md` 작성, 계획 문서 §6의 문서 정정, AGENTS.md 실험 표 갱신.
-5. 사내 반입 zip(015 worktree):
-   - 반입 모델 규칙은 계획 문서 §4. `study export --variants <선택> --seeds <선택>`으로 번들을 만든다.
-   - `pack/README.md`의 모델 설명·참고 수치·`<!-- FIDELITY -->` 자리를 v4 값으로 고친다. `scripts/build_pack.sh`의 번들 경로와 `PROVENANCE.json` 내용도 v4로 고친다.
-   - `scripts/fetch_wheels.py`는 `nvidia-nccl-cu12==2.29.3`에서 실패했다(55개 wheel까지 받음, `pack-build/wheels`). 플랫폼 태그 문제로 보이며 아직 고치지 않았다.
-   - 사내 서버는 시스템 Python이 3.9다. 패키지는 Python 3.11을 동봉하므로 상관없다. **glibc 버전(2.28 이상 필요)과 NVIDIA 드라이버 버전은 사용자에게 확인을 요청해 둔 상태다.**
-   - `pack/smoke.sh`는 macOS에서만 통과했다. Linux에서는 돌려 보지 않았다.
-6. 끝나면 pod를 삭제하고 RUNLOG에 비용을 적는다.
-
-## 현재까지의 v4 수치 (validation, git 텍스트)
-
-| variant | v3 (패키지 텍스트) | v4 |
-|---|---|---|
-| B0-LR | 0.319 | 0.302 |
-| B0-LGBM | 0.211 | 0.240 |
-| B1-TFIDF-S | 0.546 | 0.345 |
-| B3-S | 0.687 | 실행 중 |
+1. 결과 문서 `codebert-diff-lab/docs/results-v4-2026-10-02.md` 작성, 계획 문서(`v4-correction-plan.md`) §6의 문서 정정.
+2. 사내 반입 zip(015 worktree):
+   - 반입 모델: 규칙에 따라 **B2-S seed 44**(run `d4987435844df076`, test AP 0.260). B0-LR 동반 반입을 권고했고 사용자 결정 대기.
+   - `study export --variants B2-S[,B0-LR] --seeds 44`를 016 worktree의 artifacts/freeze로 실행해 번들을 만든다.
+   - `pack/README.md`의 모델 설명·참고 수치·`<!-- FIDELITY -->` 자리, `scripts/build_pack.sh`의 번들 경로와 `PROVENANCE.json`을 v4로 고친다. `jit.sh predict`의 `--variants B3-S`도 바꾼다.
+   - `scripts/fetch_wheels.py`는 `nvidia-nccl-cu12==2.29.3`에서 실패했다(55개 wheel까지 받음). 아직 고치지 않았다.
+   - 사내 서버는 시스템 Python 3.9(패키지가 3.11을 동봉하므로 무관). **glibc 버전(2.28 이상 필요)과 NVIDIA 드라이버 버전은 사용자 확인 대기.** B2-S는 CPU로도 돌릴 수 있다.
+   - `pack/smoke.sh`는 macOS에서만 통과했다.
+3. 후속 연구 초안: `codebert-diff-lab/docs/next-studies-plan.md`(다른 모델, 더 큰 데이터셋; 미등록·미승인).
+4. 로컬 커밋 중 아직 푸시하지 않은 것이 있다(`main`, `exp/016`). 이 세션에서는 push가 자동 권한 검사에 막혀 사용자가 직접 푸시했다.
